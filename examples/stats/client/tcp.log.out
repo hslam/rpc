@@ -1,0 +1,306 @@
+./client -network=tcp -codec=pb -h=localhost -p=9999 -total=1000000 -concurrent=false -batch=false -noresponse=false -clients=1
+==========================BENCHMARK==========================
+Used Connections:		1
+Used Parallel Calls:		1
+Total Number Of Calls:		1000000
+
+===========================TIMINGS===========================
+Total time passed:		110.01s
+Avg time per request:		0.11ms
+Requests per second:		9090.14
+Median time per request:	0.10ms
+99th percentile time:		0.17ms
+Slowest time for request:	18.00ms
+
+==========================RESPONSES==========================
+ResponseOk:			1000000 (100.00%)
+Errors:				0 (0.00%)
+./client -network=tcp -codec=pb -h=localhost -p=9999 -total=1000000 -concurrent=false -batch=false -noresponse=false -clients=12
+==========================BENCHMARK==========================
+Used Connections:		12
+Used Parallel Calls:		1
+Total Number Of Calls:		1000000
+
+===========================TIMINGS===========================
+Total time passed:		32.72s
+Avg time per request:		0.39ms
+Requests per second:		30558.84
+Median time per request:	0.36ms
+99th percentile time:		1.00ms
+Slowest time for request:	21.00ms
+
+==========================RESPONSES==========================
+ResponseOk:			1000000 (100.00%)
+Errors:				0 (0.00%)
+./client -network=tcp -codec=pb -h=localhost -p=9999 -total=1000000 -concurrent=false -batch=false -noresponse=false -clients=48
+==========================BENCHMARK==========================
+Used Connections:		48
+Used Parallel Calls:		1
+Total Number Of Calls:		1000000
+
+===========================TIMINGS===========================
+Total time passed:		30.96s
+Avg time per request:		1.49ms
+Requests per second:		32303.92
+Median time per request:	1.38ms
+99th percentile time:		3.85ms
+Slowest time for request:	53.00ms
+
+==========================RESPONSES==========================
+ResponseOk:			1000000 (100.00%)
+Errors:				0 (0.00%)
+./client -network=tcp -codec=pb -h=localhost -p=9999 -total=1000000 -concurrent=false -batch=false -noresponse=false -clients=192
+==========================BENCHMARK==========================
+Used Connections:		192
+Used Parallel Calls:		1
+Total Number Of Calls:		1000000
+
+===========================TIMINGS===========================
+Total time passed:		32.42s
+Avg time per request:		6.22ms
+Requests per second:		30848.20
+Median time per request:	5.97ms
+99th percentile time:		13.10ms
+Slowest time for request:	109.00ms
+
+==========================RESPONSES==========================
+ResponseOk:			1000000 (100.00%)
+Errors:				0 (0.00%)
+./client -network=tcp -codec=pb -h=localhost -p=9999 -total=1000000 -concurrent=true -batch=false -noresponse=false -clients=1
+==========================BENCHMARK==========================
+Used Connections:		1
+Used Parallel Calls:		32
+Total Number Of Calls:		1000000
+
+===========================TIMINGS===========================
+Total time passed:		24.47s
+Avg time per request:		0.78ms
+Requests per second:		40862.92
+Median time per request:	0.75ms
+99th percentile time:		1.46ms
+Slowest time for request:	22.00ms
+
+==========================RESPONSES==========================
+ResponseOk:			1000000 (100.00%)
+Errors:				0 (0.00%)
+./client -network=tcp -codec=pb -h=localhost -p=9999 -total=1000000 -concurrent=true -batch=false -noresponse=false -clients=2
+==========================BENCHMARK==========================
+Used Connections:		2
+Used Parallel Calls:		32
+Total Number Of Calls:		1000000
+
+===========================TIMINGS===========================
+Total time passed:		19.57s
+Avg time per request:		1.25ms
+Requests per second:		51109.86
+Median time per request:	1.18ms
+99th percentile time:		2.83ms
+Slowest time for request:	11.00ms
+
+==========================RESPONSES==========================
+ResponseOk:			1000000 (100.00%)
+Errors:				0 (0.00%)
+./client -network=tcp -codec=pb -h=localhost -p=9999 -total=1000000 -concurrent=false -batch=true -noresponse=false -clients=1
+==========================BENCHMARK==========================
+Used Connections:		1
+Used Parallel Calls:		512
+Total Number Of Calls:		1000000
+
+===========================TIMINGS===========================
+Total time passed:		4.97s
+Avg time per request:		2.54ms
+Requests per second:		201106.08
+Median time per request:	2.20ms
+99th percentile time:		11.29ms
+Slowest time for request:	39.00ms
+
+==========================RESPONSES==========================
+ResponseOk:			1000000 (100.00%)
+Errors:				0 (0.00%)
+./client -network=tcp -codec=pb -h=localhost -p=9999 -total=1000000 -concurrent=false -batch=true -noresponse=false -clients=2
+==========================BENCHMARK==========================
+Used Connections:		2
+Used Parallel Calls:		512
+Total Number Of Calls:		1000000
+
+===========================TIMINGS===========================
+Total time passed:		3.58s
+Avg time per request:		3.66ms
+Requests per second:		279069.48
+Median time per request:	3.10ms
+99th percentile time:		21.44ms
+Slowest time for request:	58.00ms
+
+==========================RESPONSES==========================
+ResponseOk:			1000000 (100.00%)
+Errors:				0 (0.00%)
+./client -network=tcp -codec=pb -h=localhost -p=9999 -total=1000000 -concurrent=false -batch=false -noresponse=true -clients=1
+==========================BENCHMARK==========================
+Used Connections:		1
+Used Parallel Calls:		1
+Total Number Of Calls:		1000000
+
+===========================TIMINGS===========================
+Total time passed:		10.98s
+Avg time per request:		0.01ms
+Requests per second:		91044.38
+Median time per request:	0.00ms
+99th percentile time:		0.13ms
+Slowest time for request:	10.00ms
+
+==========================RESPONSES==========================
+ResponseOk:			1000000 (100.00%)
+Errors:				0 (0.00%)
+./client -network=tcp -codec=pb -h=localhost -p=9999 -total=1000000 -concurrent=false -batch=false -noresponse=true -clients=2
+==========================BENCHMARK==========================
+Used Connections:		2
+Used Parallel Calls:		1
+Total Number Of Calls:		1000000
+
+===========================TIMINGS===========================
+Total time passed:		11.49s
+Avg time per request:		0.02ms
+Requests per second:		87044.10
+Median time per request:	0.01ms
+99th percentile time:		0.21ms
+Slowest time for request:	10.00ms
+
+==========================RESPONSES==========================
+ResponseOk:			1000000 (100.00%)
+Errors:				0 (0.00%)
+./client -network=tcp -codec=pb -h=localhost -p=9999 -total=1000000 -concurrent=true -batch=true -noresponse=false -clients=1
+==========================BENCHMARK==========================
+Used Connections:		1
+Used Parallel Calls:		512
+Total Number Of Calls:		1000000
+
+===========================TIMINGS===========================
+Total time passed:		4.77s
+Avg time per request:		2.44ms
+Requests per second:		209760.93
+Median time per request:	2.20ms
+99th percentile time:		8.95ms
+Slowest time for request:	30.00ms
+
+==========================RESPONSES==========================
+ResponseOk:			1000000 (100.00%)
+Errors:				0 (0.00%)
+./client -network=tcp -codec=pb -h=localhost -p=9999 -total=1000000 -concurrent=true -batch=true -noresponse=false -clients=2
+==========================BENCHMARK==========================
+Used Connections:		2
+Used Parallel Calls:		512
+Total Number Of Calls:		1000000
+
+===========================TIMINGS===========================
+Total time passed:		3.73s
+Avg time per request:		3.81ms
+Requests per second:		267739.12
+Median time per request:	3.22ms
+99th percentile time:		22.15ms
+Slowest time for request:	62.00ms
+
+==========================RESPONSES==========================
+ResponseOk:			1000000 (100.00%)
+Errors:				0 (0.00%)
+./client -network=tcp -codec=pb -h=localhost -p=9999 -total=1000000 -concurrent=false -batch=true -noresponse=true -clients=1
+==========================BENCHMARK==========================
+Used Connections:		1
+Used Parallel Calls:		512
+Total Number Of Calls:		1000000
+
+===========================TIMINGS===========================
+Total time passed:		2.01s
+Avg time per request:		1.03ms
+Requests per second:		496407.75
+Median time per request:	0.00ms
+99th percentile time:		13.23ms
+Slowest time for request:	24.00ms
+
+==========================RESPONSES==========================
+ResponseOk:			1000000 (100.00%)
+Errors:				0 (0.00%)
+./client -network=tcp -codec=pb -h=localhost -p=9999 -total=1000000 -concurrent=false -batch=true -noresponse=true -clients=2
+==========================BENCHMARK==========================
+Used Connections:		2
+Used Parallel Calls:		512
+Total Number Of Calls:		1000000
+
+===========================TIMINGS===========================
+Total time passed:		1.57s
+Avg time per request:		1.58ms
+Requests per second:		635820.88
+Median time per request:	0.00ms
+99th percentile time:		27.19ms
+Slowest time for request:	60.00ms
+
+==========================RESPONSES==========================
+ResponseOk:			1000000 (100.00%)
+Errors:				0 (0.00%)
+./client -network=tcp -codec=pb -h=localhost -p=9999 -total=1000000 -concurrent=true -batch=false -noresponse=true -clients=1
+==========================BENCHMARK==========================
+Used Connections:		1
+Used Parallel Calls:		32
+Total Number Of Calls:		1000000
+
+===========================TIMINGS===========================
+Total time passed:		13.13s
+Avg time per request:		0.42ms
+Requests per second:		76158.79
+Median time per request:	0.39ms
+99th percentile time:		1.29ms
+Slowest time for request:	16.00ms
+
+==========================RESPONSES==========================
+ResponseOk:			1000000 (100.00%)
+Errors:				0 (0.00%)
+./client -network=tcp -codec=pb -h=localhost -p=9999 -total=1000000 -concurrent=true -batch=false -noresponse=true -clients=2
+==========================BENCHMARK==========================
+Used Connections:		2
+Used Parallel Calls:		32
+Total Number Of Calls:		1000000
+
+===========================TIMINGS===========================
+Total time passed:		12.04s
+Avg time per request:		0.77ms
+Requests per second:		83042.13
+Median time per request:	0.74ms
+99th percentile time:		2.25ms
+Slowest time for request:	39.00ms
+
+==========================RESPONSES==========================
+ResponseOk:			1000000 (100.00%)
+Errors:				0 (0.00%)
+./client -network=tcp -codec=pb -h=localhost -p=9999 -total=1000000 -concurrent=true -batch=true -noresponse=true -clients=1
+==========================BENCHMARK==========================
+Used Connections:		1
+Used Parallel Calls:		512
+Total Number Of Calls:		1000000
+
+===========================TIMINGS===========================
+Total time passed:		2.05s
+Avg time per request:		1.05ms
+Requests per second:		486769.37
+Median time per request:	0.00ms
+99th percentile time:		13.57ms
+Slowest time for request:	28.00ms
+
+==========================RESPONSES==========================
+ResponseOk:			1000000 (100.00%)
+Errors:				0 (0.00%)
+./client -network=tcp -codec=pb -h=localhost -p=9999 -total=1000000 -concurrent=true -batch=true -noresponse=true -clients=2
+==========================BENCHMARK==========================
+Used Connections:		2
+Used Parallel Calls:		512
+Total Number Of Calls:		1000000
+
+===========================TIMINGS===========================
+Total time passed:		1.58s
+Avg time per request:		1.59ms
+Requests per second:		632212.36
+Median time per request:	0.00ms
+99th percentile time:		27.40ms
+Slowest time for request:	45.00ms
+
+==========================RESPONSES==========================
+ResponseOk:			1000000 (100.00%)
+Errors:				0 (0.00%)

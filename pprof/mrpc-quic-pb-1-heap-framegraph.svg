@@ -1,0 +1,2762 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" width="1200" height="390" onload="init(evt)" viewBox="0 0 1200 390" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<!-- Flame graph stack visualization. See https://github.com/brendangregg/FlameGraph for latest version, and http://www.brendangregg.com/flamegraphs.html for examples. -->
+<!-- NOTES:  -->
+<defs>
+	<linearGradient id="background" y1="0" y2="1" x1="0" x2="0" >
+		<stop stop-color="#eeeeee" offset="5%" />
+		<stop stop-color="#eeeeb0" offset="95%" />
+	</linearGradient>
+</defs>
+<style type="text/css">
+	text { font-family:Verdana; font-size:12px; fill:rgb(0,0,0); }
+	#search { opacity:0.1; cursor:pointer; }
+	#search:hover, #search.show { opacity:1; }
+	#subtitle { text-anchor:middle; font-color:rgb(160,160,160); }
+	#title { text-anchor:middle; font-size:17px}
+	#unzoom { cursor:pointer; }
+	#frames > *:hover { stroke:black; stroke-width:0.5; cursor:pointer; }
+	.hide { display:none; }
+	.parent { opacity:0.5; }
+</style>
+<script type="text/ecmascript">
+<![CDATA[
+	"use strict";
+	var details, searchbtn, unzoombtn, matchedtxt, svg, searching;
+	function init(evt) {
+		details = document.getElementById("details").firstChild;
+		searchbtn = document.getElementById("search");
+		unzoombtn = document.getElementById("unzoom");
+		matchedtxt = document.getElementById("matched");
+		svg = document.getElementsByTagName("svg")[0];
+		searching = 0;
+	}
+
+	window.addEventListener("click", function(e) {
+		var target = find_group(e.target);
+		if (target) {
+			if (target.nodeName == "a") {
+				if (e.ctrlKey === false) return;
+				e.preventDefault();
+			}
+			if (target.classList.contains("parent")) unzoom();
+			zoom(target);
+		}
+		else if (e.target.id == "unzoom") unzoom();
+		else if (e.target.id == "search") search_prompt();
+	}, false)
+
+	// mouse-over for info
+	// show
+	window.addEventListener("mouseover", function(e) {
+		var target = find_group(e.target);
+		if (target) details.nodeValue = "Function: " + g_to_text(target);
+	}, false)
+
+	// clear
+	window.addEventListener("mouseout", function(e) {
+		var target = find_group(e.target);
+		if (target) details.nodeValue = ' ';
+	}, false)
+
+	// ctrl-F for search
+	window.addEventListener("keydown",function (e) {
+		if (e.keyCode === 114 || (e.ctrlKey && e.keyCode === 70)) {
+			e.preventDefault();
+			search_prompt();
+		}
+	}, false)
+
+	// functions
+	function find_child(node, selector) {
+		var children = node.querySelectorAll(selector);
+		if (children.length) return children[0];
+		return;
+	}
+	function find_group(node) {
+		var parent = node.parentElement;
+		if (!parent) return;
+		if (parent.id == "frames") return node;
+		return find_group(parent);
+	}
+	function orig_save(e, attr, val) {
+		if (e.attributes["_orig_" + attr] != undefined) return;
+		if (e.attributes[attr] == undefined) return;
+		if (val == undefined) val = e.attributes[attr].value;
+		e.setAttribute("_orig_" + attr, val);
+	}
+	function orig_load(e, attr) {
+		if (e.attributes["_orig_"+attr] == undefined) return;
+		e.attributes[attr].value = e.attributes["_orig_" + attr].value;
+		e.removeAttribute("_orig_"+attr);
+	}
+	function g_to_text(e) {
+		var text = find_child(e, "title").firstChild.nodeValue;
+		return (text)
+	}
+	function g_to_func(e) {
+		var func = g_to_text(e);
+		// if there's any manipulation we want to do to the function
+		// name before it's searched, do it here before returning.
+		return (func);
+	}
+	function update_text(e) {
+		var r = find_child(e, "rect");
+		var t = find_child(e, "text");
+		var w = parseFloat(r.attributes.width.value) -3;
+		var txt = find_child(e, "title").textContent.replace(/\([^(]*\)$/,"");
+		t.attributes.x.value = parseFloat(r.attributes.x.value) + 3;
+
+		// Smaller than this size won't fit anything
+		if (w < 2 * 12 * 0.59) {
+			t.textContent = "";
+			return;
+		}
+
+		t.textContent = txt;
+		// Fit in full text width
+		if (/^ *$/.test(txt) || t.getSubStringLength(0, txt.length) < w)
+			return;
+
+		for (var x = txt.length - 2; x > 0; x--) {
+			if (t.getSubStringLength(0, x + 2) <= w) {
+				t.textContent = txt.substring(0, x) + "..";
+				return;
+			}
+		}
+		t.textContent = "";
+	}
+
+	// zoom
+	function zoom_reset(e) {
+		if (e.attributes != undefined) {
+			orig_load(e, "x");
+			orig_load(e, "width");
+		}
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_reset(c[i]);
+		}
+	}
+	function zoom_child(e, x, ratio) {
+		if (e.attributes != undefined) {
+			if (e.attributes.x != undefined) {
+				orig_save(e, "x");
+				e.attributes.x.value = (parseFloat(e.attributes.x.value) - x - 10) * ratio + 10;
+				if (e.tagName == "text")
+					e.attributes.x.value = find_child(e.parentNode, "rect[x]").attributes.x.value + 3;
+			}
+			if (e.attributes.width != undefined) {
+				orig_save(e, "width");
+				e.attributes.width.value = parseFloat(e.attributes.width.value) * ratio;
+			}
+		}
+
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_child(c[i], x - 10, ratio);
+		}
+	}
+	function zoom_parent(e) {
+		if (e.attributes) {
+			if (e.attributes.x != undefined) {
+				orig_save(e, "x");
+				e.attributes.x.value = 10;
+			}
+			if (e.attributes.width != undefined) {
+				orig_save(e, "width");
+				e.attributes.width.value = parseInt(svg.width.baseVal.value) - (10 * 2);
+			}
+		}
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_parent(c[i]);
+		}
+	}
+	function zoom(node) {
+		var attr = find_child(node, "rect").attributes;
+		var width = parseFloat(attr.width.value);
+		var xmin = parseFloat(attr.x.value);
+		var xmax = parseFloat(xmin + width);
+		var ymin = parseFloat(attr.y.value);
+		var ratio = (svg.width.baseVal.value - 2 * 10) / width;
+
+		// XXX: Workaround for JavaScript float issues (fix me)
+		var fudge = 0.0001;
+
+		unzoombtn.classList.remove("hide");
+
+		var el = document.getElementById("frames").children;
+		for (var i = 0; i < el.length; i++) {
+			var e = el[i];
+			var a = find_child(e, "rect").attributes;
+			var ex = parseFloat(a.x.value);
+			var ew = parseFloat(a.width.value);
+			var upstack;
+			// Is it an ancestor
+			if (0 == 0) {
+				upstack = parseFloat(a.y.value) > ymin;
+			} else {
+				upstack = parseFloat(a.y.value) < ymin;
+			}
+			if (upstack) {
+				// Direct ancestor
+				if (ex <= xmin && (ex+ew+fudge) >= xmax) {
+					e.classList.add("parent");
+					zoom_parent(e);
+					update_text(e);
+				}
+				// not in current path
+				else
+					e.classList.add("hide");
+			}
+			// Children maybe
+			else {
+				// no common path
+				if (ex < xmin || ex + fudge >= xmax) {
+					e.classList.add("hide");
+				}
+				else {
+					zoom_child(e, xmin, ratio);
+					update_text(e);
+				}
+			}
+		}
+	}
+	function unzoom() {
+		unzoombtn.classList.add("hide");
+		var el = document.getElementById("frames").children;
+		for(var i = 0; i < el.length; i++) {
+			el[i].classList.remove("parent");
+			el[i].classList.remove("hide");
+			zoom_reset(el[i]);
+			update_text(el[i]);
+		}
+	}
+
+	// search
+	function reset_search() {
+		var el = document.querySelectorAll("#frames rect");
+		for (var i = 0; i < el.length; i++) {
+			orig_load(el[i], "fill")
+		}
+	}
+	function search_prompt() {
+		if (!searching) {
+			var term = prompt("Enter a search term (regexp " +
+			    "allowed, eg: ^ext4_)", "");
+			if (term != null) {
+				search(term)
+			}
+		} else {
+			reset_search();
+			searching = 0;
+			searchbtn.classList.remove("show");
+			searchbtn.firstChild.nodeValue = "Search"
+			matchedtxt.classList.add("hide");
+			matchedtxt.firstChild.nodeValue = ""
+		}
+	}
+	function search(term) {
+		var re = new RegExp(term);
+		var el = document.getElementById("frames").children;
+		var matches = new Object();
+		var maxwidth = 0;
+		for (var i = 0; i < el.length; i++) {
+			var e = el[i];
+			var func = g_to_func(e);
+			var rect = find_child(e, "rect");
+			if (func == null || rect == null)
+				continue;
+
+			// Save max width. Only works as we have a root frame
+			var w = parseFloat(rect.attributes.width.value);
+			if (w > maxwidth)
+				maxwidth = w;
+
+			if (func.match(re)) {
+				// highlight
+				var x = parseFloat(rect.attributes.x.value);
+				orig_save(rect, "fill");
+				rect.attributes.fill.value = "rgb(230,0,230)";
+
+				// remember matches
+				if (matches[x] == undefined) {
+					matches[x] = w;
+				} else {
+					if (w > matches[x]) {
+						// overwrite with parent
+						matches[x] = w;
+					}
+				}
+				searching = 1;
+			}
+		}
+		if (!searching)
+			return;
+
+		searchbtn.classList.add("show");
+		searchbtn.firstChild.nodeValue = "Reset Search";
+
+		// calculate percent matched, excluding vertical overlap
+		var count = 0;
+		var lastx = -1;
+		var lastw = 0;
+		var keys = Array();
+		for (k in matches) {
+			if (matches.hasOwnProperty(k))
+				keys.push(k);
+		}
+		// sort the matched frames by their x location
+		// ascending, then width descending
+		keys.sort(function(a, b){
+			return a - b;
+		});
+		// Step through frames saving only the biggest bottom-up frames
+		// thanks to the sort order. This relies on the tree property
+		// where children are always smaller than their parents.
+		var fudge = 0.0001;	// JavaScript floating point
+		for (var k in keys) {
+			var x = parseFloat(keys[k]);
+			var w = matches[keys[k]];
+			if (x >= lastx + lastw - fudge) {
+				count += w;
+				lastx = x;
+				lastw = w;
+			}
+		}
+		// display matched percent
+		matchedtxt.classList.remove("hide");
+		var pct = 100 * count / maxwidth;
+		if (pct != 100) pct = pct.toFixed(1)
+		matchedtxt.firstChild.nodeValue = "Matched: " + pct + "%";
+	}
+]]>
+</script>
+<rect x="0.0" y="0" width="1200.0" height="390.0" fill="url(#background)"  />
+<text id="title" x="600.00" y="24" >Flame Graph</text>
+<text id="details" x="10.00" y="373" > </text>
+<text id="unzoom" x="10.00" y="24" class="hide">Reset Zoom</text>
+<text id="search" x="1090.00" y="24" >Search</text>
+<text id="matched" x="1090.00" y="373" > </text>
+<g id="frames">
+<g >
+<title>runtime.mallocgc (1 samples, 0.03%)</title><rect x="73.1" y="261" width="0.4" height="15.0" fill="rgb(214,150,49)" rx="2" ry="2" />
+<text  x="76.15" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.unlock (2 samples, 0.05%)</title><rect x="1010.1" y="261" width="0.7" height="15.0" fill="rgb(226,163,46)" rx="2" ry="2" />
+<text  x="1013.13" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.gcAssistAlloc.func1 (1 samples, 0.03%)</title><rect x="17.7" y="149" width="0.3" height="15.0" fill="rgb(226,163,1)" rx="2" ry="2" />
+<text  x="20.65" y="159.5" ></text>
+</g>
+<g >
+<title>runtime.startm (1 samples, 0.03%)</title><rect x="222.4" y="181" width="0.3" height="15.0" fill="rgb(218,124,54)" rx="2" ry="2" />
+<text  x="225.40" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_mutex_unlock (10 samples, 0.27%)</title><rect x="1150.5" y="197" width="3.1" height="15.0" fill="rgb(207,136,40)" rx="2" ry="2" />
+<text  x="1153.45" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.libcCall (1 samples, 0.03%)</title><rect x="768.1" y="181" width="0.3" height="15.0" fill="rgb(237,39,22)" rx="2" ry="2" />
+<text  x="771.07" y="191.5" ></text>
+</g>
+<g >
+<title>internal/poll.(*FD).writeUnlock (1 samples, 0.03%)</title><rect x="130.9" y="181" width="0.3" height="15.0" fill="rgb(216,26,50)" rx="2" ry="2" />
+<text  x="133.87" y="191.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/ackhandler.(*receivedPacketTracker).GetAckFrame (5 samples, 0.14%)</title><rect x="118.4" y="229" width="1.6" height="15.0" fill="rgb(252,154,11)" rx="2" ry="2" />
+<text  x="121.43" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.goready.func1 (2 samples, 0.05%)</title><rect x="83.4" y="101" width="0.6" height="15.0" fill="rgb(219,176,48)" rx="2" ry="2" />
+<text  x="86.35" y="111.5" ></text>
+</g>
+<g >
+<title>runtime.systemstack (6 samples, 0.16%)</title><rect x="257.8" y="309" width="1.9" height="15.0" fill="rgb(214,113,28)" rx="2" ry="2" />
+<text  x="260.80" y="319.5" ></text>
+</g>
+<g >
+<title>runtime.usleep (130 samples, 3.51%)</title><rect x="384.7" y="229" width="41.5" height="15.0" fill="rgb(231,48,31)" rx="2" ry="2" />
+<text  x="387.73" y="239.5" >run..</text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*session).sendPacket (242 samples, 6.54%)</title><rect x="114.3" y="293" width="77.2" height="15.0" fill="rgb(208,106,15)" rx="2" ry="2" />
+<text  x="117.29" y="303.5" >github.c..</text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*packetPacker).PackPacket (41 samples, 1.11%)</title><rect x="115.2" y="277" width="13.1" height="15.0" fill="rgb(224,127,42)" rx="2" ry="2" />
+<text  x="118.24" y="287.5" ></text>
+</g>
+<g >
+<title>runtime.wbBufFlush1 (1 samples, 0.03%)</title><rect x="263.5" y="229" width="0.4" height="15.0" fill="rgb(215,180,40)" rx="2" ry="2" />
+<text  x="266.54" y="239.5" ></text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/rpc/protocol.UnpackStream (5 samples, 0.14%)</title><rect x="238.7" y="309" width="1.6" height="15.0" fill="rgb(249,56,39)" rx="2" ry="2" />
+<text  x="241.66" y="319.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_mutex_unlock (11 samples, 0.30%)</title><rect x="989.1" y="213" width="3.5" height="15.0" fill="rgb(217,150,53)" rx="2" ry="2" />
+<text  x="992.08" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.growslice (1 samples, 0.03%)</title><rect x="240.3" y="309" width="0.3" height="15.0" fill="rgb(231,81,29)" rx="2" ry="2" />
+<text  x="243.26" y="319.5" ></text>
+</g>
+<g >
+<title>runtime.entersyscallblock (1 samples, 0.03%)</title><rect x="161.5" y="133" width="0.3" height="15.0" fill="rgb(230,228,39)" rx="2" ry="2" />
+<text  x="164.49" y="143.5" ></text>
+</g>
+<g >
+<title>reflect.Value.Interface (4 samples, 0.11%)</title><rect x="219.5" y="229" width="1.3" height="15.0" fill="rgb(215,104,31)" rx="2" ry="2" />
+<text  x="222.53" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.(*mcache).nextFree (1 samples, 0.03%)</title><rect x="213.2" y="213" width="0.3" height="15.0" fill="rgb(222,77,36)" rx="2" ry="2" />
+<text  x="216.15" y="223.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/ackhandler.(*sentPacketHandler).PeekPacketNumber (1 samples, 0.03%)</title><rect x="120.3" y="245" width="0.4" height="15.0" fill="rgb(225,13,33)" rx="2" ry="2" />
+<text  x="123.35" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.(*mspan).init (1 samples, 0.03%)</title><rect x="213.2" y="69" width="0.3" height="15.0" fill="rgb(213,171,52)" rx="2" ry="2" />
+<text  x="216.15" y="79.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/handshake.(*opener).Open (2 samples, 0.05%)</title><rect x="76.3" y="261" width="0.7" height="15.0" fill="rgb(232,41,9)" rx="2" ry="2" />
+<text  x="79.34" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.newobject (5 samples, 0.14%)</title><rect x="17.3" y="213" width="1.6" height="15.0" fill="rgb(208,221,44)" rx="2" ry="2" />
+<text  x="20.34" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.efaceeq (1 samples, 0.03%)</title><rect x="216.7" y="133" width="0.3" height="15.0" fill="rgb(235,141,50)" rx="2" ry="2" />
+<text  x="219.66" y="143.5" ></text>
+</g>
+<g >
+<title>runtime.chansend.func1 (1 samples, 0.03%)</title><rect x="116.2" y="117" width="0.3" height="15.0" fill="rgb(205,6,48)" rx="2" ry="2" />
+<text  x="119.20" y="127.5" ></text>
+</g>
+<g >
+<title>runtime.send (2 samples, 0.05%)</title><rect x="222.1" y="277" width="0.6" height="15.0" fill="rgb(254,98,14)" rx="2" ry="2" />
+<text  x="225.08" y="287.5" ></text>
+</g>
+<g >
+<title>runtime.selectnbsend (1 samples, 0.03%)</title><rect x="116.2" y="165" width="0.3" height="15.0" fill="rgb(213,133,43)" rx="2" ry="2" />
+<text  x="119.20" y="175.5" ></text>
+</g>
+<g >
+<title>runtime.wakep (84 samples, 2.27%)</title><rect x="741.6" y="261" width="26.8" height="15.0" fill="rgb(236,116,14)" rx="2" ry="2" />
+<text  x="744.60" y="271.5" >r..</text>
+</g>
+<g >
+<title>unicode/utf8.ValidString (1 samples, 0.03%)</title><rect x="212.8" y="165" width="0.4" height="15.0" fill="rgb(253,124,41)" rx="2" ry="2" />
+<text  x="215.83" y="175.5" ></text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/rpc/pb.(*Msg).XXX_Marshal (3 samples, 0.08%)</title><rect x="211.6" y="261" width="0.9" height="15.0" fill="rgb(217,142,3)" rx="2" ry="2" />
+<text  x="214.56" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.runqgrab (136 samples, 3.68%)</title><rect x="382.8" y="245" width="43.4" height="15.0" fill="rgb(211,126,30)" rx="2" ry="2" />
+<text  x="385.82" y="255.5" >runt..</text>
+</g>
+<g >
+<title>runtime.pthread_mutex_unlock (1 samples, 0.03%)</title><rect x="113.0" y="181" width="0.3" height="15.0" fill="rgb(240,53,37)" rx="2" ry="2" />
+<text  x="116.01" y="191.5" ></text>
+</g>
+<g >
+<title>bytes.(*Buffer).WriteByte (1 samples, 0.03%)</title><rect x="125.4" y="213" width="0.4" height="15.0" fill="rgb(233,171,53)" rx="2" ry="2" />
+<text  x="128.45" y="223.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/ackhandler.(*packetNumberGenerator).Validate (1 samples, 0.03%)</title><rect x="77.6" y="213" width="0.3" height="15.0" fill="rgb(223,190,3)" rx="2" ry="2" />
+<text  x="80.61" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.nilinterhash (2 samples, 0.05%)</title><rect x="217.9" y="197" width="0.7" height="15.0" fill="rgb(223,6,46)" rx="2" ry="2" />
+<text  x="220.94" y="207.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*frameSorter).Push (1 samples, 0.03%)</title><rect x="82.1" y="197" width="0.3" height="15.0" fill="rgb(246,134,46)" rx="2" ry="2" />
+<text  x="85.08" y="207.5" ></text>
+</g>
+<g >
+<title>time.now (4 samples, 0.11%)</title><rect x="14.5" y="277" width="1.2" height="15.0" fill="rgb(247,162,25)" rx="2" ry="2" />
+<text  x="17.46" y="287.5" ></text>
+</g>
+<g >
+<title>runtime.goready (2 samples, 0.05%)</title><rect x="11.3" y="229" width="0.6" height="15.0" fill="rgb(213,4,42)" rx="2" ry="2" />
+<text  x="14.28" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_cond_signal (429 samples, 11.59%)</title><rect x="1011.4" y="197" width="136.8" height="15.0" fill="rgb(247,172,18)" rx="2" ry="2" />
+<text  x="1014.41" y="207.5" >runtime.pthread_c..</text>
+</g>
+<g >
+<title>runtime.chanrecv1 (1 samples, 0.03%)</title><rect x="257.2" y="293" width="0.3" height="15.0" fill="rgb(242,111,54)" rx="2" ry="2" />
+<text  x="260.16" y="303.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*receiveStream).handleStreamFrame (11 samples, 0.30%)</title><rect x="81.4" y="229" width="3.5" height="15.0" fill="rgb(231,196,2)" rx="2" ry="2" />
+<text  x="84.44" y="239.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*session).sendPackedPacket (195 samples, 5.27%)</title><rect x="128.3" y="277" width="62.2" height="15.0" fill="rgb(241,217,49)" rx="2" ry="2" />
+<text  x="131.32" y="287.5" >github..</text>
+</g>
+<g >
+<title>net.(*UDPConn).writeTo (189 samples, 5.11%)</title><rect x="129.0" y="229" width="60.2" height="15.0" fill="rgb(251,36,31)" rx="2" ry="2" />
+<text  x="131.96" y="239.5" >net.(*..</text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/wire.(*StreamFrame).Write (1 samples, 0.03%)</title><rect x="125.8" y="245" width="0.3" height="15.0" fill="rgb(231,220,5)" rx="2" ry="2" />
+<text  x="128.77" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.exitsyscallfast (29 samples, 0.78%)</title><rect x="63.3" y="181" width="9.2" height="15.0" fill="rgb(211,49,24)" rx="2" ry="2" />
+<text  x="66.26" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.semawakeup (1 samples, 0.03%)</title><rect x="222.4" y="149" width="0.3" height="15.0" fill="rgb(205,23,22)" rx="2" ry="2" />
+<text  x="225.40" y="159.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/ackhandler.(*receivedPacketHandler).GetAlarmTimeout (1 samples, 0.03%)</title><rect x="89.4" y="293" width="0.3" height="15.0" fill="rgb(227,69,16)" rx="2" ry="2" />
+<text  x="92.41" y="303.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/ackhandler.(*sentPacketHandler).detectLostPackets (2 samples, 0.05%)</title><rect x="77.9" y="213" width="0.7" height="15.0" fill="rgb(205,0,43)" rx="2" ry="2" />
+<text  x="80.93" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.semawakeup (1 samples, 0.03%)</title><rect x="268.6" y="213" width="0.4" height="15.0" fill="rgb(254,91,51)" rx="2" ry="2" />
+<text  x="271.64" y="223.5" ></text>
+</g>
+<g >
+<title>github.com/golang/protobuf/proto.Marshal (2 samples, 0.05%)</title><rect x="213.5" y="245" width="0.6" height="15.0" fill="rgb(253,64,4)" rx="2" ry="2" />
+<text  x="216.47" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.(*mheap).alloc.func1 (1 samples, 0.03%)</title><rect x="213.2" y="117" width="0.3" height="15.0" fill="rgb(208,81,35)" rx="2" ry="2" />
+<text  x="216.15" y="127.5" ></text>
+</g>
+<g >
+<title>runtime.mallocgc (1 samples, 0.03%)</title><rect x="116.5" y="165" width="0.3" height="15.0" fill="rgb(208,64,9)" rx="2" ry="2" />
+<text  x="119.52" y="175.5" ></text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/rpc.(*Server).ServeRPC (35 samples, 0.95%)</title><rect x="210.6" y="309" width="11.2" height="15.0" fill="rgb(224,110,45)" rx="2" ry="2" />
+<text  x="213.60" y="319.5" ></text>
+</g>
+<g >
+<title>runtime.mallocgc (1 samples, 0.03%)</title><rect x="75.7" y="229" width="0.3" height="15.0" fill="rgb(238,224,15)" rx="2" ry="2" />
+<text  x="78.70" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.resetspinning (86 samples, 2.32%)</title><rect x="741.0" y="277" width="27.4" height="15.0" fill="rgb(206,50,47)" rx="2" ry="2" />
+<text  x="743.96" y="287.5" >r..</text>
+</g>
+<g >
+<title>runtime.mallocgc (1 samples, 0.03%)</title><rect x="240.3" y="293" width="0.3" height="15.0" fill="rgb(215,206,15)" rx="2" ry="2" />
+<text  x="243.26" y="303.5" ></text>
+</g>
+<g >
+<title>runtime.systemstack (1 samples, 0.03%)</title><rect x="118.8" y="165" width="0.3" height="15.0" fill="rgb(235,188,1)" rx="2" ry="2" />
+<text  x="121.75" y="175.5" ></text>
+</g>
+<g >
+<title>sync.(*Pool).Get (1 samples, 0.03%)</title><rect x="123.5" y="229" width="0.4" height="15.0" fill="rgb(227,27,9)" rx="2" ry="2" />
+<text  x="126.54" y="239.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/wire.parseStreamFrame (1 samples, 0.03%)</title><rect x="87.8" y="229" width="0.3" height="15.0" fill="rgb(228,171,0)" rx="2" ry="2" />
+<text  x="90.82" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.findrunnable (8 samples, 0.22%)</title><rect x="266.1" y="277" width="2.5" height="15.0" fill="rgb(248,222,25)" rx="2" ry="2" />
+<text  x="269.09" y="287.5" ></text>
+</g>
+<g >
+<title>runtime.(*lfstack).pop (1 samples, 0.03%)</title><rect x="264.2" y="213" width="0.3" height="15.0" fill="rgb(252,120,8)" rx="2" ry="2" />
+<text  x="267.18" y="223.5" ></text>
+</g>
+<g >
+<title>crypto/aes.gcmAesEnc (1 samples, 0.03%)</title><rect x="125.1" y="197" width="0.3" height="15.0" fill="rgb(228,143,15)" rx="2" ry="2" />
+<text  x="128.13" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.selectnbsend (5 samples, 0.14%)</title><rect x="82.4" y="181" width="1.6" height="15.0" fill="rgb(225,127,22)" rx="2" ry="2" />
+<text  x="85.39" y="191.5" ></text>
+</g>
+<g >
+<title>net.(*netFD).readFrom (180 samples, 4.86%)</title><rect x="15.7" y="277" width="57.4" height="15.0" fill="rgb(251,136,48)" rx="2" ry="2" />
+<text  x="18.74" y="287.5" >net.(*..</text>
+</g>
+<g >
+<title>runtime.makeslice (1 samples, 0.03%)</title><rect x="239.9" y="293" width="0.4" height="15.0" fill="rgb(210,9,27)" rx="2" ry="2" />
+<text  x="242.94" y="303.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/ackhandler.(*sentPacketHandler).getPacketNumberSpace (1 samples, 0.03%)</title><rect x="79.2" y="213" width="0.3" height="15.0" fill="rgb(221,166,34)" rx="2" ry="2" />
+<text  x="82.21" y="223.5" ></text>
+</g>
+<g >
+<title>crypto/aes.(*gcmAsm).Open (2 samples, 0.05%)</title><rect x="76.3" y="229" width="0.7" height="15.0" fill="rgb(214,44,21)" rx="2" ry="2" />
+<text  x="79.34" y="239.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*session).onHasStreamData (1 samples, 0.03%)</title><rect x="256.8" y="277" width="0.4" height="15.0" fill="rgb(226,181,54)" rx="2" ry="2" />
+<text  x="259.84" y="287.5" ></text>
+</g>
+<g >
+<title>runtime.reflectcallmove (1 samples, 0.03%)</title><rect x="214.7" y="181" width="0.4" height="15.0" fill="rgb(235,177,40)" rx="2" ry="2" />
+<text  x="217.75" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.makeslice (1 samples, 0.03%)</title><rect x="217.0" y="197" width="0.3" height="15.0" fill="rgb(212,80,25)" rx="2" ry="2" />
+<text  x="219.98" y="207.5" ></text>
+</g>
+<g >
+<title>sync.(*Mutex).Unlock (1 samples, 0.03%)</title><rect x="84.6" y="149" width="0.3" height="15.0" fill="rgb(225,115,28)" rx="2" ry="2" />
+<text  x="87.63" y="159.5" ></text>
+</g>
+<g >
+<title>runtime.libcCall (2 samples, 0.05%)</title><rect x="739.0" y="197" width="0.7" height="15.0" fill="rgb(208,205,50)" rx="2" ry="2" />
+<text  x="742.05" y="207.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*session).run (429 samples, 11.59%)</title><rect x="73.5" y="325" width="136.8" height="15.0" fill="rgb(252,52,33)" rx="2" ry="2" />
+<text  x="76.46" y="335.5" >github.com/lucas-..</text>
+</g>
+<g >
+<title>github.com/golang/protobuf/proto.(*unmarshalInfo).unmarshal (1 samples, 0.03%)</title><rect x="212.8" y="197" width="0.4" height="15.0" fill="rgb(242,136,21)" rx="2" ry="2" />
+<text  x="215.83" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.mapdelete_fast64 (41 samples, 1.11%)</title><rect x="225.0" y="245" width="13.0" height="15.0" fill="rgb(217,32,54)" rx="2" ry="2" />
+<text  x="227.95" y="255.5" ></text>
+</g>
+<g >
+<title>github.com/golang/protobuf/proto.unmarshalUTF8StringValue (1 samples, 0.03%)</title><rect x="212.8" y="181" width="0.4" height="15.0" fill="rgb(218,215,6)" rx="2" ry="2" />
+<text  x="215.83" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.stopm (6 samples, 0.16%)</title><rect x="266.7" y="261" width="1.9" height="15.0" fill="rgb(250,179,38)" rx="2" ry="2" />
+<text  x="269.73" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.semawakeup (1 samples, 0.03%)</title><rect x="769.3" y="213" width="0.4" height="15.0" fill="rgb(225,205,52)" rx="2" ry="2" />
+<text  x="772.35" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.notewakeup (1 samples, 0.03%)</title><rect x="268.6" y="229" width="0.4" height="15.0" fill="rgb(217,36,37)" rx="2" ry="2" />
+<text  x="271.64" y="239.5" ></text>
+</g>
+<g >
+<title>syscall.syscall6 (170 samples, 4.59%)</title><rect x="18.9" y="213" width="54.2" height="15.0" fill="rgb(243,225,4)" rx="2" ry="2" />
+<text  x="21.93" y="223.5" >sysca..</text>
+</g>
+<g >
+<title>runtime.walltime (1 samples, 0.03%)</title><rect x="114.9" y="229" width="0.3" height="15.0" fill="rgb(226,217,27)" rx="2" ry="2" />
+<text  x="117.92" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.ready (446 samples, 12.05%)</title><rect x="1011.4" y="277" width="142.2" height="15.0" fill="rgb(237,126,39)" rx="2" ry="2" />
+<text  x="1014.41" y="287.5" >runtime.ready</text>
+</g>
+<g >
+<title>runtime.newstack (2 samples, 0.05%)</title><rect x="769.0" y="309" width="0.7" height="15.0" fill="rgb(239,190,52)" rx="2" ry="2" />
+<text  x="772.03" y="319.5" ></text>
+</g>
+<g >
+<title>runtime.exitsyscallfast_pidle (1 samples, 0.03%)</title><rect x="72.2" y="133" width="0.3" height="15.0" fill="rgb(244,74,14)" rx="2" ry="2" />
+<text  x="75.19" y="143.5" ></text>
+</g>
+<g >
+<title>runtime.handoffp (1 samples, 0.03%)</title><rect x="161.5" y="85" width="0.3" height="15.0" fill="rgb(209,42,24)" rx="2" ry="2" />
+<text  x="164.49" y="95.5" ></text>
+</g>
+<g >
+<title>time.Time.IsZero (1 samples, 0.03%)</title><rect x="89.4" y="261" width="0.3" height="15.0" fill="rgb(219,170,7)" rx="2" ry="2" />
+<text  x="92.41" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.(*mheap).freeSpan.func1 (1 samples, 0.03%)</title><rect x="263.2" y="229" width="0.3" height="15.0" fill="rgb(239,92,40)" rx="2" ry="2" />
+<text  x="266.22" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.sweepone (1 samples, 0.03%)</title><rect x="263.2" y="309" width="0.3" height="15.0" fill="rgb(209,100,31)" rx="2" ry="2" />
+<text  x="266.22" y="319.5" ></text>
+</g>
+<g >
+<title>callRet (1 samples, 0.03%)</title><rect x="214.7" y="197" width="0.4" height="15.0" fill="rgb(251,135,20)" rx="2" ry="2" />
+<text  x="217.75" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.gopreempt_m (2 samples, 0.05%)</title><rect x="769.0" y="293" width="0.7" height="15.0" fill="rgb(229,81,32)" rx="2" ry="2" />
+<text  x="772.03" y="303.5" ></text>
+</g>
+<g >
+<title>runtime.exitsyscallfast.func1 (1 samples, 0.03%)</title><rect x="72.2" y="149" width="0.3" height="15.0" fill="rgb(225,24,38)" rx="2" ry="2" />
+<text  x="75.19" y="159.5" ></text>
+</g>
+<g >
+<title>runtime.exitsyscallfast (22 samples, 0.59%)</title><rect x="1154.9" y="277" width="7.0" height="15.0" fill="rgb(238,8,46)" rx="2" ry="2" />
+<text  x="1157.92" y="287.5" ></text>
+</g>
+<g >
+<title>syscall.Recvfrom (178 samples, 4.81%)</title><rect x="16.4" y="245" width="56.7" height="15.0" fill="rgb(210,36,44)" rx="2" ry="2" />
+<text  x="19.38" y="255.5" >syscal..</text>
+</g>
+<g >
+<title>sort.Search (1 samples, 0.03%)</title><rect x="77.6" y="181" width="0.3" height="15.0" fill="rgb(211,32,15)" rx="2" ry="2" />
+<text  x="80.61" y="191.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*packetHandlerMap).listen (199 samples, 5.38%)</title><rect x="10.0" y="325" width="63.5" height="15.0" fill="rgb(232,194,16)" rx="2" ry="2" />
+<text  x="13.00" y="335.5" >github..</text>
+</g>
+<g >
+<title>runtime.unlock (2 samples, 0.05%)</title><rect x="82.7" y="117" width="0.7" height="15.0" fill="rgb(232,48,37)" rx="2" ry="2" />
+<text  x="85.71" y="127.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*streamsMap).GetOrOpenSendStream (3 samples, 0.08%)</title><rect x="116.8" y="229" width="1.0" height="15.0" fill="rgb(208,50,11)" rx="2" ry="2" />
+<text  x="119.84" y="239.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/wire.(*ExtendedHeader).writeShortHeader (1 samples, 0.03%)</title><rect x="125.4" y="229" width="0.4" height="15.0" fill="rgb(238,130,10)" rx="2" ry="2" />
+<text  x="128.45" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.goready.func1 (446 samples, 12.05%)</title><rect x="1011.4" y="293" width="142.2" height="15.0" fill="rgb(248,136,25)" rx="2" ry="2" />
+<text  x="1014.41" y="303.5" >runtime.goready.fu..</text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*packetPacker).getHeader (4 samples, 0.11%)</title><rect x="120.0" y="261" width="1.3" height="15.0" fill="rgb(218,41,23)" rx="2" ry="2" />
+<text  x="123.03" y="271.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/wire.(*AckFrame).AcksPacket (1 samples, 0.03%)</title><rect x="77.6" y="197" width="0.3" height="15.0" fill="rgb(251,6,22)" rx="2" ry="2" />
+<text  x="80.61" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.(*mTreap).insert (1 samples, 0.03%)</title><rect x="263.2" y="197" width="0.3" height="15.0" fill="rgb(227,38,50)" rx="2" ry="2" />
+<text  x="266.22" y="207.5" ></text>
+</g>
+<g >
+<title>bytes.(*Reader).Read (2 samples, 0.05%)</title><rect x="88.5" y="181" width="0.6" height="15.0" fill="rgb(238,147,1)" rx="2" ry="2" />
+<text  x="91.45" y="191.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*framerI).AppendControlFrames (1 samples, 0.03%)</title><rect x="115.9" y="245" width="0.3" height="15.0" fill="rgb(238,42,8)" rx="2" ry="2" />
+<text  x="118.88" y="255.5" ></text>
+</g>
+<g >
+<title>net.(*UDPConn).WriteTo (189 samples, 5.11%)</title><rect x="129.0" y="245" width="60.2" height="15.0" fill="rgb(210,39,3)" rx="2" ry="2" />
+<text  x="131.96" y="255.5" >net.(*..</text>
+</g>
+<g >
+<title>runtime.notewakeup (84 samples, 2.27%)</title><rect x="741.6" y="229" width="26.8" height="15.0" fill="rgb(245,88,3)" rx="2" ry="2" />
+<text  x="744.60" y="239.5" >r..</text>
+</g>
+<g >
+<title>runtime.(*mspan).refillAllocCache (1 samples, 0.03%)</title><rect x="13.5" y="213" width="0.3" height="15.0" fill="rgb(244,89,8)" rx="2" ry="2" />
+<text  x="16.51" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.(*mcache).refill (1 samples, 0.03%)</title><rect x="77.0" y="181" width="0.3" height="15.0" fill="rgb(247,43,8)" rx="2" ry="2" />
+<text  x="79.97" y="191.5" ></text>
+</g>
+<g >
+<title>github.com/marten-seemann/qtls.(*xorNonceAEAD).Seal (4 samples, 0.11%)</title><rect x="124.2" y="229" width="1.2" height="15.0" fill="rgb(248,160,32)" rx="2" ry="2" />
+<text  x="127.17" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.heapBitsSetType (1 samples, 0.03%)</title><rect x="13.8" y="261" width="0.3" height="15.0" fill="rgb(232,3,21)" rx="2" ry="2" />
+<text  x="16.83" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.walltime (3 samples, 0.08%)</title><rect x="209.0" y="277" width="1.0" height="15.0" fill="rgb(226,40,17)" rx="2" ry="2" />
+<text  x="212.01" y="287.5" ></text>
+</g>
+<g >
+<title>runtime.freedefer (2 samples, 0.05%)</title><rect x="189.9" y="245" width="0.6" height="15.0" fill="rgb(239,54,13)" rx="2" ry="2" />
+<text  x="192.87" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_cond_wait (6 samples, 0.16%)</title><rect x="269.0" y="245" width="1.9" height="15.0" fill="rgb(214,101,3)" rx="2" ry="2" />
+<text  x="271.96" y="255.5" ></text>
+</g>
+<g >
+<title>reflect.name.name (1 samples, 0.03%)</title><rect x="214.1" y="197" width="0.3" height="15.0" fill="rgb(212,27,0)" rx="2" ry="2" />
+<text  x="217.11" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.newobject (2 samples, 0.05%)</title><rect x="120.7" y="245" width="0.6" height="15.0" fill="rgb(237,164,51)" rx="2" ry="2" />
+<text  x="123.66" y="255.5" ></text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/funcs.(*Funcs).GetFunc (3 samples, 0.08%)</title><rect x="217.6" y="245" width="1.0" height="15.0" fill="rgb(224,51,28)" rx="2" ry="2" />
+<text  x="220.62" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.send (3 samples, 0.08%)</title><rect x="11.3" y="245" width="0.9" height="15.0" fill="rgb(216,14,13)" rx="2" ry="2" />
+<text  x="14.28" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.ready (2 samples, 0.05%)</title><rect x="222.1" y="213" width="0.6" height="15.0" fill="rgb(237,126,8)" rx="2" ry="2" />
+<text  x="225.08" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.kevent_trampoline (1 samples, 0.03%)</title><rect x="261.9" y="309" width="0.4" height="15.0" fill="rgb(236,27,8)" rx="2" ry="2" />
+<text  x="264.95" y="319.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/ackhandler.(*packetNumberGenerator).Pop (1 samples, 0.03%)</title><rect x="123.9" y="229" width="0.3" height="15.0" fill="rgb(237,211,27)" rx="2" ry="2" />
+<text  x="126.85" y="239.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/handshake.(*opener).DecryptHeader (1 samples, 0.03%)</title><rect x="76.0" y="261" width="0.3" height="15.0" fill="rgb(205,30,0)" rx="2" ry="2" />
+<text  x="79.02" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.libcCall (2 samples, 0.05%)</title><rect x="740.0" y="197" width="0.6" height="15.0" fill="rgb(207,196,2)" rx="2" ry="2" />
+<text  x="743.01" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.(*mcentral).cacheSpan (1 samples, 0.03%)</title><rect x="213.2" y="181" width="0.3" height="15.0" fill="rgb(209,221,41)" rx="2" ry="2" />
+<text  x="216.15" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.nanotime (1 samples, 0.03%)</title><rect x="263.9" y="309" width="0.3" height="15.0" fill="rgb(249,169,11)" rx="2" ry="2" />
+<text  x="266.86" y="319.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_cond_signal_trampoline (1 samples, 0.03%)</title><rect x="262.3" y="309" width="0.3" height="15.0" fill="rgb(211,7,47)" rx="2" ry="2" />
+<text  x="265.26" y="319.5" ></text>
+</g>
+<g >
+<title>runtime.mallocgc (1 samples, 0.03%)</title><rect x="213.2" y="229" width="0.3" height="15.0" fill="rgb(249,195,39)" rx="2" ry="2" />
+<text  x="216.15" y="239.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/ackhandler.IsFrameAckEliciting (1 samples, 0.03%)</title><rect x="85.9" y="261" width="0.3" height="15.0" fill="rgb(221,65,53)" rx="2" ry="2" />
+<text  x="88.90" y="271.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/ackhandler.(*sentPacketHandler).ReceivedAck (12 samples, 0.32%)</title><rect x="77.6" y="229" width="3.8" height="15.0" fill="rgb(238,128,25)" rx="2" ry="2" />
+<text  x="80.61" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.systemstack (5 samples, 0.14%)</title><rect x="264.2" y="309" width="1.6" height="15.0" fill="rgb(219,24,9)" rx="2" ry="2" />
+<text  x="267.18" y="319.5" ></text>
+</g>
+<g >
+<title>runtime.chanrecv (1 samples, 0.03%)</title><rect x="257.2" y="277" width="0.3" height="15.0" fill="rgb(237,193,33)" rx="2" ry="2" />
+<text  x="260.16" y="287.5" ></text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/rpc.(*Msg).Encode (3 samples, 0.08%)</title><rect x="211.6" y="293" width="0.9" height="15.0" fill="rgb(221,129,48)" rx="2" ry="2" />
+<text  x="214.56" y="303.5" ></text>
+</g>
+<g >
+<title>runtime.notetsleep (117 samples, 3.16%)</title><rect x="817.2" y="277" width="37.3" height="15.0" fill="rgb(217,22,49)" rx="2" ry="2" />
+<text  x="820.18" y="287.5" >run..</text>
+</g>
+<g >
+<title>runtime.asmcgocall (11 samples, 0.30%)</title><rect x="259.7" y="325" width="3.5" height="15.0" fill="rgb(214,47,31)" rx="2" ry="2" />
+<text  x="262.71" y="335.5" ></text>
+</g>
+<g >
+<title>runtime.semasleep (1 samples, 0.03%)</title><rect x="992.9" y="245" width="0.3" height="15.0" fill="rgb(252,77,0)" rx="2" ry="2" />
+<text  x="995.91" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.(*mcache).nextFree (1 samples, 0.03%)</title><rect x="77.0" y="197" width="0.3" height="15.0" fill="rgb(205,200,49)" rx="2" ry="2" />
+<text  x="79.97" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.kevent (162 samples, 4.38%)</title><rect x="329.6" y="245" width="51.6" height="15.0" fill="rgb(247,42,34)" rx="2" ry="2" />
+<text  x="332.56" y="255.5" >runti..</text>
+</g>
+<g >
+<title>runtime.mallocgc (4 samples, 0.11%)</title><rect x="17.7" y="197" width="1.2" height="15.0" fill="rgb(229,96,27)" rx="2" ry="2" />
+<text  x="20.65" y="207.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/protocol.ReadConnectionID (2 samples, 0.05%)</title><rect x="88.5" y="229" width="0.6" height="15.0" fill="rgb(252,195,5)" rx="2" ry="2" />
+<text  x="91.45" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.usleep (3 samples, 0.08%)</title><rect x="277.3" y="229" width="0.9" height="15.0" fill="rgb(216,194,21)" rx="2" ry="2" />
+<text  x="280.25" y="239.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*sendStream).getDataForWriting (2 samples, 0.05%)</title><rect x="116.2" y="197" width="0.6" height="15.0" fill="rgb(229,42,35)" rx="2" ry="2" />
+<text  x="119.20" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.semawakeup (307 samples, 8.30%)</title><rect x="894.7" y="229" width="97.9" height="15.0" fill="rgb(217,223,37)" rx="2" ry="2" />
+<text  x="897.68" y="239.5" >runtime.sem..</text>
+</g>
+<g >
+<title>runtime.(*mcentral).grow (1 samples, 0.03%)</title><rect x="213.2" y="165" width="0.3" height="15.0" fill="rgb(245,148,16)" rx="2" ry="2" />
+<text  x="216.15" y="175.5" ></text>
+</g>
+<g >
+<title>reflect.New (1 samples, 0.03%)</title><rect x="219.2" y="229" width="0.3" height="15.0" fill="rgb(235,67,20)" rx="2" ry="2" />
+<text  x="222.21" y="239.5" ></text>
+</g>
+<g >
+<title>internal/poll.(*FD).ReadFrom (180 samples, 4.86%)</title><rect x="15.7" y="261" width="57.4" height="15.0" fill="rgb(252,194,42)" rx="2" ry="2" />
+<text  x="18.74" y="271.5" >intern..</text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/rpc.(*Server).CallService (22 samples, 0.59%)</title><rect x="214.1" y="261" width="7.0" height="15.0" fill="rgb(230,62,47)" rx="2" ry="2" />
+<text  x="217.11" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.park_m (1,562 samples, 42.22%)</title><rect x="270.9" y="309" width="498.1" height="15.0" fill="rgb(243,171,25)" rx="2" ry="2" />
+<text  x="273.88" y="319.5" >runtime.park_m</text>
+</g>
+<g >
+<title>runtime.pthread_cond_timedwait_relative_np (71 samples, 1.92%)</title><rect x="1167.4" y="261" width="22.6" height="15.0" fill="rgb(219,151,50)" rx="2" ry="2" />
+<text  x="1170.36" y="271.5" >r..</text>
+</g>
+<g >
+<title>runtime.newobject (1 samples, 0.03%)</title><rect x="88.1" y="261" width="0.4" height="15.0" fill="rgb(222,26,51)" rx="2" ry="2" />
+<text  x="91.14" y="271.5" ></text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/rpc.(*Response).Encode (2 samples, 0.05%)</title><rect x="213.5" y="261" width="0.6" height="15.0" fill="rgb(238,130,34)" rx="2" ry="2" />
+<text  x="216.47" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.wakep (446 samples, 12.05%)</title><rect x="1011.4" y="261" width="142.2" height="15.0" fill="rgb(249,61,29)" rx="2" ry="2" />
+<text  x="1014.41" y="271.5" >runtime.wakep</text>
+</g>
+<g >
+<title>runtime.goschedImpl (2 samples, 0.05%)</title><rect x="769.0" y="277" width="0.7" height="15.0" fill="rgb(217,155,53)" rx="2" ry="2" />
+<text  x="772.03" y="287.5" ></text>
+</g>
+<g >
+<title>runtime.systemstack (812 samples, 21.95%)</title><rect x="894.7" y="309" width="258.9" height="15.0" fill="rgb(220,224,9)" rx="2" ry="2" />
+<text  x="897.68" y="319.5" >runtime.systemstack</text>
+</g>
+<g >
+<title>runtime.notetsleepg (110 samples, 2.97%)</title><rect x="1154.9" y="309" width="35.1" height="15.0" fill="rgb(239,165,36)" rx="2" ry="2" />
+<text  x="1157.92" y="319.5" >ru..</text>
+</g>
+<g >
+<title>runtime.pthread_mutex_unlock (11 samples, 0.30%)</title><rect x="764.9" y="197" width="3.5" height="15.0" fill="rgb(250,18,26)" rx="2" ry="2" />
+<text  x="767.88" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.gcBgMarkWorker.func2 (5 samples, 0.14%)</title><rect x="264.2" y="293" width="1.6" height="15.0" fill="rgb(217,224,46)" rx="2" ry="2" />
+<text  x="267.18" y="303.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/wire.(*frameParser).parseFrame (5 samples, 0.14%)</title><rect x="86.5" y="245" width="1.6" height="15.0" fill="rgb(221,132,34)" rx="2" ry="2" />
+<text  x="89.54" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.(*waitq).dequeueSudoG (41 samples, 1.11%)</title><rect x="193.4" y="293" width="13.1" height="15.0" fill="rgb(210,70,39)" rx="2" ry="2" />
+<text  x="196.38" y="303.5" ></text>
+</g>
+<g >
+<title>runtime.mapaccess1_fast64 (1 samples, 0.03%)</title><rect x="117.2" y="197" width="0.3" height="15.0" fill="rgb(248,101,27)" rx="2" ry="2" />
+<text  x="120.16" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.nanotime (17 samples, 0.46%)</title><rect x="1161.9" y="277" width="5.5" height="15.0" fill="rgb(249,90,37)" rx="2" ry="2" />
+<text  x="1164.94" y="287.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_cond_wait (969 samples, 26.19%)</title><rect x="430.7" y="213" width="309.0" height="15.0" fill="rgb(239,214,8)" rx="2" ry="2" />
+<text  x="433.65" y="223.5" >runtime.pthread_cond_wait</text>
+</g>
+<g >
+<title>reflect.(*rtype).common (1 samples, 0.03%)</title><rect x="215.1" y="197" width="0.3" height="15.0" fill="rgb(235,172,34)" rx="2" ry="2" />
+<text  x="218.06" y="207.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/ackhandler.(*PacketList).Remove (1 samples, 0.03%)</title><rect x="79.5" y="181" width="0.3" height="15.0" fill="rgb(226,142,45)" rx="2" ry="2" />
+<text  x="82.52" y="191.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/ackhandler.(*sentPacketHandler).getPacketNumberSpace (1 samples, 0.03%)</title><rect x="78.2" y="197" width="0.4" height="15.0" fill="rgb(238,16,42)" rx="2" ry="2" />
+<text  x="81.25" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.lock (2 samples, 0.05%)</title><rect x="770.9" y="277" width="0.7" height="15.0" fill="rgb(236,30,37)" rx="2" ry="2" />
+<text  x="773.94" y="287.5" ></text>
+</g>
+<g >
+<title>runtime.exitsyscallfast_pidle (57 samples, 1.54%)</title><rect x="992.6" y="277" width="18.2" height="15.0" fill="rgb(243,62,2)" rx="2" ry="2" />
+<text  x="995.59" y="287.5" ></text>
+</g>
+<g >
+<title>runtime.(*randomEnum).next (6 samples, 0.16%)</title><rect x="274.1" y="261" width="1.9" height="15.0" fill="rgb(222,134,4)" rx="2" ry="2" />
+<text  x="277.06" y="271.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*session).maybeResetTimer (79 samples, 2.14%)</title><rect x="89.1" y="309" width="25.2" height="15.0" fill="rgb(222,114,32)" rx="2" ry="2" />
+<text  x="92.09" y="319.5" >g..</text>
+</g>
+<g >
+<title>runtime.newdefer (1 samples, 0.03%)</title><rect x="189.6" y="245" width="0.3" height="15.0" fill="rgb(208,113,36)" rx="2" ry="2" />
+<text  x="192.55" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.libcCall (2 samples, 0.05%)</title><rect x="72.5" y="197" width="0.6" height="15.0" fill="rgb(233,23,46)" rx="2" ry="2" />
+<text  x="75.51" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.mapassign_fast64 (1 samples, 0.03%)</title><rect x="256.8" y="245" width="0.4" height="15.0" fill="rgb(217,4,38)" rx="2" ry="2" />
+<text  x="259.84" y="255.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/handshake.(*cryptoSetup).GetSealer (1 samples, 0.03%)</title><rect x="126.7" y="261" width="0.3" height="15.0" fill="rgb(205,197,37)" rx="2" ry="2" />
+<text  x="129.72" y="271.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*session).handleStreamFrame (13 samples, 0.35%)</title><rect x="81.4" y="245" width="4.2" height="15.0" fill="rgb(207,106,32)" rx="2" ry="2" />
+<text  x="84.44" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.(*mcache).nextFree (1 samples, 0.03%)</title><rect x="13.5" y="261" width="0.3" height="15.0" fill="rgb(232,143,15)" rx="2" ry="2" />
+<text  x="16.51" y="271.5" ></text>
+</g>
+<g >
+<title>sync.(*Map).Load (1 samples, 0.03%)</title><rect x="218.6" y="213" width="0.3" height="15.0" fill="rgb(236,228,16)" rx="2" ry="2" />
+<text  x="221.57" y="223.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*conn).Write (190 samples, 5.14%)</title><rect x="128.6" y="261" width="60.6" height="15.0" fill="rgb(217,7,14)" rx="2" ry="2" />
+<text  x="131.64" y="271.5" >github..</text>
+</g>
+<g >
+<title>runtime.pthread_cond_signal (49 samples, 1.32%)</title><rect x="993.2" y="229" width="15.7" height="15.0" fill="rgb(246,211,18)" rx="2" ry="2" />
+<text  x="996.23" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.send (5 samples, 0.14%)</title><rect x="82.4" y="149" width="1.6" height="15.0" fill="rgb(208,151,2)" rx="2" ry="2" />
+<text  x="85.39" y="159.5" ></text>
+</g>
+<g >
+<title>runtime.systemstack (2 samples, 0.05%)</title><rect x="62.6" y="181" width="0.7" height="15.0" fill="rgb(220,223,4)" rx="2" ry="2" />
+<text  x="65.62" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.mapaccess2 (3 samples, 0.08%)</title><rect x="217.6" y="213" width="1.0" height="15.0" fill="rgb(207,27,23)" rx="2" ry="2" />
+<text  x="220.62" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.notewakeup (1 samples, 0.03%)</title><rect x="161.5" y="53" width="0.3" height="15.0" fill="rgb(213,200,27)" rx="2" ry="2" />
+<text  x="164.49" y="63.5" ></text>
+</g>
+<g >
+<title>runtime.gcstopm (1 samples, 0.03%)</title><rect x="769.0" y="245" width="0.3" height="15.0" fill="rgb(217,211,7)" rx="2" ry="2" />
+<text  x="772.03" y="255.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/ackhandler.(*receivedPacketHandler).GetAckFrame (3 samples, 0.08%)</title><rect x="122.6" y="245" width="0.9" height="15.0" fill="rgb(214,47,19)" rx="2" ry="2" />
+<text  x="125.58" y="255.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/flowcontrol.(*streamFlowController).maybeQueueWindowUpdate (1 samples, 0.03%)</title><rect x="238.3" y="261" width="0.4" height="15.0" fill="rgb(205,58,0)" rx="2" ry="2" />
+<text  x="241.35" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.duffzero (1 samples, 0.03%)</title><rect x="222.7" y="309" width="0.3" height="15.0" fill="rgb(219,71,18)" rx="2" ry="2" />
+<text  x="225.72" y="319.5" ></text>
+</g>
+<g >
+<title>runtime.gorecover (2 samples, 0.05%)</title><rect x="221.1" y="277" width="0.7" height="15.0" fill="rgb(223,54,43)" rx="2" ry="2" />
+<text  x="224.12" y="287.5" ></text>
+</g>
+<g >
+<title>reflect.(*rtype).Kind (1 samples, 0.03%)</title><rect x="218.9" y="213" width="0.3" height="15.0" fill="rgb(223,111,34)" rx="2" ry="2" />
+<text  x="221.89" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.(*mcache).refill (1 samples, 0.03%)</title><rect x="13.5" y="245" width="0.3" height="15.0" fill="rgb(236,18,33)" rx="2" ry="2" />
+<text  x="16.51" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_mutex_unlock (2 samples, 0.05%)</title><rect x="740.0" y="213" width="0.6" height="15.0" fill="rgb(223,117,23)" rx="2" ry="2" />
+<text  x="743.01" y="223.5" ></text>
+</g>
+<g >
+<title>syscall.syscall6 (181 samples, 4.89%)</title><rect x="131.5" y="149" width="57.7" height="15.0" fill="rgb(234,212,46)" rx="2" ry="2" />
+<text  x="134.51" y="159.5" >syscal..</text>
+</g>
+<g >
+<title>runtime.startm (1 samples, 0.03%)</title><rect x="268.6" y="245" width="0.4" height="15.0" fill="rgb(249,202,11)" rx="2" ry="2" />
+<text  x="271.64" y="255.5" ></text>
+</g>
+<g >
+<title>io.ReadFull (2 samples, 0.05%)</title><rect x="88.5" y="213" width="0.6" height="15.0" fill="rgb(222,154,12)" rx="2" ry="2" />
+<text  x="91.45" y="223.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/utils.WriteVarInt (1 samples, 0.03%)</title><rect x="125.8" y="229" width="0.3" height="15.0" fill="rgb(206,65,22)" rx="2" ry="2" />
+<text  x="128.77" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.nanotime (1 samples, 0.03%)</title><rect x="266.1" y="261" width="0.3" height="15.0" fill="rgb(223,67,33)" rx="2" ry="2" />
+<text  x="269.09" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.handoffp (2 samples, 0.05%)</title><rect x="62.6" y="149" width="0.7" height="15.0" fill="rgb(232,209,31)" rx="2" ry="2" />
+<text  x="65.62" y="159.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/ackhandler.(*sentPacketHistory).Iterate (2 samples, 0.05%)</title><rect x="78.6" y="197" width="0.6" height="15.0" fill="rgb(226,111,13)" rx="2" ry="2" />
+<text  x="81.57" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.(*mheap).freeSpan (1 samples, 0.03%)</title><rect x="263.2" y="261" width="0.3" height="15.0" fill="rgb(237,96,52)" rx="2" ry="2" />
+<text  x="266.22" y="271.5" ></text>
+</g>
+<g >
+<title>reflect.(*rtype).String (1 samples, 0.03%)</title><rect x="214.1" y="213" width="0.3" height="15.0" fill="rgb(248,162,7)" rx="2" ry="2" />
+<text  x="217.11" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.mallocgc (1 samples, 0.03%)</title><rect x="77.0" y="213" width="0.3" height="15.0" fill="rgb(212,141,52)" rx="2" ry="2" />
+<text  x="79.97" y="223.5" ></text>
+</g>
+<g >
+<title>time.Now (5 samples, 0.14%)</title><rect x="14.1" y="293" width="1.6" height="15.0" fill="rgb(238,126,46)" rx="2" ry="2" />
+<text  x="17.15" y="303.5" ></text>
+</g>
+<g >
+<title>runtime.memclrNoHeapPointers (3 samples, 0.08%)</title><rect x="18.0" y="181" width="0.9" height="15.0" fill="rgb(205,112,53)" rx="2" ry="2" />
+<text  x="20.97" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.lock (1 samples, 0.03%)</title><rect x="265.8" y="293" width="0.3" height="15.0" fill="rgb(231,46,8)" rx="2" ry="2" />
+<text  x="268.77" y="303.5" ></text>
+</g>
+<g >
+<title>runtime.makeslice (1 samples, 0.03%)</title><rect x="116.5" y="181" width="0.3" height="15.0" fill="rgb(242,131,21)" rx="2" ry="2" />
+<text  x="119.52" y="191.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*session).handleSinglePacket (42 samples, 1.14%)</title><rect x="74.7" y="293" width="13.4" height="15.0" fill="rgb(230,202,4)" rx="2" ry="2" />
+<text  x="77.74" y="303.5" ></text>
+</g>
+<g >
+<title>crypto/aes.(*aesCipherAsm).Encrypt (1 samples, 0.03%)</title><rect x="76.0" y="245" width="0.3" height="15.0" fill="rgb(229,39,42)" rx="2" ry="2" />
+<text  x="79.02" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_cond_signal (1 samples, 0.03%)</title><rect x="1011.1" y="229" width="0.3" height="15.0" fill="rgb(215,68,43)" rx="2" ry="2" />
+<text  x="1014.09" y="239.5" ></text>
+</g>
+<g >
+<title>time.Now (1 samples, 0.03%)</title><rect x="114.9" y="261" width="0.3" height="15.0" fill="rgb(238,106,54)" rx="2" ry="2" />
+<text  x="117.92" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.newobject (1 samples, 0.03%)</title><rect x="75.7" y="245" width="0.3" height="15.0" fill="rgb(221,0,13)" rx="2" ry="2" />
+<text  x="78.70" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.newobject (1 samples, 0.03%)</title><rect x="211.2" y="277" width="0.4" height="15.0" fill="rgb(211,50,45)" rx="2" ry="2" />
+<text  x="214.24" y="287.5" ></text>
+</g>
+<g >
+<title>runtime.runqgrab (1 samples, 0.03%)</title><rect x="266.4" y="245" width="0.3" height="15.0" fill="rgb(239,122,28)" rx="2" ry="2" />
+<text  x="269.41" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.newobject (1 samples, 0.03%)</title><rect x="73.1" y="277" width="0.4" height="15.0" fill="rgb(244,185,27)" rx="2" ry="2" />
+<text  x="76.15" y="287.5" ></text>
+</g>
+<g >
+<title>time.now (2 samples, 0.05%)</title><rect x="119.4" y="197" width="0.6" height="15.0" fill="rgb(219,27,14)" rx="2" ry="2" />
+<text  x="122.39" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_mutex_lock (1 samples, 0.03%)</title><rect x="739.7" y="213" width="0.3" height="15.0" fill="rgb(212,217,38)" rx="2" ry="2" />
+<text  x="742.69" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.semawakeup (73 samples, 1.97%)</title><rect x="90.0" y="197" width="23.3" height="15.0" fill="rgb(232,110,48)" rx="2" ry="2" />
+<text  x="93.05" y="207.5" >r..</text>
+</g>
+<g >
+<title>runtime.mallocgc (1 samples, 0.03%)</title><rect x="87.8" y="197" width="0.3" height="15.0" fill="rgb(250,126,27)" rx="2" ry="2" />
+<text  x="90.82" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.heapBitsSetType (1 samples, 0.03%)</title><rect x="217.3" y="197" width="0.3" height="15.0" fill="rgb(232,87,54)" rx="2" ry="2" />
+<text  x="220.30" y="207.5" ></text>
+</g>
+<g >
+<title>github.com/marten-seemann/qtls.(*xorNonceAEAD).Overhead (3 samples, 0.08%)</title><rect x="127.4" y="245" width="0.9" height="15.0" fill="rgb(239,103,29)" rx="2" ry="2" />
+<text  x="130.36" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.execute (1 samples, 0.03%)</title><rect x="270.9" y="277" width="0.3" height="15.0" fill="rgb(208,80,50)" rx="2" ry="2" />
+<text  x="273.88" y="287.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/wire.(*Header).toExtendedHeader (1 samples, 0.03%)</title><rect x="77.0" y="245" width="0.3" height="15.0" fill="rgb(206,103,27)" rx="2" ry="2" />
+<text  x="79.97" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_cond_timedwait_relative_np (1 samples, 0.03%)</title><rect x="1010.8" y="213" width="0.3" height="15.0" fill="rgb(218,76,50)" rx="2" ry="2" />
+<text  x="1013.77" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.notetsleep (1 samples, 0.03%)</title><rect x="1010.8" y="261" width="0.3" height="15.0" fill="rgb(251,227,2)" rx="2" ry="2" />
+<text  x="1013.77" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.deferreturn (4 samples, 0.11%)</title><rect x="12.2" y="293" width="1.3" height="15.0" fill="rgb(218,8,25)" rx="2" ry="2" />
+<text  x="15.23" y="303.5" ></text>
+</g>
+<g >
+<title>runtime.stopm (986 samples, 26.65%)</title><rect x="426.2" y="261" width="314.4" height="15.0" fill="rgb(219,77,54)" rx="2" ry="2" />
+<text  x="429.19" y="271.5" >runtime.stopm</text>
+</g>
+<g >
+<title>reflect.(*rtype).Name (1 samples, 0.03%)</title><rect x="214.1" y="229" width="0.3" height="15.0" fill="rgb(249,154,49)" rx="2" ry="2" />
+<text  x="217.11" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.walltime (1 samples, 0.03%)</title><rect x="119.7" y="181" width="0.3" height="15.0" fill="rgb(216,129,47)" rx="2" ry="2" />
+<text  x="122.71" y="191.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/ackhandler.(*sentPacketHandler).sentPacketImpl (1 samples, 0.03%)</title><rect x="191.1" y="261" width="0.4" height="15.0" fill="rgb(230,60,47)" rx="2" ry="2" />
+<text  x="194.15" y="271.5" ></text>
+</g>
+<g >
+<title>time.now (4 samples, 0.11%)</title><rect x="208.7" y="293" width="1.3" height="15.0" fill="rgb(231,128,23)" rx="2" ry="2" />
+<text  x="211.69" y="303.5" ></text>
+</g>
+<g >
+<title>runtime.resetspinning (1 samples, 0.03%)</title><rect x="268.6" y="277" width="0.4" height="15.0" fill="rgb(224,149,53)" rx="2" ry="2" />
+<text  x="271.64" y="287.5" ></text>
+</g>
+<g >
+<title>runtime.gcMarkDone.func1.1 (1 samples, 0.03%)</title><rect x="263.5" y="245" width="0.4" height="15.0" fill="rgb(224,196,53)" rx="2" ry="2" />
+<text  x="266.54" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.sellock (1 samples, 0.03%)</title><rect x="208.0" y="293" width="0.4" height="15.0" fill="rgb(234,74,19)" rx="2" ry="2" />
+<text  x="211.05" y="303.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*receiveStream).signalRead (5 samples, 0.14%)</title><rect x="82.4" y="197" width="1.6" height="15.0" fill="rgb(234,162,15)" rx="2" ry="2" />
+<text  x="85.39" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.mallocgc (1 samples, 0.03%)</title><rect x="129.9" y="165" width="0.3" height="15.0" fill="rgb(209,223,28)" rx="2" ry="2" />
+<text  x="132.91" y="175.5" ></text>
+</g>
+<g >
+<title>github.com/golang/protobuf/proto.(*InternalMessageInfo).Marshal (3 samples, 0.08%)</title><rect x="211.6" y="245" width="0.9" height="15.0" fill="rgb(235,160,15)" rx="2" ry="2" />
+<text  x="214.56" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.wirep (1 samples, 0.03%)</title><rect x="428.1" y="229" width="0.3" height="15.0" fill="rgb(213,176,0)" rx="2" ry="2" />
+<text  x="431.10" y="239.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*receiveStream).dequeueNextFrame (41 samples, 1.11%)</title><rect x="225.0" y="277" width="13.0" height="15.0" fill="rgb(218,104,4)" rx="2" ry="2" />
+<text  x="227.95" y="287.5" ></text>
+</g>
+<g >
+<title>time.Now (2 samples, 0.05%)</title><rect x="119.4" y="213" width="0.6" height="15.0" fill="rgb(207,202,41)" rx="2" ry="2" />
+<text  x="122.39" y="223.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/handshake.(*sealer).Seal (4 samples, 0.11%)</title><rect x="124.2" y="245" width="1.2" height="15.0" fill="rgb(216,107,13)" rx="2" ry="2" />
+<text  x="127.17" y="255.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*streamsMap).GetOrOpenReceiveStream (2 samples, 0.05%)</title><rect x="84.9" y="229" width="0.7" height="15.0" fill="rgb(210,196,40)" rx="2" ry="2" />
+<text  x="87.95" y="239.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/ackhandler.(*sentPacketHistory).Remove (2 samples, 0.05%)</title><rect x="79.5" y="197" width="0.7" height="15.0" fill="rgb(217,43,51)" rx="2" ry="2" />
+<text  x="82.52" y="207.5" ></text>
+</g>
+<g >
+<title>time.stopTimer (2 samples, 0.05%)</title><rect x="113.6" y="261" width="0.7" height="15.0" fill="rgb(206,190,34)" rx="2" ry="2" />
+<text  x="116.65" y="271.5" ></text>
+</g>
+<g >
+<title>all (3,700 samples, 100%)</title><rect x="10.0" y="341" width="1180.0" height="15.0" fill="rgb(241,18,19)" rx="2" ry="2" />
+<text  x="13.00" y="351.5" ></text>
+</g>
+<g >
+<title>runtime.mapdelete_fast64 (2 samples, 0.05%)</title><rect x="117.8" y="229" width="0.6" height="15.0" fill="rgb(230,130,44)" rx="2" ry="2" />
+<text  x="120.79" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.mallocgc (2 samples, 0.05%)</title><rect x="13.5" y="277" width="0.6" height="15.0" fill="rgb(250,177,22)" rx="2" ry="2" />
+<text  x="16.51" y="287.5" ></text>
+</g>
+<g >
+<title>runtime.lock (1 samples, 0.03%)</title><rect x="113.6" y="229" width="0.4" height="15.0" fill="rgb(230,10,21)" rx="2" ry="2" />
+<text  x="116.65" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.lock (9 samples, 0.24%)</title><rect x="276.3" y="261" width="2.9" height="15.0" fill="rgb(211,198,50)" rx="2" ry="2" />
+<text  x="279.30" y="271.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*sendStream).signalWrite (1 samples, 0.03%)</title><rect x="116.2" y="181" width="0.3" height="15.0" fill="rgb(244,92,19)" rx="2" ry="2" />
+<text  x="119.20" y="191.5" ></text>
+</g>
+<g >
+<title>time.stopTimer (1 samples, 0.03%)</title><rect x="113.3" y="261" width="0.3" height="15.0" fill="rgb(244,8,7)" rx="2" ry="2" />
+<text  x="116.33" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.newobject (1 samples, 0.03%)</title><rect x="87.5" y="213" width="0.3" height="15.0" fill="rgb(218,44,51)" rx="2" ry="2" />
+<text  x="90.50" y="223.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/utils.(*Timer).Reset (77 samples, 2.08%)</title><rect x="89.7" y="293" width="24.6" height="15.0" fill="rgb(228,141,34)" rx="2" ry="2" />
+<text  x="92.73" y="303.5" >g..</text>
+</g>
+<g >
+<title>time.(*Timer).Stop (2 samples, 0.05%)</title><rect x="113.6" y="277" width="0.7" height="15.0" fill="rgb(236,39,0)" rx="2" ry="2" />
+<text  x="116.65" y="287.5" ></text>
+</g>
+<g >
+<title>runtime.selectgo (54 samples, 1.46%)</title><rect x="191.5" y="309" width="17.2" height="15.0" fill="rgb(235,104,21)" rx="2" ry="2" />
+<text  x="194.46" y="319.5" ></text>
+</g>
+<g >
+<title>runtime.systemstack (1 samples, 0.03%)</title><rect x="11.6" y="213" width="0.3" height="15.0" fill="rgb(241,56,42)" rx="2" ry="2" />
+<text  x="14.59" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.scanobject (1 samples, 0.03%)</title><rect x="17.7" y="101" width="0.3" height="15.0" fill="rgb(219,127,31)" rx="2" ry="2" />
+<text  x="20.65" y="111.5" ></text>
+</g>
+<g >
+<title>runtime.entersyscallblock_handoff (1 samples, 0.03%)</title><rect x="161.5" y="101" width="0.3" height="15.0" fill="rgb(239,29,44)" rx="2" ry="2" />
+<text  x="164.49" y="111.5" ></text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/rpc.(*Server).HandleRPC (27 samples, 0.73%)</title><rect x="212.5" y="293" width="8.6" height="15.0" fill="rgb(207,48,3)" rx="2" ry="2" />
+<text  x="215.51" y="303.5" ></text>
+</g>
+<g >
+<title>github.com/golang/protobuf/proto.Unmarshal (1 samples, 0.03%)</title><rect x="212.8" y="245" width="0.4" height="15.0" fill="rgb(224,31,54)" rx="2" ry="2" />
+<text  x="215.83" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.nanotime (1 samples, 0.03%)</title><rect x="834.1" y="229" width="0.3" height="15.0" fill="rgb(237,1,11)" rx="2" ry="2" />
+<text  x="837.09" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.startTheWorldWithSema (1 samples, 0.03%)</title><rect x="1011.1" y="277" width="0.3" height="15.0" fill="rgb(215,154,33)" rx="2" ry="2" />
+<text  x="1014.09" y="287.5" ></text>
+</g>
+<g >
+<title>runtime.usleep (126 samples, 3.41%)</title><rect x="854.5" y="277" width="40.2" height="15.0" fill="rgb(209,63,46)" rx="2" ry="2" />
+<text  x="857.50" y="287.5" >run..</text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/flowcontrol.(*streamFlowController).AddBytesRead (2 samples, 0.05%)</title><rect x="238.0" y="277" width="0.7" height="15.0" fill="rgb(229,189,7)" rx="2" ry="2" />
+<text  x="241.03" y="287.5" ></text>
+</g>
+<g >
+<title>reflect.Value.Call (9 samples, 0.24%)</title><rect x="214.4" y="229" width="2.9" height="15.0" fill="rgb(223,175,50)" rx="2" ry="2" />
+<text  x="217.43" y="239.5" ></text>
+</g>
+<g >
+<title>sync.(*RWMutex).Lock (1 samples, 0.03%)</title><rect x="238.0" y="229" width="0.3" height="15.0" fill="rgb(217,36,12)" rx="2" ry="2" />
+<text  x="241.03" y="239.5" ></text>
+</g>
+<g >
+<title>sync.(*RWMutex).Unlock (1 samples, 0.03%)</title><rect x="84.6" y="165" width="0.3" height="15.0" fill="rgb(215,85,13)" rx="2" ry="2" />
+<text  x="87.63" y="175.5" ></text>
+</g>
+<g >
+<title>runtime.startm (1 samples, 0.03%)</title><rect x="83.7" y="53" width="0.3" height="15.0" fill="rgb(215,72,30)" rx="2" ry="2" />
+<text  x="86.67" y="63.5" ></text>
+</g>
+<g >
+<title>runtime.timerproc (114 samples, 3.08%)</title><rect x="1153.6" y="325" width="36.4" height="15.0" fill="rgb(251,6,5)" rx="2" ry="2" />
+<text  x="1156.64" y="335.5" >run..</text>
+</g>
+<g >
+<title>runtime.mstart (1,204 samples, 32.54%)</title><rect x="769.7" y="325" width="383.9" height="15.0" fill="rgb(231,94,38)" rx="2" ry="2" />
+<text  x="772.66" y="335.5" >runtime.mstart</text>
+</g>
+<g >
+<title>runtime.(*mcentral).cacheSpan (1 samples, 0.03%)</title><rect x="77.0" y="165" width="0.3" height="15.0" fill="rgb(239,106,25)" rx="2" ry="2" />
+<text  x="79.97" y="175.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_cond_signal (1 samples, 0.03%)</title><rect x="769.3" y="197" width="0.4" height="15.0" fill="rgb(226,222,18)" rx="2" ry="2" />
+<text  x="772.35" y="207.5" ></text>
+</g>
+<g >
+<title>syscall.anyToSockaddr (6 samples, 0.16%)</title><rect x="17.0" y="229" width="1.9" height="15.0" fill="rgb(218,44,30)" rx="2" ry="2" />
+<text  x="20.02" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.libcCall (1 samples, 0.03%)</title><rect x="425.9" y="213" width="0.3" height="15.0" fill="rgb(231,85,47)" rx="2" ry="2" />
+<text  x="428.87" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.gcAssistAlloc1 (1 samples, 0.03%)</title><rect x="17.7" y="133" width="0.3" height="15.0" fill="rgb(251,107,13)" rx="2" ry="2" />
+<text  x="20.65" y="143.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_cond_wait (6 samples, 0.16%)</title><rect x="266.7" y="213" width="1.9" height="15.0" fill="rgb(251,221,14)" rx="2" ry="2" />
+<text  x="269.73" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.convI2I (1 samples, 0.03%)</title><rect x="117.5" y="213" width="0.3" height="15.0" fill="rgb(226,227,44)" rx="2" ry="2" />
+<text  x="120.48" y="223.5" ></text>
+</g>
+<g >
+<title>sync.(*Mutex).Lock (1 samples, 0.03%)</title><rect x="238.0" y="213" width="0.3" height="15.0" fill="rgb(212,186,34)" rx="2" ry="2" />
+<text  x="241.03" y="223.5" ></text>
+</g>
+<g >
+<title>github.com/golang/protobuf/proto.(*InternalMessageInfo).Marshal (2 samples, 0.05%)</title><rect x="213.5" y="213" width="0.6" height="15.0" fill="rgb(250,166,32)" rx="2" ry="2" />
+<text  x="216.47" y="223.5" ></text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/funcs.(*Funcs).Call (11 samples, 0.30%)</title><rect x="214.1" y="245" width="3.5" height="15.0" fill="rgb(213,15,49)" rx="2" ry="2" />
+<text  x="217.11" y="255.5" ></text>
+</g>
+<g >
+<title>net.(*netFD).writeTo (185 samples, 5.00%)</title><rect x="130.2" y="213" width="59.0" height="15.0" fill="rgb(243,204,45)" rx="2" ry="2" />
+<text  x="133.23" y="223.5" >net.(*..</text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*sendStream).Write (53 samples, 1.43%)</title><rect x="240.9" y="309" width="16.9" height="15.0" fill="rgb(236,29,10)" rx="2" ry="2" />
+<text  x="243.90" y="319.5" ></text>
+</g>
+<g >
+<title>runtime.semasleep (6 samples, 0.16%)</title><rect x="269.0" y="261" width="1.9" height="15.0" fill="rgb(210,98,43)" rx="2" ry="2" />
+<text  x="271.96" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.selunlock (1 samples, 0.03%)</title><rect x="208.4" y="293" width="0.3" height="15.0" fill="rgb(239,219,45)" rx="2" ry="2" />
+<text  x="211.37" y="303.5" ></text>
+</g>
+<g >
+<title>time.now (1 samples, 0.03%)</title><rect x="114.9" y="245" width="0.3" height="15.0" fill="rgb(251,41,3)" rx="2" ry="2" />
+<text  x="117.92" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.gcMarkTermination.func3 (1 samples, 0.03%)</title><rect x="1011.1" y="293" width="0.3" height="15.0" fill="rgb(207,204,11)" rx="2" ry="2" />
+<text  x="1014.09" y="303.5" ></text>
+</g>
+<g >
+<title>syscall.sendto (181 samples, 4.89%)</title><rect x="131.5" y="165" width="57.7" height="15.0" fill="rgb(236,214,2)" rx="2" ry="2" />
+<text  x="134.51" y="175.5" >syscal..</text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/ackhandler.(*receivedPacketHandler).GetAckFrame (5 samples, 0.14%)</title><rect x="118.4" y="245" width="1.6" height="15.0" fill="rgb(210,20,54)" rx="2" ry="2" />
+<text  x="121.43" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.newobject (1 samples, 0.03%)</title><rect x="77.0" y="229" width="0.3" height="15.0" fill="rgb(218,109,3)" rx="2" ry="2" />
+<text  x="79.97" y="239.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/flowcontrol.(*connectionFlowController).IncrementHighestReceived (2 samples, 0.05%)</title><rect x="84.3" y="181" width="0.6" height="15.0" fill="rgb(243,64,52)" rx="2" ry="2" />
+<text  x="87.31" y="191.5" ></text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/rpc/pb.(*Msg).XXX_Unmarshal (1 samples, 0.03%)</title><rect x="210.6" y="261" width="0.3" height="15.0" fill="rgb(227,196,28)" rx="2" ry="2" />
+<text  x="213.60" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.mapaccess1_fast64 (1 samples, 0.03%)</title><rect x="85.3" y="197" width="0.3" height="15.0" fill="rgb(236,205,2)" rx="2" ry="2" />
+<text  x="88.26" y="207.5" ></text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/rpc/protocol.WriteStream (54 samples, 1.46%)</title><rect x="240.6" y="325" width="17.2" height="15.0" fill="rgb(233,219,30)" rx="2" ry="2" />
+<text  x="243.58" y="335.5" ></text>
+</g>
+<g >
+<title>runtime.newobject (3 samples, 0.08%)</title><rect x="118.4" y="213" width="1.0" height="15.0" fill="rgb(212,134,35)" rx="2" ry="2" />
+<text  x="121.43" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.getempty (1 samples, 0.03%)</title><rect x="264.2" y="229" width="0.3" height="15.0" fill="rgb(232,47,38)" rx="2" ry="2" />
+<text  x="267.18" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.semasleep (71 samples, 1.92%)</title><rect x="1167.4" y="277" width="22.6" height="15.0" fill="rgb(207,221,20)" rx="2" ry="2" />
+<text  x="1170.36" y="287.5" >r..</text>
+</g>
+<g >
+<title>runtime.selectgo (4 samples, 0.11%)</title><rect x="223.0" y="309" width="1.3" height="15.0" fill="rgb(218,105,21)" rx="2" ry="2" />
+<text  x="226.04" y="319.5" ></text>
+</g>
+<g >
+<title>runtime.goready.func1 (1 samples, 0.03%)</title><rect x="11.6" y="197" width="0.3" height="15.0" fill="rgb(244,211,53)" rx="2" ry="2" />
+<text  x="14.59" y="207.5" ></text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/rpc.ServeQUICConn (44 samples, 1.19%)</title><rect x="210.3" y="325" width="14.0" height="15.0" fill="rgb(222,112,38)" rx="2" ry="2" />
+<text  x="213.28" y="335.5" ></text>
+</g>
+<g >
+<title>runtime.exitsyscall (29 samples, 0.78%)</title><rect x="63.3" y="197" width="9.2" height="15.0" fill="rgb(216,114,1)" rx="2" ry="2" />
+<text  x="66.26" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.newobject (2 samples, 0.05%)</title><rect x="126.1" y="245" width="0.6" height="15.0" fill="rgb(254,81,0)" rx="2" ry="2" />
+<text  x="129.09" y="255.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*session).sendPackets (242 samples, 6.54%)</title><rect x="114.3" y="309" width="77.2" height="15.0" fill="rgb(231,115,24)" rx="2" ry="2" />
+<text  x="117.29" y="319.5" >github.c..</text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*sendStream).popStreamFrame (2 samples, 0.05%)</title><rect x="116.2" y="229" width="0.6" height="15.0" fill="rgb(216,58,5)" rx="2" ry="2" />
+<text  x="119.20" y="239.5" ></text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/rpc/protocol.ReadStream (51 samples, 1.38%)</title><rect x="224.3" y="325" width="16.3" height="15.0" fill="rgb(210,172,8)" rx="2" ry="2" />
+<text  x="227.31" y="335.5" ></text>
+</g>
+<g >
+<title>sync.(*Map).Load (5 samples, 0.14%)</title><rect x="215.4" y="181" width="1.6" height="15.0" fill="rgb(218,81,22)" rx="2" ry="2" />
+<text  x="218.38" y="191.5" ></text>
+</g>
+<g >
+<title>bytes.NewReader (1 samples, 0.03%)</title><rect x="75.7" y="261" width="0.3" height="15.0" fill="rgb(246,24,46)" rx="2" ry="2" />
+<text  x="78.70" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.stopm (1 samples, 0.03%)</title><rect x="769.0" y="229" width="0.3" height="15.0" fill="rgb(217,137,53)" rx="2" ry="2" />
+<text  x="772.03" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.wakep (1 samples, 0.03%)</title><rect x="268.6" y="261" width="0.4" height="15.0" fill="rgb(221,212,38)" rx="2" ry="2" />
+<text  x="271.64" y="271.5" ></text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/rpc.(*Msg).Decode (3 samples, 0.08%)</title><rect x="210.6" y="293" width="1.0" height="15.0" fill="rgb(210,107,10)" rx="2" ry="2" />
+<text  x="213.60" y="303.5" ></text>
+</g>
+<g >
+<title>runtime.(*mheap).alloc (1 samples, 0.03%)</title><rect x="213.2" y="149" width="0.3" height="15.0" fill="rgb(232,108,14)" rx="2" ry="2" />
+<text  x="216.15" y="159.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*session).handleFrame (26 samples, 0.70%)</title><rect x="77.3" y="261" width="8.3" height="15.0" fill="rgb(219,20,11)" rx="2" ry="2" />
+<text  x="80.29" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.chansend (3 samples, 0.08%)</title><rect x="221.8" y="293" width="0.9" height="15.0" fill="rgb(246,158,36)" rx="2" ry="2" />
+<text  x="224.76" y="303.5" ></text>
+</g>
+<g >
+<title>runtime.systemstack (2 samples, 0.05%)</title><rect x="222.1" y="245" width="0.6" height="15.0" fill="rgb(242,90,29)" rx="2" ry="2" />
+<text  x="225.08" y="255.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*frameSorter).push (1 samples, 0.03%)</title><rect x="82.1" y="181" width="0.3" height="15.0" fill="rgb(207,41,28)" rx="2" ry="2" />
+<text  x="85.08" y="191.5" ></text>
+</g>
+<g >
+<title>reflect.Value.call (9 samples, 0.24%)</title><rect x="214.4" y="213" width="2.9" height="15.0" fill="rgb(208,50,1)" rx="2" ry="2" />
+<text  x="217.43" y="223.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/protocol.GetPacketNumberLengthForHeader (1 samples, 0.03%)</title><rect x="120.3" y="229" width="0.4" height="15.0" fill="rgb(232,92,34)" rx="2" ry="2" />
+<text  x="123.35" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.mallocgc (2 samples, 0.05%)</title><rect x="126.1" y="229" width="0.6" height="15.0" fill="rgb(249,63,33)" rx="2" ry="2" />
+<text  x="129.09" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.stopm (6 samples, 0.16%)</title><rect x="269.0" y="293" width="1.9" height="15.0" fill="rgb(250,223,31)" rx="2" ry="2" />
+<text  x="271.96" y="303.5" ></text>
+</g>
+<g >
+<title>bytes.NewReader (1 samples, 0.03%)</title><rect x="88.1" y="277" width="0.4" height="15.0" fill="rgb(208,78,13)" rx="2" ry="2" />
+<text  x="91.14" y="287.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/utils.(*defaultLogger).Debug (1 samples, 0.03%)</title><rect x="189.2" y="245" width="0.4" height="15.0" fill="rgb(205,156,35)" rx="2" ry="2" />
+<text  x="192.23" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.notetsleep_internal (65 samples, 1.76%)</title><rect x="833.8" y="261" width="20.7" height="15.0" fill="rgb(209,217,41)" rx="2" ry="2" />
+<text  x="836.77" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.goready (2 samples, 0.05%)</title><rect x="83.4" y="133" width="0.6" height="15.0" fill="rgb(206,43,12)" rx="2" ry="2" />
+<text  x="86.35" y="143.5" ></text>
+</g>
+<g >
+<title>runtime.findrunnable (1,473 samples, 39.81%)</title><rect x="271.2" y="277" width="469.8" height="15.0" fill="rgb(210,91,51)" rx="2" ry="2" />
+<text  x="274.19" y="287.5" >runtime.findrunnable</text>
+</g>
+<g >
+<title>runtime.aeshash64 (2 samples, 0.05%)</title><rect x="80.8" y="181" width="0.6" height="15.0" fill="rgb(208,185,42)" rx="2" ry="2" />
+<text  x="83.80" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.gcDrain (5 samples, 0.14%)</title><rect x="264.2" y="277" width="1.6" height="15.0" fill="rgb(251,146,17)" rx="2" ry="2" />
+<text  x="267.18" y="287.5" ></text>
+</g>
+<g >
+<title>runtime.mallocgc (1 samples, 0.03%)</title><rect x="217.3" y="213" width="0.3" height="15.0" fill="rgb(208,113,4)" rx="2" ry="2" />
+<text  x="220.30" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.exitsyscall (22 samples, 0.59%)</title><rect x="1154.9" y="293" width="7.0" height="15.0" fill="rgb(241,141,31)" rx="2" ry="2" />
+<text  x="1157.92" y="303.5" ></text>
+</g>
+<g >
+<title>runtime.startm (307 samples, 8.30%)</title><rect x="894.7" y="261" width="97.9" height="15.0" fill="rgb(212,196,50)" rx="2" ry="2" />
+<text  x="897.68" y="271.5" >runtime.sta..</text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*receiveStream).handleStreamFrameImpl (11 samples, 0.30%)</title><rect x="81.4" y="213" width="3.5" height="15.0" fill="rgb(227,57,23)" rx="2" ry="2" />
+<text  x="84.44" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.gcAssistAlloc (1 samples, 0.03%)</title><rect x="118.8" y="181" width="0.3" height="15.0" fill="rgb(235,119,15)" rx="2" ry="2" />
+<text  x="121.75" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.semasleep (65 samples, 1.76%)</title><rect x="833.8" y="245" width="20.7" height="15.0" fill="rgb(228,113,33)" rx="2" ry="2" />
+<text  x="836.77" y="255.5" ></text>
+</g>
+<g >
+<title>internal/poll.(*FD).readUnlock (2 samples, 0.05%)</title><rect x="15.7" y="245" width="0.7" height="15.0" fill="rgb(208,19,12)" rx="2" ry="2" />
+<text  x="18.74" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.deltimer (1 samples, 0.03%)</title><rect x="113.3" y="245" width="0.3" height="15.0" fill="rgb(221,227,2)" rx="2" ry="2" />
+<text  x="116.33" y="255.5" ></text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/rpc.(*Server).ServeRPC.func1 (2 samples, 0.05%)</title><rect x="221.1" y="293" width="0.7" height="15.0" fill="rgb(226,154,22)" rx="2" ry="2" />
+<text  x="224.12" y="303.5" ></text>
+</g>
+<g >
+<title>runtime.acquirep (3 samples, 0.08%)</title><rect x="427.5" y="245" width="0.9" height="15.0" fill="rgb(218,81,5)" rx="2" ry="2" />
+<text  x="430.46" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.bgsweep (1 samples, 0.03%)</title><rect x="263.2" y="325" width="0.3" height="15.0" fill="rgb(208,209,30)" rx="2" ry="2" />
+<text  x="266.22" y="335.5" ></text>
+</g>
+<g >
+<title>runtime.notewakeup (446 samples, 12.05%)</title><rect x="1011.4" y="229" width="142.2" height="15.0" fill="rgb(214,205,51)" rx="2" ry="2" />
+<text  x="1014.41" y="239.5" >runtime.notewakeup</text>
+</g>
+<g >
+<title>runtime.nanotime (4 samples, 0.11%)</title><rect x="1153.6" y="309" width="1.3" height="15.0" fill="rgb(231,206,6)" rx="2" ry="2" />
+<text  x="1156.64" y="319.5" ></text>
+</g>
+<g >
+<title>runtime.scanobject (1 samples, 0.03%)</title><rect x="118.8" y="101" width="0.3" height="15.0" fill="rgb(239,142,9)" rx="2" ry="2" />
+<text  x="121.75" y="111.5" ></text>
+</g>
+<g >
+<title>runtime.mapaccess2 (4 samples, 0.11%)</title><rect x="215.7" y="165" width="1.3" height="15.0" fill="rgb(213,106,32)" rx="2" ry="2" />
+<text  x="218.70" y="175.5" ></text>
+</g>
+<g >
+<title>runtime.(*mcentral).cacheSpan (1 samples, 0.03%)</title><rect x="13.5" y="229" width="0.3" height="15.0" fill="rgb(208,148,34)" rx="2" ry="2" />
+<text  x="16.51" y="239.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*session).handleUnpackedPacket (34 samples, 0.92%)</title><rect x="77.3" y="277" width="10.8" height="15.0" fill="rgb(241,69,40)" rx="2" ry="2" />
+<text  x="80.29" y="287.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/flowcontrol.(*connectionFlowController).AddBytesRead (1 samples, 0.03%)</title><rect x="238.0" y="261" width="0.3" height="15.0" fill="rgb(247,196,39)" rx="2" ry="2" />
+<text  x="241.03" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.startm (446 samples, 12.05%)</title><rect x="1011.4" y="245" width="142.2" height="15.0" fill="rgb(210,189,6)" rx="2" ry="2" />
+<text  x="1014.41" y="255.5" >runtime.startm</text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/rpc.ReplyEncode (1 samples, 0.03%)</title><rect x="220.8" y="245" width="0.3" height="15.0" fill="rgb(222,84,50)" rx="2" ry="2" />
+<text  x="223.81" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.gcBgMarkWorker (7 samples, 0.19%)</title><rect x="263.5" y="325" width="2.3" height="15.0" fill="rgb(206,181,7)" rx="2" ry="2" />
+<text  x="266.54" y="335.5" ></text>
+</g>
+<g >
+<title>runtime.mallocgc (1 samples, 0.03%)</title><rect x="217.0" y="181" width="0.3" height="15.0" fill="rgb(208,35,53)" rx="2" ry="2" />
+<text  x="219.98" y="191.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/wire.(*frameParser).ParseNext (6 samples, 0.16%)</title><rect x="86.2" y="261" width="1.9" height="15.0" fill="rgb(236,81,34)" rx="2" ry="2" />
+<text  x="89.22" y="271.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*session).handleAckFrame (13 samples, 0.35%)</title><rect x="77.3" y="245" width="4.1" height="15.0" fill="rgb(230,223,47)" rx="2" ry="2" />
+<text  x="80.29" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.getitab (1 samples, 0.03%)</title><rect x="220.8" y="197" width="0.3" height="15.0" fill="rgb(212,69,8)" rx="2" ry="2" />
+<text  x="223.81" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.semacreate (2 samples, 0.05%)</title><rect x="428.7" y="229" width="0.7" height="15.0" fill="rgb(219,218,32)" rx="2" ry="2" />
+<text  x="431.74" y="239.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*incomingBidiStreamsMap).GetOrOpenStream (2 samples, 0.05%)</title><rect x="116.8" y="213" width="0.7" height="15.0" fill="rgb(223,28,20)" rx="2" ry="2" />
+<text  x="119.84" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.morestack (2 samples, 0.05%)</title><rect x="769.0" y="325" width="0.7" height="15.0" fill="rgb(243,73,50)" rx="2" ry="2" />
+<text  x="772.03" y="335.5" ></text>
+</g>
+<g >
+<title>runtime.semawakeup (1 samples, 0.03%)</title><rect x="161.5" y="37" width="0.3" height="15.0" fill="rgb(252,76,23)" rx="2" ry="2" />
+<text  x="164.49" y="47.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_cond_signal (73 samples, 1.97%)</title><rect x="741.6" y="197" width="23.3" height="15.0" fill="rgb(223,57,7)" rx="2" ry="2" />
+<text  x="744.60" y="207.5" >r..</text>
+</g>
+<g >
+<title>runtime.mapdelete_fast64 (1 samples, 0.03%)</title><rect x="79.8" y="181" width="0.4" height="15.0" fill="rgb(217,112,45)" rx="2" ry="2" />
+<text  x="82.84" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.systemstack (1 samples, 0.03%)</title><rect x="263.2" y="245" width="0.3" height="15.0" fill="rgb(231,100,28)" rx="2" ry="2" />
+<text  x="266.22" y="255.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*session).handlePacketImpl (45 samples, 1.22%)</title><rect x="74.7" y="309" width="14.4" height="15.0" fill="rgb(213,21,30)" rx="2" ry="2" />
+<text  x="77.74" y="319.5" ></text>
+</g>
+<g >
+<title>runtime.usleep (1 samples, 0.03%)</title><rect x="266.4" y="229" width="0.3" height="15.0" fill="rgb(207,28,41)" rx="2" ry="2" />
+<text  x="269.41" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.notesleep (1 samples, 0.03%)</title><rect x="769.0" y="213" width="0.3" height="15.0" fill="rgb(230,134,48)" rx="2" ry="2" />
+<text  x="772.03" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.lock (2 samples, 0.05%)</title><rect x="992.6" y="261" width="0.6" height="15.0" fill="rgb(234,86,25)" rx="2" ry="2" />
+<text  x="995.59" y="271.5" ></text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/funcs.(*Funcs).GetFunc (1 samples, 0.03%)</title><rect x="218.6" y="229" width="0.3" height="15.0" fill="rgb(228,34,53)" rx="2" ry="2" />
+<text  x="221.57" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.acquirem (1 samples, 0.03%)</title><rect x="75.7" y="213" width="0.3" height="15.0" fill="rgb(205,17,53)" rx="2" ry="2" />
+<text  x="78.70" y="223.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/ackhandler.(*sentPacketHandler).determineNewlyAckedPackets (2 samples, 0.05%)</title><rect x="78.6" y="213" width="0.6" height="15.0" fill="rgb(219,134,49)" rx="2" ry="2" />
+<text  x="81.57" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.nanotime (82 samples, 2.22%)</title><rect x="279.2" y="261" width="26.1" height="15.0" fill="rgb(244,112,44)" rx="2" ry="2" />
+<text  x="282.17" y="271.5" >r..</text>
+</g>
+<g >
+<title>runtime.aeshash64 (1 samples, 0.03%)</title><rect x="79.8" y="165" width="0.4" height="15.0" fill="rgb(224,6,45)" rx="2" ry="2" />
+<text  x="82.84" y="175.5" ></text>
+</g>
+<g >
+<title>reflect.(*rtype).NumIn (1 samples, 0.03%)</title><rect x="218.9" y="229" width="0.3" height="15.0" fill="rgb(211,135,17)" rx="2" ry="2" />
+<text  x="221.89" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.memmove (1 samples, 0.03%)</title><rect x="264.5" y="229" width="0.3" height="15.0" fill="rgb(215,116,6)" rx="2" ry="2" />
+<text  x="267.50" y="239.5" ></text>
+</g>
+<g >
+<title>github.com/golang/protobuf/proto.appendVarintS32ValueNoZero (1 samples, 0.03%)</title><rect x="212.2" y="213" width="0.3" height="15.0" fill="rgb(215,65,19)" rx="2" ry="2" />
+<text  x="215.19" y="223.5" ></text>
+</g>
+<g >
+<title>github.com/golang/protobuf/proto.Marshal (1 samples, 0.03%)</title><rect x="220.8" y="229" width="0.3" height="15.0" fill="rgb(217,116,15)" rx="2" ry="2" />
+<text  x="223.81" y="239.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*frameSorter).Pop (41 samples, 1.11%)</title><rect x="225.0" y="261" width="13.0" height="15.0" fill="rgb(245,95,48)" rx="2" ry="2" />
+<text  x="227.95" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.mallocgc (1 samples, 0.03%)</title><rect x="87.5" y="197" width="0.3" height="15.0" fill="rgb(251,23,38)" rx="2" ry="2" />
+<text  x="90.50" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.nanotime (1 samples, 0.03%)</title><rect x="208.7" y="277" width="0.3" height="15.0" fill="rgb(239,27,12)" rx="2" ry="2" />
+<text  x="211.69" y="287.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*uniStreamSender).onHasStreamData (1 samples, 0.03%)</title><rect x="256.8" y="293" width="0.4" height="15.0" fill="rgb(208,35,46)" rx="2" ry="2" />
+<text  x="259.84" y="303.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*sendStream).popStreamFrameImpl (2 samples, 0.05%)</title><rect x="116.2" y="213" width="0.6" height="15.0" fill="rgb(240,215,3)" rx="2" ry="2" />
+<text  x="119.20" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.runSafePointFn (1 samples, 0.03%)</title><rect x="769.3" y="245" width="0.4" height="15.0" fill="rgb(245,9,31)" rx="2" ry="2" />
+<text  x="772.35" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.semawakeup (84 samples, 2.27%)</title><rect x="741.6" y="213" width="26.8" height="15.0" fill="rgb(205,147,21)" rx="2" ry="2" />
+<text  x="744.60" y="223.5" >r..</text>
+</g>
+<g >
+<title>crypto/aes.(*gcmAsm).Seal (2 samples, 0.05%)</title><rect x="124.8" y="213" width="0.6" height="15.0" fill="rgb(223,188,24)" rx="2" ry="2" />
+<text  x="127.81" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.gcAssistAlloc1 (1 samples, 0.03%)</title><rect x="118.8" y="133" width="0.3" height="15.0" fill="rgb(212,227,6)" rx="2" ry="2" />
+<text  x="121.75" y="143.5" ></text>
+</g>
+<g >
+<title>runtime.usleep (1 samples, 0.03%)</title><rect x="992.6" y="229" width="0.3" height="15.0" fill="rgb(206,19,9)" rx="2" ry="2" />
+<text  x="995.59" y="239.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/wire.(*Header).ParseExtended (1 samples, 0.03%)</title><rect x="77.0" y="261" width="0.3" height="15.0" fill="rgb(245,139,6)" rx="2" ry="2" />
+<text  x="79.97" y="271.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/ackhandler.(*receivedPacketHandler).IgnoreBelow (1 samples, 0.03%)</title><rect x="77.3" y="229" width="0.3" height="15.0" fill="rgb(242,204,5)" rx="2" ry="2" />
+<text  x="80.29" y="239.5" ></text>
+</g>
+<g >
+<title>github.com/marten-seemann/qtls.(*xorNonceAEAD).Open (2 samples, 0.05%)</title><rect x="76.3" y="245" width="0.7" height="15.0" fill="rgb(230,186,43)" rx="2" ry="2" />
+<text  x="79.34" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.aeshash64 (2 samples, 0.05%)</title><rect x="117.8" y="213" width="0.6" height="15.0" fill="rgb(212,7,12)" rx="2" ry="2" />
+<text  x="120.79" y="223.5" ></text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/funcs.(*Funcs).GetFuncIn (7 samples, 0.19%)</title><rect x="218.6" y="245" width="2.2" height="15.0" fill="rgb(215,207,38)" rx="2" ry="2" />
+<text  x="221.57" y="255.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*packetUnpacker).Unpack (8 samples, 0.22%)</title><rect x="74.7" y="277" width="2.6" height="15.0" fill="rgb(247,197,15)" rx="2" ry="2" />
+<text  x="77.74" y="287.5" ></text>
+</g>
+<g >
+<title>internal/poll.(*FD).WriteTo (185 samples, 5.00%)</title><rect x="130.2" y="197" width="59.0" height="15.0" fill="rgb(219,166,44)" rx="2" ry="2" />
+<text  x="133.23" y="207.5" >intern..</text>
+</g>
+<g >
+<title>runtime.libcCall (1 samples, 0.03%)</title><rect x="188.9" y="133" width="0.3" height="15.0" fill="rgb(237,21,1)" rx="2" ry="2" />
+<text  x="191.91" y="143.5" ></text>
+</g>
+<g >
+<title>runtime.systemstack (1 samples, 0.03%)</title><rect x="72.2" y="165" width="0.3" height="15.0" fill="rgb(246,40,38)" rx="2" ry="2" />
+<text  x="75.19" y="175.5" ></text>
+</g>
+<g >
+<title>runtime.chansend.func1 (2 samples, 0.05%)</title><rect x="82.7" y="133" width="0.7" height="15.0" fill="rgb(242,222,11)" rx="2" ry="2" />
+<text  x="85.71" y="143.5" ></text>
+</g>
+<g >
+<title>runtime.semasleep (976 samples, 26.38%)</title><rect x="429.4" y="229" width="311.2" height="15.0" fill="rgb(216,13,53)" rx="2" ry="2" />
+<text  x="432.38" y="239.5" >runtime.semasleep</text>
+</g>
+<g >
+<title>runtime.goready.func1 (2 samples, 0.05%)</title><rect x="222.1" y="229" width="0.6" height="15.0" fill="rgb(218,201,40)" rx="2" ry="2" />
+<text  x="225.08" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.netpoll (239 samples, 6.46%)</title><rect x="305.3" y="261" width="76.2" height="15.0" fill="rgb(207,79,37)" rx="2" ry="2" />
+<text  x="308.32" y="271.5" >runtime...</text>
+</g>
+<g >
+<title>runtime.notewakeup (1 samples, 0.03%)</title><rect x="769.3" y="229" width="0.4" height="15.0" fill="rgb(236,105,40)" rx="2" ry="2" />
+<text  x="772.35" y="239.5" ></text>
+</g>
+<g >
+<title>sync.(*Mutex).Lock (1 samples, 0.03%)</title><rect x="257.5" y="293" width="0.3" height="15.0" fill="rgb(226,203,53)" rx="2" ry="2" />
+<text  x="260.48" y="303.5" ></text>
+</g>
+<g >
+<title>runtime.(*waitq).dequeue (1 samples, 0.03%)</title><rect x="11.0" y="245" width="0.3" height="15.0" fill="rgb(218,73,30)" rx="2" ry="2" />
+<text  x="13.96" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.notetsleep_internal (1 samples, 0.03%)</title><rect x="1010.8" y="245" width="0.3" height="15.0" fill="rgb(242,77,24)" rx="2" ry="2" />
+<text  x="1013.77" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_mutex_unlock (1 samples, 0.03%)</title><rect x="268.6" y="197" width="0.4" height="15.0" fill="rgb(237,152,45)" rx="2" ry="2" />
+<text  x="271.64" y="207.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*receiveStream).Read (44 samples, 1.19%)</title><rect x="224.6" y="309" width="14.1" height="15.0" fill="rgb(217,111,2)" rx="2" ry="2" />
+<text  x="227.63" y="319.5" ></text>
+</g>
+<g >
+<title>runtime.goready (2 samples, 0.05%)</title><rect x="222.1" y="261" width="0.6" height="15.0" fill="rgb(226,113,4)" rx="2" ry="2" />
+<text  x="225.08" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.gopark (2 samples, 0.05%)</title><rect x="207.1" y="293" width="0.6" height="15.0" fill="rgb(251,91,20)" rx="2" ry="2" />
+<text  x="210.09" y="303.5" ></text>
+</g>
+<g >
+<title>github.com/golang/protobuf/proto.(*unmarshalInfo).unmarshal (1 samples, 0.03%)</title><rect x="210.6" y="229" width="0.3" height="15.0" fill="rgb(205,88,41)" rx="2" ry="2" />
+<text  x="213.60" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.notewakeup (73 samples, 1.97%)</title><rect x="90.0" y="213" width="23.3" height="15.0" fill="rgb(225,169,34)" rx="2" ry="2" />
+<text  x="93.05" y="223.5" >r..</text>
+</g>
+<g >
+<title>runtime.jmpdefer (1 samples, 0.03%)</title><rect x="84.3" y="165" width="0.3" height="15.0" fill="rgb(212,139,16)" rx="2" ry="2" />
+<text  x="87.31" y="175.5" ></text>
+</g>
+<g >
+<title>runtime.nanotime (2 samples, 0.05%)</title><rect x="14.5" y="261" width="0.6" height="15.0" fill="rgb(228,115,28)" rx="2" ry="2" />
+<text  x="17.46" y="271.5" ></text>
+</g>
+<g >
+<title>time.Now (2 samples, 0.05%)</title><rect x="122.9" y="213" width="0.6" height="15.0" fill="rgb(244,30,44)" rx="2" ry="2" />
+<text  x="125.90" y="223.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*packetHandlerMap).handlePacket (17 samples, 0.46%)</title><rect x="10.3" y="309" width="5.4" height="15.0" fill="rgb(229,82,25)" rx="2" ry="2" />
+<text  x="13.32" y="319.5" ></text>
+</g>
+<g >
+<title>runtime.mstart1 (392 samples, 10.59%)</title><rect x="769.7" y="309" width="125.0" height="15.0" fill="rgb(244,83,52)" rx="2" ry="2" />
+<text  x="772.66" y="319.5" >runtime.mstart1</text>
+</g>
+<g >
+<title>runtime.assertI2I2 (1 samples, 0.03%)</title><rect x="220.8" y="213" width="0.3" height="15.0" fill="rgb(232,54,12)" rx="2" ry="2" />
+<text  x="223.81" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.heapBitsSetType (1 samples, 0.03%)</title><rect x="119.1" y="181" width="0.3" height="15.0" fill="rgb(224,124,0)" rx="2" ry="2" />
+<text  x="122.07" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_cond_wait (1 samples, 0.03%)</title><rect x="278.8" y="229" width="0.4" height="15.0" fill="rgb(223,4,3)" rx="2" ry="2" />
+<text  x="281.85" y="239.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/flowcontrol.(*baseFlowController).AddBytesRead (1 samples, 0.03%)</title><rect x="238.0" y="245" width="0.3" height="15.0" fill="rgb(227,5,30)" rx="2" ry="2" />
+<text  x="241.03" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.semasleep (1 samples, 0.03%)</title><rect x="769.0" y="197" width="0.3" height="15.0" fill="rgb(236,166,6)" rx="2" ry="2" />
+<text  x="772.03" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.nextFreeFast (1 samples, 0.03%)</title><rect x="121.0" y="213" width="0.3" height="15.0" fill="rgb(249,114,2)" rx="2" ry="2" />
+<text  x="123.98" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.heapBitsForAddr (1 samples, 0.03%)</title><rect x="119.1" y="165" width="0.3" height="15.0" fill="rgb(236,106,0)" rx="2" ry="2" />
+<text  x="122.07" y="175.5" ></text>
+</g>
+<g >
+<title>runtime.mallocgc (1 samples, 0.03%)</title><rect x="121.0" y="229" width="0.3" height="15.0" fill="rgb(251,171,34)" rx="2" ry="2" />
+<text  x="123.98" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.libcCall (1 samples, 0.03%)</title><rect x="114.9" y="213" width="0.3" height="15.0" fill="rgb(240,186,22)" rx="2" ry="2" />
+<text  x="117.92" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.walltime (2 samples, 0.05%)</title><rect x="15.1" y="261" width="0.6" height="15.0" fill="rgb(250,145,54)" rx="2" ry="2" />
+<text  x="18.10" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.nanotime (143 samples, 3.86%)</title><rect x="771.6" y="277" width="45.6" height="15.0" fill="rgb(250,70,13)" rx="2" ry="2" />
+<text  x="774.58" y="287.5" >runt..</text>
+</g>
+<g >
+<title>runtime.startm (1 samples, 0.03%)</title><rect x="161.5" y="69" width="0.3" height="15.0" fill="rgb(214,189,33)" rx="2" ry="2" />
+<text  x="164.49" y="79.5" ></text>
+</g>
+<g >
+<title>runtime.startm (84 samples, 2.27%)</title><rect x="741.6" y="245" width="26.8" height="15.0" fill="rgb(254,195,6)" rx="2" ry="2" />
+<text  x="744.60" y="255.5" >r..</text>
+</g>
+<g >
+<title>runtime.pthread_cond_timedwait_relative_np (62 samples, 1.68%)</title><rect x="834.4" y="229" width="19.8" height="15.0" fill="rgb(238,135,46)" rx="2" ry="2" />
+<text  x="837.41" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.(*randomOrder).start (1 samples, 0.03%)</title><rect x="276.0" y="261" width="0.3" height="15.0" fill="rgb(207,82,32)" rx="2" ry="2" />
+<text  x="278.98" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.(*mcentral).freeSpan (1 samples, 0.03%)</title><rect x="263.2" y="277" width="0.3" height="15.0" fill="rgb(222,174,41)" rx="2" ry="2" />
+<text  x="266.22" y="287.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*incomingBidiStreamsMap).GetOrOpenStream (2 samples, 0.05%)</title><rect x="84.9" y="213" width="0.7" height="15.0" fill="rgb(233,52,7)" rx="2" ry="2" />
+<text  x="87.95" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.memclrNoHeapPointers (1 samples, 0.03%)</title><rect x="77.0" y="117" width="0.3" height="15.0" fill="rgb(220,57,44)" rx="2" ry="2" />
+<text  x="79.97" y="127.5" ></text>
+</g>
+<g >
+<title>runtime.deltimer (2 samples, 0.05%)</title><rect x="113.6" y="245" width="0.7" height="15.0" fill="rgb(244,176,41)" rx="2" ry="2" />
+<text  x="116.65" y="255.5" ></text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/rpc.(*Server).Handler (27 samples, 0.73%)</title><rect x="212.5" y="277" width="8.6" height="15.0" fill="rgb(251,68,40)" rx="2" ry="2" />
+<text  x="215.51" y="287.5" ></text>
+</g>
+<g >
+<title>runtime.mallocgc (2 samples, 0.05%)</title><rect x="118.8" y="197" width="0.6" height="15.0" fill="rgb(240,2,28)" rx="2" ry="2" />
+<text  x="121.75" y="207.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/ackhandler.(*receivedPacketTracker).GetAckFrame (2 samples, 0.05%)</title><rect x="122.9" y="229" width="0.6" height="15.0" fill="rgb(248,203,23)" rx="2" ry="2" />
+<text  x="125.90" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.systemstack (2 samples, 0.05%)</title><rect x="83.4" y="117" width="0.6" height="15.0" fill="rgb(233,30,28)" rx="2" ry="2" />
+<text  x="86.35" y="127.5" ></text>
+</g>
+<g >
+<title>runtime.semawakeup (446 samples, 12.05%)</title><rect x="1011.4" y="213" width="142.2" height="15.0" fill="rgb(223,223,31)" rx="2" ry="2" />
+<text  x="1014.41" y="223.5" >runtime.semawakeup</text>
+</g>
+<g >
+<title>crypto/aes.gcmAesDec (1 samples, 0.03%)</title><rect x="76.7" y="213" width="0.3" height="15.0" fill="rgb(250,43,50)" rx="2" ry="2" />
+<text  x="79.65" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.runqget (2 samples, 0.05%)</title><rect x="768.4" y="277" width="0.6" height="15.0" fill="rgb(218,95,46)" rx="2" ry="2" />
+<text  x="771.39" y="287.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_cond_wait_trampoline (1 samples, 0.03%)</title><rect x="262.6" y="309" width="0.3" height="15.0" fill="rgb(213,140,54)" rx="2" ry="2" />
+<text  x="265.58" y="319.5" ></text>
+</g>
+<g >
+<title>runtime.systemstack (1 samples, 0.03%)</title><rect x="263.5" y="293" width="0.4" height="15.0" fill="rgb(205,201,3)" rx="2" ry="2" />
+<text  x="266.54" y="303.5" ></text>
+</g>
+<g >
+<title>runtime.heapBitsSetType (2 samples, 0.05%)</title><rect x="126.1" y="213" width="0.6" height="15.0" fill="rgb(206,56,36)" rx="2" ry="2" />
+<text  x="129.09" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_cond_wait (1 samples, 0.03%)</title><rect x="992.9" y="229" width="0.3" height="15.0" fill="rgb(238,198,4)" rx="2" ry="2" />
+<text  x="995.91" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.(*mheap).freeSpanLocked (1 samples, 0.03%)</title><rect x="263.2" y="213" width="0.3" height="15.0" fill="rgb(237,181,24)" rx="2" ry="2" />
+<text  x="266.22" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.releaseSudog (1 samples, 0.03%)</title><rect x="207.7" y="293" width="0.3" height="15.0" fill="rgb(212,42,46)" rx="2" ry="2" />
+<text  x="210.73" y="303.5" ></text>
+</g>
+<g >
+<title>syscall.Sendto (181 samples, 4.89%)</title><rect x="131.5" y="181" width="57.7" height="15.0" fill="rgb(254,102,7)" rx="2" ry="2" />
+<text  x="134.51" y="191.5" >syscal..</text>
+</g>
+<g >
+<title>github.com/golang/protobuf/proto.Unmarshal (2 samples, 0.05%)</title><rect x="210.6" y="277" width="0.6" height="15.0" fill="rgb(234,152,54)" rx="2" ry="2" />
+<text  x="213.60" y="287.5" ></text>
+</g>
+<g >
+<title>github.com/golang/protobuf/proto.(*marshalInfo).marshal (3 samples, 0.08%)</title><rect x="211.6" y="229" width="0.9" height="15.0" fill="rgb(222,207,37)" rx="2" ry="2" />
+<text  x="214.56" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.(*mheap).alloc_m (1 samples, 0.03%)</title><rect x="213.2" y="101" width="0.3" height="15.0" fill="rgb(253,50,29)" rx="2" ry="2" />
+<text  x="216.15" y="111.5" ></text>
+</g>
+<g >
+<title>runtime.semasleep (1 samples, 0.03%)</title><rect x="278.8" y="245" width="0.4" height="15.0" fill="rgb(234,20,4)" rx="2" ry="2" />
+<text  x="281.85" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.wakep (1 samples, 0.03%)</title><rect x="83.7" y="69" width="0.3" height="15.0" fill="rgb(249,203,29)" rx="2" ry="2" />
+<text  x="86.67" y="79.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/utils.MinNonZeroTime (1 samples, 0.03%)</title><rect x="89.4" y="277" width="0.3" height="15.0" fill="rgb(249,188,47)" rx="2" ry="2" />
+<text  x="92.41" y="287.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/wire.(*ExtendedHeader).Write (1 samples, 0.03%)</title><rect x="125.4" y="245" width="0.4" height="15.0" fill="rgb(219,221,41)" rx="2" ry="2" />
+<text  x="128.45" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.(*mcentral).grow (1 samples, 0.03%)</title><rect x="77.0" y="149" width="0.3" height="15.0" fill="rgb(214,82,3)" rx="2" ry="2" />
+<text  x="79.97" y="159.5" ></text>
+</g>
+<g >
+<title>runtime.exitsyscall (85 samples, 2.30%)</title><rect x="161.8" y="133" width="27.1" height="15.0" fill="rgb(244,0,53)" rx="2" ry="2" />
+<text  x="164.81" y="143.5" >r..</text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/ackhandler.(*sentPacketHandler).PopPacketNumber (1 samples, 0.03%)</title><rect x="123.9" y="245" width="0.3" height="15.0" fill="rgb(249,21,2)" rx="2" ry="2" />
+<text  x="126.85" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.assertI2I2 (1 samples, 0.03%)</title><rect x="210.9" y="261" width="0.3" height="15.0" fill="rgb(218,130,47)" rx="2" ry="2" />
+<text  x="213.92" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.entersyscallblock_handoff (2 samples, 0.05%)</title><rect x="62.6" y="165" width="0.7" height="15.0" fill="rgb(253,87,32)" rx="2" ry="2" />
+<text  x="65.62" y="175.5" ></text>
+</g>
+<g >
+<title>runtime.scanobject (2 samples, 0.05%)</title><rect x="265.1" y="261" width="0.7" height="15.0" fill="rgb(209,63,4)" rx="2" ry="2" />
+<text  x="268.14" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.ready (1 samples, 0.03%)</title><rect x="11.6" y="181" width="0.3" height="15.0" fill="rgb(246,128,51)" rx="2" ry="2" />
+<text  x="14.59" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.schedule (2 samples, 0.05%)</title><rect x="769.0" y="261" width="0.7" height="15.0" fill="rgb(245,20,49)" rx="2" ry="2" />
+<text  x="772.03" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.exitsyscallfast.func1 (57 samples, 1.54%)</title><rect x="992.6" y="293" width="18.2" height="15.0" fill="rgb(227,81,30)" rx="2" ry="2" />
+<text  x="995.59" y="303.5" ></text>
+</g>
+<g >
+<title>runtime.gcAssistAlloc (1 samples, 0.03%)</title><rect x="17.7" y="181" width="0.3" height="15.0" fill="rgb(217,66,36)" rx="2" ry="2" />
+<text  x="20.65" y="191.5" ></text>
+</g>
+<g >
+<title>runtime._System (6 samples, 0.16%)</title><rect x="257.8" y="325" width="1.9" height="15.0" fill="rgb(214,6,12)" rx="2" ry="2" />
+<text  x="260.80" y="335.5" ></text>
+</g>
+<g >
+<title>runtime.osyield (1 samples, 0.03%)</title><rect x="992.6" y="245" width="0.3" height="15.0" fill="rgb(242,147,32)" rx="2" ry="2" />
+<text  x="995.59" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.gcDrainN (1 samples, 0.03%)</title><rect x="118.8" y="117" width="0.3" height="15.0" fill="rgb(223,200,36)" rx="2" ry="2" />
+<text  x="121.75" y="127.5" ></text>
+</g>
+<g >
+<title>runtime.gcAssistAlloc.func1 (1 samples, 0.03%)</title><rect x="118.8" y="149" width="0.3" height="15.0" fill="rgb(216,161,11)" rx="2" ry="2" />
+<text  x="121.75" y="159.5" ></text>
+</g>
+<g >
+<title>runtime.unlock (1 samples, 0.03%)</title><rect x="740.6" y="261" width="0.4" height="15.0" fill="rgb(212,0,32)" rx="2" ry="2" />
+<text  x="743.64" y="271.5" ></text>
+</g>
+<g >
+<title>net.(*UDPConn).readFrom (181 samples, 4.89%)</title><rect x="15.7" y="293" width="57.8" height="15.0" fill="rgb(242,148,5)" rx="2" ry="2" />
+<text  x="18.74" y="303.5" >net.(*..</text>
+</g>
+<g >
+<title>net.ipToSockaddr (2 samples, 0.05%)</title><rect x="129.6" y="197" width="0.6" height="15.0" fill="rgb(238,159,33)" rx="2" ry="2" />
+<text  x="132.59" y="207.5" ></text>
+</g>
+<g >
+<title>github.com/golang/protobuf/proto.(*InternalMessageInfo).Unmarshal (1 samples, 0.03%)</title><rect x="212.8" y="213" width="0.4" height="15.0" fill="rgb(230,15,4)" rx="2" ry="2" />
+<text  x="215.83" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.(*gcWork).balance (2 samples, 0.05%)</title><rect x="264.2" y="261" width="0.6" height="15.0" fill="rgb(213,152,30)" rx="2" ry="2" />
+<text  x="267.18" y="271.5" ></text>
+</g>
+<g >
+<title>time.(*Time).nsec (1 samples, 0.03%)</title><rect x="89.4" y="245" width="0.3" height="15.0" fill="rgb(229,164,18)" rx="2" ry="2" />
+<text  x="92.41" y="255.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*session).logPacket (1 samples, 0.03%)</title><rect x="189.2" y="261" width="0.4" height="15.0" fill="rgb(244,39,24)" rx="2" ry="2" />
+<text  x="192.23" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.runqget (4 samples, 0.11%)</title><rect x="381.5" y="261" width="1.3" height="15.0" fill="rgb(212,103,28)" rx="2" ry="2" />
+<text  x="384.54" y="271.5" ></text>
+</g>
+<g >
+<title>reflect.valueInterface (4 samples, 0.11%)</title><rect x="219.5" y="213" width="1.3" height="15.0" fill="rgb(246,198,34)" rx="2" ry="2" />
+<text  x="222.53" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.systemstack (1 samples, 0.03%)</title><rect x="161.5" y="117" width="0.3" height="15.0" fill="rgb(213,175,50)" rx="2" ry="2" />
+<text  x="164.49" y="127.5" ></text>
+</g>
+<g >
+<title>runtime.notesleep (979 samples, 26.46%)</title><rect x="428.4" y="245" width="312.2" height="15.0" fill="rgb(211,12,16)" rx="2" ry="2" />
+<text  x="431.42" y="255.5" >runtime.notesleep</text>
+</g>
+<g >
+<title>github.com/golang/protobuf/proto.appendBytes3 (1 samples, 0.03%)</title><rect x="213.8" y="181" width="0.3" height="15.0" fill="rgb(223,57,12)" rx="2" ry="2" />
+<text  x="216.79" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.deferproc (1 samples, 0.03%)</title><rect x="189.6" y="261" width="0.3" height="15.0" fill="rgb(243,51,7)" rx="2" ry="2" />
+<text  x="192.55" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_mutex_lock (1 samples, 0.03%)</title><rect x="988.8" y="213" width="0.3" height="15.0" fill="rgb(233,19,45)" rx="2" ry="2" />
+<text  x="991.76" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.chansend1 (3 samples, 0.08%)</title><rect x="221.8" y="309" width="0.9" height="15.0" fill="rgb(216,82,36)" rx="2" ry="2" />
+<text  x="224.76" y="319.5" ></text>
+</g>
+<g >
+<title>runtime.getitab (1 samples, 0.03%)</title><rect x="210.9" y="245" width="0.3" height="15.0" fill="rgb(239,213,50)" rx="2" ry="2" />
+<text  x="213.92" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.procyield (1 samples, 0.03%)</title><rect x="265.8" y="277" width="0.3" height="15.0" fill="rgb(231,181,18)" rx="2" ry="2" />
+<text  x="268.77" y="287.5" ></text>
+</g>
+<g >
+<title>runtime.newobject (1 samples, 0.03%)</title><rect x="129.9" y="181" width="0.3" height="15.0" fill="rgb(219,95,52)" rx="2" ry="2" />
+<text  x="132.91" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.chansend (4 samples, 0.11%)</title><rect x="11.0" y="261" width="1.2" height="15.0" fill="rgb(246,113,10)" rx="2" ry="2" />
+<text  x="13.96" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.wakep (1 samples, 0.03%)</title><rect x="222.4" y="197" width="0.3" height="15.0" fill="rgb(221,170,27)" rx="2" ry="2" />
+<text  x="225.40" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.newobject (1 samples, 0.03%)</title><rect x="213.2" y="245" width="0.3" height="15.0" fill="rgb(250,194,46)" rx="2" ry="2" />
+<text  x="216.15" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.entersyscallblock_handoff (307 samples, 8.30%)</title><rect x="894.7" y="293" width="97.9" height="15.0" fill="rgb(225,45,38)" rx="2" ry="2" />
+<text  x="897.68" y="303.5" >runtime.ent..</text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*session).handlePacket (5 samples, 0.14%)</title><rect x="10.6" y="293" width="1.6" height="15.0" fill="rgb(230,193,39)" rx="2" ry="2" />
+<text  x="13.64" y="303.5" ></text>
+</g>
+<g >
+<title>github.com/golang/protobuf/proto.(*InternalMessageInfo).Unmarshal (1 samples, 0.03%)</title><rect x="210.6" y="245" width="0.3" height="15.0" fill="rgb(250,105,34)" rx="2" ry="2" />
+<text  x="213.60" y="255.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/wire.ParsePacket (3 samples, 0.08%)</title><rect x="88.1" y="293" width="1.0" height="15.0" fill="rgb(246,92,40)" rx="2" ry="2" />
+<text  x="91.14" y="303.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_mutex_lock (7 samples, 0.19%)</title><rect x="1148.2" y="197" width="2.3" height="15.0" fill="rgb(239,96,28)" rx="2" ry="2" />
+<text  x="1151.22" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.makeslice (1 samples, 0.03%)</title><rect x="217.3" y="229" width="0.3" height="15.0" fill="rgb(213,216,44)" rx="2" ry="2" />
+<text  x="220.30" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.osyield (3 samples, 0.08%)</title><rect x="277.3" y="245" width="0.9" height="15.0" fill="rgb(235,148,32)" rx="2" ry="2" />
+<text  x="280.25" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.growslice (1 samples, 0.03%)</title><rect x="87.2" y="213" width="0.3" height="15.0" fill="rgb(205,42,34)" rx="2" ry="2" />
+<text  x="90.18" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.funcPC (1 samples, 0.03%)</title><rect x="854.2" y="213" width="0.3" height="15.0" fill="rgb(227,7,15)" rx="2" ry="2" />
+<text  x="857.18" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.(*mheap).alloc (1 samples, 0.03%)</title><rect x="77.0" y="133" width="0.3" height="15.0" fill="rgb(251,103,4)" rx="2" ry="2" />
+<text  x="79.97" y="143.5" ></text>
+</g>
+<g >
+<title>runtime.chansend (5 samples, 0.14%)</title><rect x="82.4" y="165" width="1.6" height="15.0" fill="rgb(236,22,9)" rx="2" ry="2" />
+<text  x="85.39" y="175.5" ></text>
+</g>
+<g >
+<title>runtime.gcMarkDone.func1 (1 samples, 0.03%)</title><rect x="263.5" y="277" width="0.4" height="15.0" fill="rgb(253,45,22)" rx="2" ry="2" />
+<text  x="266.54" y="287.5" ></text>
+</g>
+<g >
+<title>runtime.sysmon (392 samples, 10.59%)</title><rect x="769.7" y="293" width="125.0" height="15.0" fill="rgb(217,3,45)" rx="2" ry="2" />
+<text  x="772.66" y="303.5" >runtime.sysmon</text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*framerI).AppendStreamFrames (7 samples, 0.19%)</title><rect x="116.2" y="245" width="2.2" height="15.0" fill="rgb(244,182,30)" rx="2" ry="2" />
+<text  x="119.20" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.(*itabTableType).find (1 samples, 0.03%)</title><rect x="220.8" y="181" width="0.3" height="15.0" fill="rgb(228,114,7)" rx="2" ry="2" />
+<text  x="223.81" y="191.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/ackhandler.(*receivedPacketHandler).ReceivedPacket (1 samples, 0.03%)</title><rect x="85.6" y="261" width="0.3" height="15.0" fill="rgb(242,180,52)" rx="2" ry="2" />
+<text  x="88.58" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.send (1 samples, 0.03%)</title><rect x="116.2" y="133" width="0.3" height="15.0" fill="rgb(233,8,0)" rx="2" ry="2" />
+<text  x="119.20" y="143.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*packetPacker).writeAndSealPacket (10 samples, 0.27%)</title><rect x="123.5" y="261" width="3.2" height="15.0" fill="rgb(230,67,48)" rx="2" ry="2" />
+<text  x="126.54" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.notewakeup (1 samples, 0.03%)</title><rect x="222.4" y="165" width="0.3" height="15.0" fill="rgb(241,111,39)" rx="2" ry="2" />
+<text  x="225.40" y="175.5" ></text>
+</g>
+<g >
+<title>runtime.gcDrainN (1 samples, 0.03%)</title><rect x="17.7" y="117" width="0.3" height="15.0" fill="rgb(224,207,27)" rx="2" ry="2" />
+<text  x="20.65" y="127.5" ></text>
+</g>
+<g >
+<title>runtime.notewakeup (53 samples, 1.43%)</title><rect x="993.2" y="261" width="16.9" height="15.0" fill="rgb(226,195,50)" rx="2" ry="2" />
+<text  x="996.23" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.nextFreeFast (1 samples, 0.03%)</title><rect x="240.3" y="277" width="0.3" height="15.0" fill="rgb(252,54,48)" rx="2" ry="2" />
+<text  x="243.26" y="287.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/ackhandler.(*sentPacketHandler).onPacketAcked (2 samples, 0.05%)</title><rect x="79.5" y="213" width="0.7" height="15.0" fill="rgb(239,206,3)" rx="2" ry="2" />
+<text  x="82.52" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.systemstack (1 samples, 0.03%)</title><rect x="17.7" y="165" width="0.3" height="15.0" fill="rgb(205,78,11)" rx="2" ry="2" />
+<text  x="20.65" y="175.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*windowUpdateQueue).QueueAll (2 samples, 0.05%)</title><rect x="190.5" y="277" width="0.6" height="15.0" fill="rgb(220,213,16)" rx="2" ry="2" />
+<text  x="193.51" y="287.5" ></text>
+</g>
+<g >
+<title>runtime.deferreturn (1 samples, 0.03%)</title><rect x="131.2" y="181" width="0.3" height="15.0" fill="rgb(220,194,12)" rx="2" ry="2" />
+<text  x="134.19" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.handoffp (307 samples, 8.30%)</title><rect x="894.7" y="277" width="97.9" height="15.0" fill="rgb(211,84,54)" rx="2" ry="2" />
+<text  x="897.68" y="287.5" >runtime.han..</text>
+</g>
+<g >
+<title>net.(*UDPConn).ReadFrom (181 samples, 4.89%)</title><rect x="15.7" y="309" width="57.8" height="15.0" fill="rgb(226,16,20)" rx="2" ry="2" />
+<text  x="18.74" y="319.5" >net.(*..</text>
+</g>
+<g >
+<title>runtime.(*timersBucket).addtimerLocked (73 samples, 1.97%)</title><rect x="90.0" y="229" width="23.3" height="15.0" fill="rgb(230,222,41)" rx="2" ry="2" />
+<text  x="93.05" y="239.5" >r..</text>
+</g>
+<g >
+<title>runtime.ready (2 samples, 0.05%)</title><rect x="83.4" y="85" width="0.6" height="15.0" fill="rgb(236,186,50)" rx="2" ry="2" />
+<text  x="86.35" y="95.5" ></text>
+</g>
+<g >
+<title>reflect.packEface (4 samples, 0.11%)</title><rect x="219.5" y="197" width="1.3" height="15.0" fill="rgb(245,160,39)" rx="2" ry="2" />
+<text  x="222.53" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.mallocgc (1 samples, 0.03%)</title><rect x="88.1" y="245" width="0.4" height="15.0" fill="rgb(254,45,53)" rx="2" ry="2" />
+<text  x="91.14" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.notesleep (6 samples, 0.16%)</title><rect x="266.7" y="245" width="1.9" height="15.0" fill="rgb(224,12,46)" rx="2" ry="2" />
+<text  x="269.73" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.semawakeup (1 samples, 0.03%)</title><rect x="1011.1" y="245" width="0.3" height="15.0" fill="rgb(212,154,31)" rx="2" ry="2" />
+<text  x="1014.09" y="255.5" ></text>
+</g>
+<g >
+<title>time.Now (4 samples, 0.11%)</title><rect x="208.7" y="309" width="1.3" height="15.0" fill="rgb(237,197,24)" rx="2" ry="2" />
+<text  x="211.69" y="319.5" ></text>
+</g>
+<g >
+<title>runtime.freedefer (4 samples, 0.11%)</title><rect x="12.2" y="277" width="1.3" height="15.0" fill="rgb(233,107,46)" rx="2" ry="2" />
+<text  x="15.23" y="287.5" ></text>
+</g>
+<g >
+<title>runtime.entersyscallblock (2 samples, 0.05%)</title><rect x="62.6" y="197" width="0.7" height="15.0" fill="rgb(250,164,25)" rx="2" ry="2" />
+<text  x="65.62" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.notewakeup (1 samples, 0.03%)</title><rect x="1011.1" y="261" width="0.3" height="15.0" fill="rgb(228,36,49)" rx="2" ry="2" />
+<text  x="1014.09" y="271.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.getPacketBuffer (1 samples, 0.03%)</title><rect x="123.5" y="245" width="0.4" height="15.0" fill="rgb(253,26,30)" rx="2" ry="2" />
+<text  x="126.54" y="255.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/wire.(*Header).parseShortHeader (2 samples, 0.05%)</title><rect x="88.5" y="245" width="0.6" height="15.0" fill="rgb(208,180,7)" rx="2" ry="2" />
+<text  x="91.45" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.systemstack (1 samples, 0.03%)</title><rect x="213.2" y="133" width="0.3" height="15.0" fill="rgb(247,165,40)" rx="2" ry="2" />
+<text  x="216.15" y="143.5" ></text>
+</g>
+<g >
+<title>time.startTimer (73 samples, 1.97%)</title><rect x="90.0" y="261" width="23.3" height="15.0" fill="rgb(254,129,1)" rx="2" ry="2" />
+<text  x="93.05" y="271.5" >t..</text>
+</g>
+<g >
+<title>runtime.aeshash64 (39 samples, 1.05%)</title><rect x="225.6" y="229" width="12.4" height="15.0" fill="rgb(226,117,12)" rx="2" ry="2" />
+<text  x="228.59" y="239.5" ></text>
+</g>
+<g >
+<title>syscall.recvfrom (170 samples, 4.59%)</title><rect x="18.9" y="229" width="54.2" height="15.0" fill="rgb(209,165,19)" rx="2" ry="2" />
+<text  x="21.93" y="239.5" >sysca..</text>
+</g>
+<g >
+<title>runtime.exitsyscall0 (16 samples, 0.43%)</title><rect x="265.8" y="309" width="5.1" height="15.0" fill="rgb(215,186,0)" rx="2" ry="2" />
+<text  x="268.77" y="319.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*packetPacker).maybePackCryptoPacket (7 samples, 0.19%)</title><rect x="121.3" y="261" width="2.2" height="15.0" fill="rgb(237,71,46)" rx="2" ry="2" />
+<text  x="124.30" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.semasleep (6 samples, 0.16%)</title><rect x="266.7" y="229" width="1.9" height="15.0" fill="rgb(247,24,40)" rx="2" ry="2" />
+<text  x="269.73" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.(*mspan).sweep (1 samples, 0.03%)</title><rect x="263.2" y="293" width="0.3" height="15.0" fill="rgb(225,175,21)" rx="2" ry="2" />
+<text  x="266.22" y="303.5" ></text>
+</g>
+<g >
+<title>runtime.mcall (1,578 samples, 42.65%)</title><rect x="265.8" y="325" width="503.2" height="15.0" fill="rgb(205,225,37)" rx="2" ry="2" />
+<text  x="268.77" y="335.5" >runtime.mcall</text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/rpc.(*Request).Decode (3 samples, 0.08%)</title><rect x="212.5" y="261" width="1.0" height="15.0" fill="rgb(230,67,36)" rx="2" ry="2" />
+<text  x="215.51" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.usleep_trampoline (1 samples, 0.03%)</title><rect x="262.9" y="309" width="0.3" height="15.0" fill="rgb(227,173,50)" rx="2" ry="2" />
+<text  x="265.90" y="319.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/ackhandler.(*sentPacketHandler).SentPacket (1 samples, 0.03%)</title><rect x="191.1" y="277" width="0.4" height="15.0" fill="rgb(211,90,7)" rx="2" ry="2" />
+<text  x="194.15" y="287.5" ></text>
+</g>
+<g >
+<title>runtime.notewakeup (307 samples, 8.30%)</title><rect x="894.7" y="245" width="97.9" height="15.0" fill="rgb(242,200,44)" rx="2" ry="2" />
+<text  x="897.68" y="255.5" >runtime.not..</text>
+</g>
+<g >
+<title>runtime.forEachP (1 samples, 0.03%)</title><rect x="1010.8" y="277" width="0.3" height="15.0" fill="rgb(227,152,43)" rx="2" ry="2" />
+<text  x="1013.77" y="287.5" ></text>
+</g>
+<g >
+<title>runtime.procyield (2 samples, 0.05%)</title><rect x="278.2" y="245" width="0.6" height="15.0" fill="rgb(231,175,1)" rx="2" ry="2" />
+<text  x="281.21" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.semawakeup (2 samples, 0.05%)</title><rect x="1010.1" y="245" width="0.7" height="15.0" fill="rgb(243,1,29)" rx="2" ry="2" />
+<text  x="1013.13" y="255.5" ></text>
+</g>
+<g >
+<title>crypto/aes.encryptBlockAsm (1 samples, 0.03%)</title><rect x="76.0" y="229" width="0.3" height="15.0" fill="rgb(220,180,8)" rx="2" ry="2" />
+<text  x="79.02" y="239.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/wire.parseHeaderImpl (2 samples, 0.05%)</title><rect x="88.5" y="261" width="0.6" height="15.0" fill="rgb(220,206,51)" rx="2" ry="2" />
+<text  x="91.45" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_cond_signal (2 samples, 0.05%)</title><rect x="1010.1" y="229" width="0.7" height="15.0" fill="rgb(244,105,12)" rx="2" ry="2" />
+<text  x="1013.13" y="239.5" ></text>
+</g>
+<g >
+<title>reflect.funcLayout (5 samples, 0.14%)</title><rect x="215.4" y="197" width="1.6" height="15.0" fill="rgb(244,157,29)" rx="2" ry="2" />
+<text  x="218.38" y="207.5" ></text>
+</g>
+<g >
+<title>github.com/golang/protobuf/proto.(*marshalInfo).marshal (2 samples, 0.05%)</title><rect x="213.5" y="197" width="0.6" height="15.0" fill="rgb(221,161,39)" rx="2" ry="2" />
+<text  x="216.47" y="207.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/wire.parseAckFrame (2 samples, 0.05%)</title><rect x="87.2" y="229" width="0.6" height="15.0" fill="rgb(207,136,23)" rx="2" ry="2" />
+<text  x="90.18" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.(*mheap).allocSpanLocked (1 samples, 0.03%)</title><rect x="213.2" y="85" width="0.3" height="15.0" fill="rgb(226,140,29)" rx="2" ry="2" />
+<text  x="216.15" y="95.5" ></text>
+</g>
+<g >
+<title>runtime.deferreturn (2 samples, 0.05%)</title><rect x="189.9" y="261" width="0.6" height="15.0" fill="rgb(241,120,9)" rx="2" ry="2" />
+<text  x="192.87" y="271.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/flowcontrol.(*streamFlowController).UpdateHighestReceived (3 samples, 0.08%)</title><rect x="84.0" y="197" width="0.9" height="15.0" fill="rgb(207,12,43)" rx="2" ry="2" />
+<text  x="86.99" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.runqsteal (1 samples, 0.03%)</title><rect x="266.4" y="261" width="0.3" height="15.0" fill="rgb(225,89,48)" rx="2" ry="2" />
+<text  x="269.41" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.addtimer (73 samples, 1.97%)</title><rect x="90.0" y="245" width="23.3" height="15.0" fill="rgb(206,11,12)" rx="2" ry="2" />
+<text  x="93.05" y="255.5" >r..</text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/wire.parseHeader (2 samples, 0.05%)</title><rect x="88.5" y="277" width="0.6" height="15.0" fill="rgb(249,102,9)" rx="2" ry="2" />
+<text  x="91.45" y="287.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_cond_signal (295 samples, 7.97%)</title><rect x="894.7" y="213" width="94.1" height="15.0" fill="rgb(232,94,10)" rx="2" ry="2" />
+<text  x="897.68" y="223.5" >runtime.pth..</text>
+</g>
+<g >
+<title>runtime.markroot (1 samples, 0.03%)</title><rect x="264.8" y="261" width="0.3" height="15.0" fill="rgb(251,23,46)" rx="2" ry="2" />
+<text  x="267.82" y="271.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/ackhandler.stripNonAckElicitingFrames (1 samples, 0.03%)</title><rect x="191.1" y="245" width="0.4" height="15.0" fill="rgb(239,49,29)" rx="2" ry="2" />
+<text  x="194.15" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.semasleep (1 samples, 0.03%)</title><rect x="1010.8" y="229" width="0.3" height="15.0" fill="rgb(222,162,6)" rx="2" ry="2" />
+<text  x="1013.77" y="239.5" ></text>
+</g>
+<g >
+<title>io.ReadAtLeast (2 samples, 0.05%)</title><rect x="88.5" y="197" width="0.6" height="15.0" fill="rgb(225,120,9)" rx="2" ry="2" />
+<text  x="91.45" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.gcMarkDone.func1 (1 samples, 0.03%)</title><rect x="1010.8" y="293" width="0.3" height="15.0" fill="rgb(240,196,50)" rx="2" ry="2" />
+<text  x="1013.77" y="303.5" ></text>
+</g>
+<g >
+<title>runtime.notesleep (6 samples, 0.16%)</title><rect x="269.0" y="277" width="1.9" height="15.0" fill="rgb(235,24,51)" rx="2" ry="2" />
+<text  x="271.96" y="287.5" ></text>
+</g>
+<g >
+<title>sync.(*Map).Load (3 samples, 0.08%)</title><rect x="217.6" y="229" width="1.0" height="15.0" fill="rgb(250,27,35)" rx="2" ry="2" />
+<text  x="220.62" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.handoff (2 samples, 0.05%)</title><rect x="264.2" y="245" width="0.6" height="15.0" fill="rgb(244,20,23)" rx="2" ry="2" />
+<text  x="267.18" y="255.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*packedPacket).ToAckHandlerPacket (2 samples, 0.05%)</title><rect x="114.6" y="277" width="0.6" height="15.0" fill="rgb(209,205,27)" rx="2" ry="2" />
+<text  x="117.61" y="287.5" ></text>
+</g>
+<g >
+<title>runtime.(*mcache).prepareForSweep (2 samples, 0.05%)</title><rect x="427.5" y="229" width="0.6" height="15.0" fill="rgb(246,4,22)" rx="2" ry="2" />
+<text  x="430.46" y="239.5" ></text>
+</g>
+<g >
+<title>time.now (2 samples, 0.05%)</title><rect x="122.9" y="197" width="0.6" height="15.0" fill="rgb(213,57,10)" rx="2" ry="2" />
+<text  x="125.90" y="207.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*receiveStream).readImpl (43 samples, 1.16%)</title><rect x="225.0" y="293" width="13.7" height="15.0" fill="rgb(212,98,22)" rx="2" ry="2" />
+<text  x="227.95" y="303.5" ></text>
+</g>
+<g >
+<title>runtime.schedule (9 samples, 0.24%)</title><rect x="266.1" y="293" width="2.9" height="15.0" fill="rgb(240,76,11)" rx="2" ry="2" />
+<text  x="269.09" y="303.5" ></text>
+</g>
+<g >
+<title>runtime.netpollready (1 samples, 0.03%)</title><rect x="381.2" y="245" width="0.3" height="15.0" fill="rgb(251,5,45)" rx="2" ry="2" />
+<text  x="384.22" y="255.5" ></text>
+</g>
+<g >
+<title>net.(*UDPAddr).sockaddr (2 samples, 0.05%)</title><rect x="129.6" y="213" width="0.6" height="15.0" fill="rgb(248,196,51)" rx="2" ry="2" />
+<text  x="132.59" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.forEachP (1 samples, 0.03%)</title><rect x="263.5" y="261" width="0.4" height="15.0" fill="rgb(225,54,28)" rx="2" ry="2" />
+<text  x="266.54" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.chansend (1 samples, 0.03%)</title><rect x="116.2" y="149" width="0.3" height="15.0" fill="rgb(233,49,5)" rx="2" ry="2" />
+<text  x="119.20" y="159.5" ></text>
+</g>
+<g >
+<title>runtime.makeslice (1 samples, 0.03%)</title><rect x="87.8" y="213" width="0.3" height="15.0" fill="rgb(239,208,53)" rx="2" ry="2" />
+<text  x="90.82" y="223.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/handshake.(*sealer).Overhead (4 samples, 0.11%)</title><rect x="127.0" y="261" width="1.3" height="15.0" fill="rgb(241,56,20)" rx="2" ry="2" />
+<text  x="130.04" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.mapaccess2_fast64 (4 samples, 0.11%)</title><rect x="80.2" y="197" width="1.2" height="15.0" fill="rgb(217,2,37)" rx="2" ry="2" />
+<text  x="83.16" y="207.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/ackhandler.(*sentPacketHistory).GetPacket (4 samples, 0.11%)</title><rect x="80.2" y="213" width="1.2" height="15.0" fill="rgb(248,93,10)" rx="2" ry="2" />
+<text  x="83.16" y="223.5" ></text>
+</g>
+<g >
+<title>time.(*Timer).Reset (75 samples, 2.03%)</title><rect x="89.7" y="277" width="23.9" height="15.0" fill="rgb(230,42,46)" rx="2" ry="2" />
+<text  x="92.73" y="287.5" >t..</text>
+</g>
+<g >
+<title>runtime.exitsyscallfast (85 samples, 2.30%)</title><rect x="161.8" y="117" width="27.1" height="15.0" fill="rgb(241,161,12)" rx="2" ry="2" />
+<text  x="164.81" y="127.5" >r..</text>
+</g>
+<g >
+<title>runtime.(*mcache).refill (1 samples, 0.03%)</title><rect x="213.2" y="197" width="0.3" height="15.0" fill="rgb(240,112,5)" rx="2" ry="2" />
+<text  x="216.15" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.newobject (2 samples, 0.05%)</title><rect x="13.5" y="293" width="0.6" height="15.0" fill="rgb(243,92,27)" rx="2" ry="2" />
+<text  x="16.51" y="303.5" ></text>
+</g>
+<g >
+<title>runtime.sendDirect (1 samples, 0.03%)</title><rect x="11.9" y="229" width="0.3" height="15.0" fill="rgb(218,147,47)" rx="2" ry="2" />
+<text  x="14.91" y="239.5" ></text>
+</g>
+<g >
+<title>github.com/golang/protobuf/proto.unmarshalBytesValue (1 samples, 0.03%)</title><rect x="210.6" y="213" width="0.3" height="15.0" fill="rgb(233,210,21)" rx="2" ry="2" />
+<text  x="213.60" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_cond_signal (72 samples, 1.95%)</title><rect x="90.0" y="181" width="23.0" height="15.0" fill="rgb(232,227,16)" rx="2" ry="2" />
+<text  x="93.05" y="191.5" >r..</text>
+</g>
+<g >
+<title>bytes.(*Buffer).Write (1 samples, 0.03%)</title><rect x="125.8" y="213" width="0.3" height="15.0" fill="rgb(243,66,42)" rx="2" ry="2" />
+<text  x="128.77" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_mutex_unlock (4 samples, 0.11%)</title><rect x="1008.9" y="229" width="1.2" height="15.0" fill="rgb(240,206,35)" rx="2" ry="2" />
+<text  x="1011.85" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.mapiterinit (1 samples, 0.03%)</title><rect x="190.8" y="261" width="0.3" height="15.0" fill="rgb(254,98,35)" rx="2" ry="2" />
+<text  x="193.83" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.notetsleep_internal (88 samples, 2.38%)</title><rect x="1161.9" y="293" width="28.1" height="15.0" fill="rgb(220,79,3)" rx="2" ry="2" />
+<text  x="1164.94" y="303.5" >r..</text>
+</g>
+<g >
+<title>runtime.gcMarkDone (1 samples, 0.03%)</title><rect x="263.5" y="309" width="0.4" height="15.0" fill="rgb(252,48,0)" rx="2" ry="2" />
+<text  x="266.54" y="319.5" ></text>
+</g>
+<g >
+<title>github.com/golang/protobuf/proto.appendVarint (1 samples, 0.03%)</title><rect x="212.2" y="197" width="0.3" height="15.0" fill="rgb(221,53,26)" rx="2" ry="2" />
+<text  x="215.19" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.selectnbsend (4 samples, 0.11%)</title><rect x="11.0" y="277" width="1.2" height="15.0" fill="rgb(241,110,31)" rx="2" ry="2" />
+<text  x="13.96" y="287.5" ></text>
+</g>
+<g >
+<title>runtime.memclrNoHeapPointers (1 samples, 0.03%)</title><rect x="129.9" y="149" width="0.3" height="15.0" fill="rgb(206,96,4)" rx="2" ry="2" />
+<text  x="132.91" y="159.5" ></text>
+</g>
+<g >
+<title>runtime.schedule (1,562 samples, 42.22%)</title><rect x="270.9" y="293" width="498.1" height="15.0" fill="rgb(223,26,26)" rx="2" ry="2" />
+<text  x="273.88" y="303.5" >runtime.schedule</text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/rpc/pb.(*Request).XXX_Unmarshal (1 samples, 0.03%)</title><rect x="212.8" y="229" width="0.4" height="15.0" fill="rgb(222,65,48)" rx="2" ry="2" />
+<text  x="215.83" y="239.5" ></text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/rpc/pb.(*Response).XXX_Marshal (2 samples, 0.05%)</title><rect x="213.5" y="229" width="0.6" height="15.0" fill="rgb(245,36,28)" rx="2" ry="2" />
+<text  x="216.47" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.walltime (2 samples, 0.05%)</title><rect x="122.9" y="181" width="0.6" height="15.0" fill="rgb(246,145,45)" rx="2" ry="2" />
+<text  x="125.90" y="191.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*packetPacker).composeNextPacket (13 samples, 0.35%)</title><rect x="115.9" y="261" width="4.1" height="15.0" fill="rgb(249,45,53)" rx="2" ry="2" />
+<text  x="118.88" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.acquireSudog (2 samples, 0.05%)</title><rect x="206.5" y="293" width="0.6" height="15.0" fill="rgb(248,5,8)" rx="2" ry="2" />
+<text  x="209.45" y="303.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go/internal/ackhandler.(*sentPacketHandler).determineNewlyAckedPackets.func1 (1 samples, 0.03%)</title><rect x="78.9" y="181" width="0.3" height="15.0" fill="rgb(240,148,45)" rx="2" ry="2" />
+<text  x="81.89" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.nilinterequal (1 samples, 0.03%)</title><rect x="216.7" y="149" width="0.3" height="15.0" fill="rgb(223,95,46)" rx="2" ry="2" />
+<text  x="219.66" y="159.5" ></text>
+</g>
+<g >
+<title>time.Time.Sub (1 samples, 0.03%)</title><rect x="210.0" y="309" width="0.3" height="15.0" fill="rgb(226,117,29)" rx="2" ry="2" />
+<text  x="212.96" y="319.5" ></text>
+</g>
+<g >
+<title>runtime.semawakeup (53 samples, 1.43%)</title><rect x="993.2" y="245" width="16.9" height="15.0" fill="rgb(230,110,11)" rx="2" ry="2" />
+<text  x="996.23" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.casgstatus (1 samples, 0.03%)</title><rect x="83.4" y="69" width="0.3" height="15.0" fill="rgb(229,119,6)" rx="2" ry="2" />
+<text  x="86.35" y="79.5" ></text>
+</g>
+<g >
+<title>runtime.(*waitq).dequeueSudoG (4 samples, 0.11%)</title><rect x="223.0" y="293" width="1.3" height="15.0" fill="rgb(205,54,51)" rx="2" ry="2" />
+<text  x="226.04" y="303.5" ></text>
+</g>
+<g >
+<title>runtime.asmcgocall (1 samples, 0.03%)</title><rect x="114.9" y="197" width="0.3" height="15.0" fill="rgb(225,223,32)" rx="2" ry="2" />
+<text  x="117.92" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.runqsteal (136 samples, 3.68%)</title><rect x="382.8" y="261" width="43.4" height="15.0" fill="rgb(213,94,19)" rx="2" ry="2" />
+<text  x="385.82" y="271.5" >runt..</text>
+</g>
+<g >
+<title>runtime.pthread_mutex_unlock (1 samples, 0.03%)</title><rect x="854.2" y="229" width="0.3" height="15.0" fill="rgb(222,3,53)" rx="2" ry="2" />
+<text  x="857.18" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.unlock (1 samples, 0.03%)</title><rect x="114.0" y="229" width="0.3" height="15.0" fill="rgb(242,43,14)" rx="2" ry="2" />
+<text  x="116.97" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_cond_wait (1 samples, 0.03%)</title><rect x="769.0" y="181" width="0.3" height="15.0" fill="rgb(236,204,0)" rx="2" ry="2" />
+<text  x="772.03" y="191.5" ></text>
+</g>
+<g >
+<title>github.com/lucas-clemente/quic-go.(*framerI).AddActiveStream (1 samples, 0.03%)</title><rect x="256.8" y="261" width="0.4" height="15.0" fill="rgb(235,106,22)" rx="2" ry="2" />
+<text  x="259.84" y="271.5" ></text>
+</g>
+<g >
+<title>github.com/golang/protobuf/proto.Marshal (3 samples, 0.08%)</title><rect x="211.6" y="277" width="0.9" height="15.0" fill="rgb(252,154,46)" rx="2" ry="2" />
+<text  x="214.56" y="287.5" ></text>
+</g>
+<g >
+<title>runtime.getitab (1 samples, 0.03%)</title><rect x="117.5" y="197" width="0.3" height="15.0" fill="rgb(217,115,11)" rx="2" ry="2" />
+<text  x="120.48" y="207.5" ></text>
+</g>
+</g>
+</svg>
+

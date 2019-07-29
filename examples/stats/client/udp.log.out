@@ -1,0 +1,306 @@
+./client -network=udp -codec=pb -h=127.0.0.1 -p=9999 -total=1000000 -concurrent=false -batch=false -noresponse=false -clients=1
+==========================BENCHMARK==========================
+Used Connections:		1
+Used Parallel Calls:		1
+Total Number Of Calls:		1000000
+
+===========================TIMINGS===========================
+Total time passed:		138.51s
+Avg time per request:		0.14ms
+Requests per second:		7219.93
+Median time per request:	0.13ms
+99th percentile time:		0.21ms
+Slowest time for request:	11.00ms
+
+==========================RESPONSES==========================
+ResponseOk:			1000000 (100.00%)
+Errors:				0 (0.00%)
+./client -network=udp -codec=pb -h=127.0.0.1 -p=9999 -total=1000000 -concurrent=false -batch=false -noresponse=false -clients=12
+==========================BENCHMARK==========================
+Used Connections:		12
+Used Parallel Calls:		1
+Total Number Of Calls:		1000000
+
+===========================TIMINGS===========================
+Total time passed:		37.01s
+Avg time per request:		0.44ms
+Requests per second:		27022.94
+Median time per request:	0.41ms
+99th percentile time:		1.07ms
+Slowest time for request:	12.00ms
+
+==========================RESPONSES==========================
+ResponseOk:			1000000 (100.00%)
+Errors:				0 (0.00%)
+./client -network=udp -codec=pb -h=127.0.0.1 -p=9999 -total=1000000 -concurrent=false -batch=false -noresponse=false -clients=48
+==========================BENCHMARK==========================
+Used Connections:		48
+Used Parallel Calls:		1
+Total Number Of Calls:		1000000
+
+===========================TIMINGS===========================
+Total time passed:		32.55s
+Avg time per request:		1.56ms
+Requests per second:		30725.51
+Median time per request:	1.49ms
+99th percentile time:		3.33ms
+Slowest time for request:	22.00ms
+
+==========================RESPONSES==========================
+ResponseOk:			1000000 (100.00%)
+Errors:				0 (0.00%)
+./client -network=udp -codec=pb -h=127.0.0.1 -p=9999 -total=1000000 -concurrent=false -batch=false -noresponse=false -clients=192
+==========================BENCHMARK==========================
+Used Connections:		192
+Used Parallel Calls:		1
+Total Number Of Calls:		1000000
+
+===========================TIMINGS===========================
+Total time passed:		32.10s
+Avg time per request:		6.16ms
+Requests per second:		31151.00
+Median time per request:	5.96ms
+99th percentile time:		12.08ms
+Slowest time for request:	76.00ms
+
+==========================RESPONSES==========================
+ResponseOk:			1000000 (100.00%)
+Errors:				0 (0.00%)
+./client -network=udp -codec=pb -h=127.0.0.1 -p=9999 -total=1000000 -concurrent=true -batch=false -noresponse=false -clients=1
+==========================BENCHMARK==========================
+Used Connections:		1
+Used Parallel Calls:		32
+Total Number Of Calls:		1000000
+
+===========================TIMINGS===========================
+Total time passed:		28.57s
+Avg time per request:		0.91ms
+Requests per second:		35001.39
+Median time per request:	0.88ms
+99th percentile time:		1.82ms
+Slowest time for request:	15.00ms
+
+==========================RESPONSES==========================
+ResponseOk:			1000000 (100.00%)
+Errors:				0 (0.00%)
+./client -network=udp -codec=pb -h=127.0.0.1 -p=9999 -total=1000000 -concurrent=true -batch=false -noresponse=false -clients=2
+==========================BENCHMARK==========================
+Used Connections:		2
+Used Parallel Calls:		32
+Total Number Of Calls:		1000000
+
+===========================TIMINGS===========================
+Total time passed:		28.69s
+Avg time per request:		1.84ms
+Requests per second:		34850.84
+Median time per request:	1.76ms
+99th percentile time:		4.13ms
+Slowest time for request:	21.00ms
+
+==========================RESPONSES==========================
+ResponseOk:			1000000 (100.00%)
+Errors:				0 (0.00%)
+./client -network=udp -codec=pb -h=127.0.0.1 -p=9999 -total=1000000 -concurrent=false -batch=true -noresponse=false -clients=1
+==========================BENCHMARK==========================
+Used Connections:		1
+Used Parallel Calls:		8
+Total Number Of Calls:		1000000
+
+===========================TIMINGS===========================
+Total time passed:		28.84s
+Avg time per request:		0.23ms
+Requests per second:		34671.34
+Median time per request:	0.19ms
+99th percentile time:		0.47ms
+Slowest time for request:	95.00ms
+
+==========================RESPONSES==========================
+ResponseOk:			1000000 (100.00%)
+Errors:				0 (0.00%)
+./client -network=udp -codec=pb -h=127.0.0.1 -p=9999 -total=1000000 -concurrent=false -batch=true -noresponse=false -clients=2
+==========================BENCHMARK==========================
+Used Connections:		2
+Used Parallel Calls:		8
+Total Number Of Calls:		1000000
+
+===========================TIMINGS===========================
+Total time passed:		14.94s
+Avg time per request:		0.24ms
+Requests per second:		66934.58
+Median time per request:	0.20ms
+99th percentile time:		0.59ms
+Slowest time for request:	52.00ms
+
+==========================RESPONSES==========================
+ResponseOk:			1000000 (100.00%)
+Errors:				0 (0.00%)
+./client -network=udp -codec=pb -h=127.0.0.1 -p=9999 -total=1000000 -concurrent=false -batch=false -noresponse=true -clients=1
+==========================BENCHMARK==========================
+Used Connections:		1
+Used Parallel Calls:		1
+Total Number Of Calls:		1000000
+
+===========================TIMINGS===========================
+Total time passed:		20.90s
+Avg time per request:		0.02ms
+Requests per second:		47850.52
+Median time per request:	0.00ms
+99th percentile time:		0.33ms
+Slowest time for request:	29.00ms
+
+==========================RESPONSES==========================
+ResponseOk:			1000000 (100.00%)
+Errors:				0 (0.00%)
+./client -network=udp -codec=pb -h=127.0.0.1 -p=9999 -total=1000000 -concurrent=false -batch=false -noresponse=true -clients=2
+==========================BENCHMARK==========================
+Used Connections:		2
+Used Parallel Calls:		1
+Total Number Of Calls:		1000000
+
+===========================TIMINGS===========================
+Total time passed:		22.36s
+Avg time per request:		0.04ms
+Requests per second:		44730.13
+Median time per request:	0.00ms
+99th percentile time:		0.62ms
+Slowest time for request:	52.00ms
+
+==========================RESPONSES==========================
+ResponseOk:			1000000 (100.00%)
+Errors:				0 (0.00%)
+./client -network=udp -codec=pb -h=127.0.0.1 -p=9999 -total=1000000 -concurrent=true -batch=true -noresponse=false -clients=1
+==========================BENCHMARK==========================
+Used Connections:		1
+Used Parallel Calls:		8
+Total Number Of Calls:		1000000
+
+===========================TIMINGS===========================
+Total time passed:		30.27s
+Avg time per request:		0.24ms
+Requests per second:		33035.53
+Median time per request:	0.20ms
+99th percentile time:		0.51ms
+Slowest time for request:	24.00ms
+
+==========================RESPONSES==========================
+ResponseOk:			1000000 (100.00%)
+Errors:				0 (0.00%)
+./client -network=udp -codec=pb -h=127.0.0.1 -p=9999 -total=1000000 -concurrent=true -batch=true -noresponse=false -clients=2
+==========================BENCHMARK==========================
+Used Connections:		2
+Used Parallel Calls:		8
+Total Number Of Calls:		1000000
+
+===========================TIMINGS===========================
+Total time passed:		15.18s
+Avg time per request:		0.24ms
+Requests per second:		65859.99
+Median time per request:	0.20ms
+99th percentile time:		0.63ms
+Slowest time for request:	32.00ms
+
+==========================RESPONSES==========================
+ResponseOk:			1000000 (100.00%)
+Errors:				0 (0.00%)
+./client -network=udp -codec=pb -h=127.0.0.1 -p=9999 -total=1000000 -concurrent=false -batch=true -noresponse=true -clients=1
+==========================BENCHMARK==========================
+Used Connections:		1
+Used Parallel Calls:		8
+Total Number Of Calls:		1000000
+
+===========================TIMINGS===========================
+Total time passed:		31.70s
+Avg time per request:		0.25ms
+Requests per second:		31548.65
+Median time per request:	0.00ms
+99th percentile time:		0.81ms
+Slowest time for request:	766.00ms
+
+==========================RESPONSES==========================
+ResponseOk:			1000000 (100.00%)
+Errors:				0 (0.00%)
+./client -network=udp -codec=pb -h=127.0.0.1 -p=9999 -total=1000000 -concurrent=false -batch=true -noresponse=true -clients=2
+==========================BENCHMARK==========================
+Used Connections:		2
+Used Parallel Calls:		8
+Total Number Of Calls:		1000000
+
+===========================TIMINGS===========================
+Total time passed:		25.83s
+Avg time per request:		0.33ms
+Requests per second:		38715.88
+Median time per request:	0.00ms
+99th percentile time:		0.83ms
+Slowest time for request:	7737.00ms
+
+==========================RESPONSES==========================
+ResponseOk:			1000000 (100.00%)
+Errors:				0 (0.00%)
+./client -network=udp -codec=pb -h=127.0.0.1 -p=9999 -total=1000000 -concurrent=true -batch=false -noresponse=true -clients=1
+==========================BENCHMARK==========================
+Used Connections:		1
+Used Parallel Calls:		32
+Total Number Of Calls:		1000000
+
+===========================TIMINGS===========================
+Total time passed:		23.21s
+Avg time per request:		0.74ms
+Requests per second:		43091.34
+Median time per request:	0.46ms
+99th percentile time:		4.57ms
+Slowest time for request:	50.00ms
+
+==========================RESPONSES==========================
+ResponseOk:			1000000 (100.00%)
+Errors:				0 (0.00%)
+./client -network=udp -codec=pb -h=127.0.0.1 -p=9999 -total=1000000 -concurrent=true -batch=false -noresponse=true -clients=2
+==========================BENCHMARK==========================
+Used Connections:		2
+Used Parallel Calls:		32
+Total Number Of Calls:		1000000
+
+===========================TIMINGS===========================
+Total time passed:		23.05s
+Avg time per request:		1.47ms
+Requests per second:		43378.59
+Median time per request:	0.91ms
+99th percentile time:		10.35ms
+Slowest time for request:	60.00ms
+
+==========================RESPONSES==========================
+ResponseOk:			1000000 (100.00%)
+Errors:				0 (0.00%)
+./client -network=udp -codec=pb -h=127.0.0.1 -p=9999 -total=1000000 -concurrent=true -batch=true -noresponse=true -clients=1
+==========================BENCHMARK==========================
+Used Connections:		1
+Used Parallel Calls:		8
+Total Number Of Calls:		1000000
+
+===========================TIMINGS===========================
+Total time passed:		34.11s
+Avg time per request:		0.27ms
+Requests per second:		29318.28
+Median time per request:	0.00ms
+99th percentile time:		0.83ms
+Slowest time for request:	773.00ms
+
+==========================RESPONSES==========================
+ResponseOk:			1000000 (100.00%)
+Errors:				0 (0.00%)
+./client -network=udp -codec=pb -h=127.0.0.1 -p=9999 -total=1000000 -concurrent=true -batch=true -noresponse=true -clients=2
+==========================BENCHMARK==========================
+Used Connections:		2
+Used Parallel Calls:		8
+Total Number Of Calls:		1000000
+
+===========================TIMINGS===========================
+Total time passed:		23.06s
+Avg time per request:		0.37ms
+Requests per second:		43364.62
+Median time per request:	0.00ms
+99th percentile time:		0.88ms
+Slowest time for request:	8920.00ms
+
+==========================RESPONSES==========================
+ResponseOk:			1000000 (100.00%)
+Errors:				0 (0.00%)

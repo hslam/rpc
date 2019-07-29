@@ -1,0 +1,1 @@
+protoc ./rpc.proto --go_out=./

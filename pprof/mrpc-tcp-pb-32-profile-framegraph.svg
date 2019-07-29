@@ -1,0 +1,1670 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" width="1200" height="342" onload="init(evt)" viewBox="0 0 1200 342" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<!-- Flame graph stack visualization. See https://github.com/brendangregg/FlameGraph for latest version, and http://www.brendangregg.com/flamegraphs.html for examples. -->
+<!-- NOTES:  -->
+<defs>
+	<linearGradient id="background" y1="0" y2="1" x1="0" x2="0" >
+		<stop stop-color="#eeeeee" offset="5%" />
+		<stop stop-color="#eeeeb0" offset="95%" />
+	</linearGradient>
+</defs>
+<style type="text/css">
+	text { font-family:Verdana; font-size:12px; fill:rgb(0,0,0); }
+	#search { opacity:0.1; cursor:pointer; }
+	#search:hover, #search.show { opacity:1; }
+	#subtitle { text-anchor:middle; font-color:rgb(160,160,160); }
+	#title { text-anchor:middle; font-size:17px}
+	#unzoom { cursor:pointer; }
+	#frames > *:hover { stroke:black; stroke-width:0.5; cursor:pointer; }
+	.hide { display:none; }
+	.parent { opacity:0.5; }
+</style>
+<script type="text/ecmascript">
+<![CDATA[
+	"use strict";
+	var details, searchbtn, unzoombtn, matchedtxt, svg, searching;
+	function init(evt) {
+		details = document.getElementById("details").firstChild;
+		searchbtn = document.getElementById("search");
+		unzoombtn = document.getElementById("unzoom");
+		matchedtxt = document.getElementById("matched");
+		svg = document.getElementsByTagName("svg")[0];
+		searching = 0;
+	}
+
+	window.addEventListener("click", function(e) {
+		var target = find_group(e.target);
+		if (target) {
+			if (target.nodeName == "a") {
+				if (e.ctrlKey === false) return;
+				e.preventDefault();
+			}
+			if (target.classList.contains("parent")) unzoom();
+			zoom(target);
+		}
+		else if (e.target.id == "unzoom") unzoom();
+		else if (e.target.id == "search") search_prompt();
+	}, false)
+
+	// mouse-over for info
+	// show
+	window.addEventListener("mouseover", function(e) {
+		var target = find_group(e.target);
+		if (target) details.nodeValue = "Function: " + g_to_text(target);
+	}, false)
+
+	// clear
+	window.addEventListener("mouseout", function(e) {
+		var target = find_group(e.target);
+		if (target) details.nodeValue = ' ';
+	}, false)
+
+	// ctrl-F for search
+	window.addEventListener("keydown",function (e) {
+		if (e.keyCode === 114 || (e.ctrlKey && e.keyCode === 70)) {
+			e.preventDefault();
+			search_prompt();
+		}
+	}, false)
+
+	// functions
+	function find_child(node, selector) {
+		var children = node.querySelectorAll(selector);
+		if (children.length) return children[0];
+		return;
+	}
+	function find_group(node) {
+		var parent = node.parentElement;
+		if (!parent) return;
+		if (parent.id == "frames") return node;
+		return find_group(parent);
+	}
+	function orig_save(e, attr, val) {
+		if (e.attributes["_orig_" + attr] != undefined) return;
+		if (e.attributes[attr] == undefined) return;
+		if (val == undefined) val = e.attributes[attr].value;
+		e.setAttribute("_orig_" + attr, val);
+	}
+	function orig_load(e, attr) {
+		if (e.attributes["_orig_"+attr] == undefined) return;
+		e.attributes[attr].value = e.attributes["_orig_" + attr].value;
+		e.removeAttribute("_orig_"+attr);
+	}
+	function g_to_text(e) {
+		var text = find_child(e, "title").firstChild.nodeValue;
+		return (text)
+	}
+	function g_to_func(e) {
+		var func = g_to_text(e);
+		// if there's any manipulation we want to do to the function
+		// name before it's searched, do it here before returning.
+		return (func);
+	}
+	function update_text(e) {
+		var r = find_child(e, "rect");
+		var t = find_child(e, "text");
+		var w = parseFloat(r.attributes.width.value) -3;
+		var txt = find_child(e, "title").textContent.replace(/\([^(]*\)$/,"");
+		t.attributes.x.value = parseFloat(r.attributes.x.value) + 3;
+
+		// Smaller than this size won't fit anything
+		if (w < 2 * 12 * 0.59) {
+			t.textContent = "";
+			return;
+		}
+
+		t.textContent = txt;
+		// Fit in full text width
+		if (/^ *$/.test(txt) || t.getSubStringLength(0, txt.length) < w)
+			return;
+
+		for (var x = txt.length - 2; x > 0; x--) {
+			if (t.getSubStringLength(0, x + 2) <= w) {
+				t.textContent = txt.substring(0, x) + "..";
+				return;
+			}
+		}
+		t.textContent = "";
+	}
+
+	// zoom
+	function zoom_reset(e) {
+		if (e.attributes != undefined) {
+			orig_load(e, "x");
+			orig_load(e, "width");
+		}
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_reset(c[i]);
+		}
+	}
+	function zoom_child(e, x, ratio) {
+		if (e.attributes != undefined) {
+			if (e.attributes.x != undefined) {
+				orig_save(e, "x");
+				e.attributes.x.value = (parseFloat(e.attributes.x.value) - x - 10) * ratio + 10;
+				if (e.tagName == "text")
+					e.attributes.x.value = find_child(e.parentNode, "rect[x]").attributes.x.value + 3;
+			}
+			if (e.attributes.width != undefined) {
+				orig_save(e, "width");
+				e.attributes.width.value = parseFloat(e.attributes.width.value) * ratio;
+			}
+		}
+
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_child(c[i], x - 10, ratio);
+		}
+	}
+	function zoom_parent(e) {
+		if (e.attributes) {
+			if (e.attributes.x != undefined) {
+				orig_save(e, "x");
+				e.attributes.x.value = 10;
+			}
+			if (e.attributes.width != undefined) {
+				orig_save(e, "width");
+				e.attributes.width.value = parseInt(svg.width.baseVal.value) - (10 * 2);
+			}
+		}
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_parent(c[i]);
+		}
+	}
+	function zoom(node) {
+		var attr = find_child(node, "rect").attributes;
+		var width = parseFloat(attr.width.value);
+		var xmin = parseFloat(attr.x.value);
+		var xmax = parseFloat(xmin + width);
+		var ymin = parseFloat(attr.y.value);
+		var ratio = (svg.width.baseVal.value - 2 * 10) / width;
+
+		// XXX: Workaround for JavaScript float issues (fix me)
+		var fudge = 0.0001;
+
+		unzoombtn.classList.remove("hide");
+
+		var el = document.getElementById("frames").children;
+		for (var i = 0; i < el.length; i++) {
+			var e = el[i];
+			var a = find_child(e, "rect").attributes;
+			var ex = parseFloat(a.x.value);
+			var ew = parseFloat(a.width.value);
+			var upstack;
+			// Is it an ancestor
+			if (0 == 0) {
+				upstack = parseFloat(a.y.value) > ymin;
+			} else {
+				upstack = parseFloat(a.y.value) < ymin;
+			}
+			if (upstack) {
+				// Direct ancestor
+				if (ex <= xmin && (ex+ew+fudge) >= xmax) {
+					e.classList.add("parent");
+					zoom_parent(e);
+					update_text(e);
+				}
+				// not in current path
+				else
+					e.classList.add("hide");
+			}
+			// Children maybe
+			else {
+				// no common path
+				if (ex < xmin || ex + fudge >= xmax) {
+					e.classList.add("hide");
+				}
+				else {
+					zoom_child(e, xmin, ratio);
+					update_text(e);
+				}
+			}
+		}
+	}
+	function unzoom() {
+		unzoombtn.classList.add("hide");
+		var el = document.getElementById("frames").children;
+		for(var i = 0; i < el.length; i++) {
+			el[i].classList.remove("parent");
+			el[i].classList.remove("hide");
+			zoom_reset(el[i]);
+			update_text(el[i]);
+		}
+	}
+
+	// search
+	function reset_search() {
+		var el = document.querySelectorAll("#frames rect");
+		for (var i = 0; i < el.length; i++) {
+			orig_load(el[i], "fill")
+		}
+	}
+	function search_prompt() {
+		if (!searching) {
+			var term = prompt("Enter a search term (regexp " +
+			    "allowed, eg: ^ext4_)", "");
+			if (term != null) {
+				search(term)
+			}
+		} else {
+			reset_search();
+			searching = 0;
+			searchbtn.classList.remove("show");
+			searchbtn.firstChild.nodeValue = "Search"
+			matchedtxt.classList.add("hide");
+			matchedtxt.firstChild.nodeValue = ""
+		}
+	}
+	function search(term) {
+		var re = new RegExp(term);
+		var el = document.getElementById("frames").children;
+		var matches = new Object();
+		var maxwidth = 0;
+		for (var i = 0; i < el.length; i++) {
+			var e = el[i];
+			var func = g_to_func(e);
+			var rect = find_child(e, "rect");
+			if (func == null || rect == null)
+				continue;
+
+			// Save max width. Only works as we have a root frame
+			var w = parseFloat(rect.attributes.width.value);
+			if (w > maxwidth)
+				maxwidth = w;
+
+			if (func.match(re)) {
+				// highlight
+				var x = parseFloat(rect.attributes.x.value);
+				orig_save(rect, "fill");
+				rect.attributes.fill.value = "rgb(230,0,230)";
+
+				// remember matches
+				if (matches[x] == undefined) {
+					matches[x] = w;
+				} else {
+					if (w > matches[x]) {
+						// overwrite with parent
+						matches[x] = w;
+					}
+				}
+				searching = 1;
+			}
+		}
+		if (!searching)
+			return;
+
+		searchbtn.classList.add("show");
+		searchbtn.firstChild.nodeValue = "Reset Search";
+
+		// calculate percent matched, excluding vertical overlap
+		var count = 0;
+		var lastx = -1;
+		var lastw = 0;
+		var keys = Array();
+		for (k in matches) {
+			if (matches.hasOwnProperty(k))
+				keys.push(k);
+		}
+		// sort the matched frames by their x location
+		// ascending, then width descending
+		keys.sort(function(a, b){
+			return a - b;
+		});
+		// Step through frames saving only the biggest bottom-up frames
+		// thanks to the sort order. This relies on the tree property
+		// where children are always smaller than their parents.
+		var fudge = 0.0001;	// JavaScript floating point
+		for (var k in keys) {
+			var x = parseFloat(keys[k]);
+			var w = matches[keys[k]];
+			if (x >= lastx + lastw - fudge) {
+				count += w;
+				lastx = x;
+				lastw = w;
+			}
+		}
+		// display matched percent
+		matchedtxt.classList.remove("hide");
+		var pct = 100 * count / maxwidth;
+		if (pct != 100) pct = pct.toFixed(1)
+		matchedtxt.firstChild.nodeValue = "Matched: " + pct + "%";
+	}
+]]>
+</script>
+<rect x="0.0" y="0" width="1200.0" height="342.0" fill="url(#background)"  />
+<text id="title" x="600.00" y="24" >Flame Graph</text>
+<text id="details" x="10.00" y="325" > </text>
+<text id="unzoom" x="10.00" y="24" class="hide">Reset Zoom</text>
+<text id="search" x="1090.00" y="24" >Search</text>
+<text id="matched" x="1090.00" y="325" > </text>
+<g id="frames">
+<g >
+<title>runtime.handoffp (2 samples, 0.04%)</title><rect x="356.8" y="117" width="0.5" height="15.0" fill="rgb(220,65,14)" rx="2" ry="2" />
+<text  x="359.76" y="127.5" ></text>
+</g>
+<g >
+<title>runtime.bgsweep (2 samples, 0.04%)</title><rect x="363.0" y="277" width="0.5" height="15.0" fill="rgb(220,173,18)" rx="2" ry="2" />
+<text  x="366.02" y="287.5" ></text>
+</g>
+<g >
+<title>runtime.notewakeup (2 samples, 0.04%)</title><rect x="256.6" y="85" width="0.5" height="15.0" fill="rgb(236,77,6)" rx="2" ry="2" />
+<text  x="259.62" y="95.5" ></text>
+</g>
+<g >
+<title>runtime.entersyscallblock (4 samples, 0.08%)</title><rect x="256.1" y="165" width="1.0" height="15.0" fill="rgb(211,97,13)" rx="2" ry="2" />
+<text  x="259.12" y="175.5" ></text>
+</g>
+<g >
+<title>runtime.netpoll (1 samples, 0.02%)</title><rect x="1185.0" y="213" width="0.2" height="15.0" fill="rgb(219,152,15)" rx="2" ry="2" />
+<text  x="1187.99" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.chansend1 (4 samples, 0.08%)</title><rect x="24.8" y="261" width="1.0" height="15.0" fill="rgb(240,197,46)" rx="2" ry="2" />
+<text  x="27.77" y="271.5" ></text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/rpc/protocol.WriteStream (409 samples, 8.68%)</title><rect x="258.1" y="277" width="102.4" height="15.0" fill="rgb(248,203,51)" rx="2" ry="2" />
+<text  x="261.12" y="287.5" >hslam.com/mg..</text>
+</g>
+<g >
+<title>runtime.runqget (2 samples, 0.04%)</title><rect x="382.6" y="229" width="0.5" height="15.0" fill="rgb(218,125,34)" rx="2" ry="2" />
+<text  x="385.55" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.semasleep (1 samples, 0.02%)</title><rect x="365.8" y="229" width="0.2" height="15.0" fill="rgb(249,219,21)" rx="2" ry="2" />
+<text  x="368.78" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.(*mcache).releaseAll (1 samples, 0.02%)</title><rect x="382.1" y="165" width="0.2" height="15.0" fill="rgb(212,110,8)" rx="2" ry="2" />
+<text  x="385.05" y="175.5" ></text>
+</g>
+<g >
+<title>github.com/golang/protobuf/proto.(*unmarshalInfo).unmarshal (1 samples, 0.02%)</title><rect x="21.3" y="133" width="0.2" height="15.0" fill="rgb(253,30,33)" rx="2" ry="2" />
+<text  x="24.27" y="143.5" ></text>
+</g>
+<g >
+<title>runtime.notewakeup (1 samples, 0.02%)</title><rect x="1183.5" y="213" width="0.2" height="15.0" fill="rgb(236,172,8)" rx="2" ry="2" />
+<text  x="1186.49" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.mget (1 samples, 0.02%)</title><rect x="356.8" y="85" width="0.2" height="15.0" fill="rgb(227,108,3)" rx="2" ry="2" />
+<text  x="359.76" y="95.5" ></text>
+</g>
+<g >
+<title>runtime.mcall (1,770 samples, 37.56%)</title><rect x="364.8" y="277" width="443.1" height="15.0" fill="rgb(249,52,27)" rx="2" ry="2" />
+<text  x="367.78" y="287.5" >runtime.mcall</text>
+</g>
+<g >
+<title>runtime.newobject (1 samples, 0.02%)</title><rect x="14.5" y="197" width="0.3" height="15.0" fill="rgb(249,111,52)" rx="2" ry="2" />
+<text  x="17.51" y="207.5" ></text>
+</g>
+<g >
+<title>reflect.valueInterface (3 samples, 0.06%)</title><rect x="20.0" y="165" width="0.8" height="15.0" fill="rgb(206,170,20)" rx="2" ry="2" />
+<text  x="23.01" y="175.5" ></text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/rpc/examples/example/pb/service.(*ArithResponse).XXX_Marshal (1 samples, 0.02%)</title><rect x="22.0" y="165" width="0.3" height="15.0" fill="rgb(241,96,24)" rx="2" ry="2" />
+<text  x="25.02" y="175.5" ></text>
+</g>
+<g >
+<title>runtime.makeslice (1 samples, 0.02%)</title><rect x="19.0" y="181" width="0.3" height="15.0" fill="rgb(205,154,40)" rx="2" ry="2" />
+<text  x="22.01" y="191.5" ></text>
+</g>
+<g >
+<title>github.com/golang/protobuf/proto.Marshal (1 samples, 0.02%)</title><rect x="14.3" y="197" width="0.2" height="15.0" fill="rgb(219,54,22)" rx="2" ry="2" />
+<text  x="17.26" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.assertI2I2 (3 samples, 0.06%)</title><rect x="12.3" y="213" width="0.7" height="15.0" fill="rgb(236,31,12)" rx="2" ry="2" />
+<text  x="15.25" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.runqsteal (8 samples, 0.17%)</title><rect x="790.4" y="213" width="2.0" height="15.0" fill="rgb(224,6,18)" rx="2" ry="2" />
+<text  x="793.41" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.getitab (1 samples, 0.02%)</title><rect x="23.0" y="149" width="0.3" height="15.0" fill="rgb(240,144,52)" rx="2" ry="2" />
+<text  x="26.02" y="159.5" ></text>
+</g>
+<g >
+<title>github.com/golang/protobuf/proto.(*InternalMessageInfo).Size (3 samples, 0.06%)</title><rect x="22.3" y="149" width="0.7" height="15.0" fill="rgb(213,177,38)" rx="2" ry="2" />
+<text  x="25.27" y="159.5" ></text>
+</g>
+<g >
+<title>runtime.fastrand (1 samples, 0.02%)</title><rect x="364.0" y="101" width="0.3" height="15.0" fill="rgb(245,80,25)" rx="2" ry="2" />
+<text  x="367.03" y="111.5" ></text>
+</g>
+<g >
+<title>syscall.syscall (280 samples, 5.94%)</title><rect x="290.2" y="181" width="70.1" height="15.0" fill="rgb(211,148,19)" rx="2" ry="2" />
+<text  x="293.17" y="191.5" >syscall..</text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/rpc/examples/example/pb/service.(*ArithResponse).XXX_Size (3 samples, 0.06%)</title><rect x="22.3" y="165" width="0.7" height="15.0" fill="rgb(236,115,36)" rx="2" ry="2" />
+<text  x="25.27" y="175.5" ></text>
+</g>
+<g >
+<title>reflect.Value.Type (3 samples, 0.06%)</title><rect x="18.3" y="181" width="0.7" height="15.0" fill="rgb(206,136,49)" rx="2" ry="2" />
+<text  x="21.26" y="191.5" ></text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/rpc.ArgsDecode (3 samples, 0.06%)</title><rect x="21.0" y="197" width="0.8" height="15.0" fill="rgb(229,26,35)" rx="2" ry="2" />
+<text  x="24.02" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.startm (1,478 samples, 31.36%)</title><rect x="813.4" y="213" width="370.1" height="15.0" fill="rgb(209,180,33)" rx="2" ry="2" />
+<text  x="816.44" y="223.5" >runtime.startm</text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/rpc.(*Server).ServeRPC (57 samples, 1.21%)</title><rect x="10.5" y="261" width="14.3" height="15.0" fill="rgb(224,187,47)" rx="2" ry="2" />
+<text  x="13.50" y="271.5" ></text>
+</g>
+<g >
+<title>reflect.Value.Interface (3 samples, 0.06%)</title><rect x="20.0" y="181" width="0.8" height="15.0" fill="rgb(222,60,42)" rx="2" ry="2" />
+<text  x="23.01" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.libcCall (1 samples, 0.02%)</title><rect x="357.0" y="37" width="0.3" height="15.0" fill="rgb(247,11,22)" rx="2" ry="2" />
+<text  x="360.01" y="47.5" ></text>
+</g>
+<g >
+<title>internal/poll.(*pollDesc).waitRead (2 samples, 0.04%)</title><rect x="106.4" y="213" width="0.5" height="15.0" fill="rgb(236,91,34)" rx="2" ry="2" />
+<text  x="109.39" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.nextFreeFast (1 samples, 0.02%)</title><rect x="19.8" y="133" width="0.2" height="15.0" fill="rgb(244,33,25)" rx="2" ry="2" />
+<text  x="22.76" y="143.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_cond_signal (18 samples, 0.38%)</title><rect x="1185.2" y="149" width="4.5" height="15.0" fill="rgb(249,162,25)" rx="2" ry="2" />
+<text  x="1188.24" y="159.5" ></text>
+</g>
+<g >
+<title>github.com/golang/protobuf/proto.getMessageMarshalInfo (1 samples, 0.02%)</title><rect x="22.8" y="133" width="0.2" height="15.0" fill="rgb(250,203,43)" rx="2" ry="2" />
+<text  x="25.77" y="143.5" ></text>
+</g>
+<g >
+<title>runtime.scanobject (1 samples, 0.02%)</title><rect x="260.4" y="133" width="0.2" height="15.0" fill="rgb(206,133,50)" rx="2" ry="2" />
+<text  x="263.37" y="143.5" ></text>
+</g>
+<g >
+<title>runtime.(*waitq).dequeue (1 samples, 0.02%)</title><rect x="26.5" y="245" width="0.3" height="15.0" fill="rgb(227,193,54)" rx="2" ry="2" />
+<text  x="29.52" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.gcAssistAlloc.func1 (3 samples, 0.06%)</title><rect x="259.9" y="181" width="0.7" height="15.0" fill="rgb(246,167,1)" rx="2" ry="2" />
+<text  x="262.87" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.markroot.func1 (1 samples, 0.02%)</title><rect x="364.0" y="197" width="0.3" height="15.0" fill="rgb(246,20,35)" rx="2" ry="2" />
+<text  x="367.03" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.sweepone (2 samples, 0.04%)</title><rect x="363.0" y="261" width="0.5" height="15.0" fill="rgb(245,138,54)" rx="2" ry="2" />
+<text  x="366.02" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.makeslice (3 samples, 0.06%)</title><rect x="13.0" y="213" width="0.8" height="15.0" fill="rgb(235,211,1)" rx="2" ry="2" />
+<text  x="16.00" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.usleep (2 samples, 0.04%)</title><rect x="813.4" y="165" width="0.5" height="15.0" fill="rgb(213,128,9)" rx="2" ry="2" />
+<text  x="816.44" y="175.5" ></text>
+</g>
+<g >
+<title>runtime.notetsleep_internal (3 samples, 0.06%)</title><rect x="810.7" y="213" width="0.7" height="15.0" fill="rgb(222,43,44)" rx="2" ry="2" />
+<text  x="813.69" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.sellock (1 samples, 0.02%)</title><rect x="105.9" y="245" width="0.2" height="15.0" fill="rgb(232,19,34)" rx="2" ry="2" />
+<text  x="108.89" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.mallocgc (3 samples, 0.06%)</title><rect x="11.5" y="213" width="0.8" height="15.0" fill="rgb(233,199,48)" rx="2" ry="2" />
+<text  x="14.50" y="223.5" ></text>
+</g>
+<g >
+<title>github.com/golang/protobuf/proto.(*unmarshalInfo).unmarshal (1 samples, 0.02%)</title><rect x="11.3" y="181" width="0.2" height="15.0" fill="rgb(253,46,25)" rx="2" ry="2" />
+<text  x="14.25" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.notesleep (61 samples, 1.29%)</title><rect x="792.4" y="197" width="15.3" height="15.0" fill="rgb(221,112,10)" rx="2" ry="2" />
+<text  x="795.41" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.goready.func1 (18 samples, 0.38%)</title><rect x="1185.2" y="245" width="4.5" height="15.0" fill="rgb(232,98,17)" rx="2" ry="2" />
+<text  x="1188.24" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.usleep (8 samples, 0.17%)</title><rect x="811.4" y="229" width="2.0" height="15.0" fill="rgb(209,225,5)" rx="2" ry="2" />
+<text  x="814.44" y="239.5" ></text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/rpc/protocol.PacketStream (5 samples, 0.11%)</title><rect x="259.4" y="261" width="1.2" height="15.0" fill="rgb(238,55,3)" rx="2" ry="2" />
+<text  x="262.37" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.semasleep (3 samples, 0.06%)</title><rect x="810.7" y="197" width="0.7" height="15.0" fill="rgb(251,56,22)" rx="2" ry="2" />
+<text  x="813.69" y="207.5" ></text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/rpc/protocol.ReadStream (607 samples, 12.88%)</title><rect x="106.1" y="277" width="152.0" height="15.0" fill="rgb(211,131,12)" rx="2" ry="2" />
+<text  x="109.14" y="287.5" >hslam.com/mgit/Mort..</text>
+</g>
+<g >
+<title>runtime.pthread_mutex_unlock (1 samples, 0.02%)</title><rect x="357.0" y="53" width="0.3" height="15.0" fill="rgb(229,127,52)" rx="2" ry="2" />
+<text  x="360.01" y="63.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_cond_signal (9 samples, 0.19%)</title><rect x="757.6" y="149" width="2.3" height="15.0" fill="rgb(234,157,44)" rx="2" ry="2" />
+<text  x="760.61" y="159.5" ></text>
+</g>
+<g >
+<title>runtime.mallocgc (1 samples, 0.02%)</title><rect x="259.4" y="229" width="0.2" height="15.0" fill="rgb(225,13,48)" rx="2" ry="2" />
+<text  x="262.37" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.systemstack (3 samples, 0.06%)</title><rect x="259.9" y="197" width="0.7" height="15.0" fill="rgb(230,153,37)" rx="2" ry="2" />
+<text  x="262.87" y="207.5" ></text>
+</g>
+<g >
+<title>reflect.Value.Type (1 samples, 0.02%)</title><rect x="20.8" y="181" width="0.2" height="15.0" fill="rgb(254,60,42)" rx="2" ry="2" />
+<text  x="23.77" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_cond_wait (1 samples, 0.02%)</title><rect x="365.8" y="213" width="0.2" height="15.0" fill="rgb(247,134,24)" rx="2" ry="2" />
+<text  x="368.78" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.gcDrain (5 samples, 0.11%)</title><rect x="363.5" y="229" width="1.3" height="15.0" fill="rgb(236,51,49)" rx="2" ry="2" />
+<text  x="366.52" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.osyield (4 samples, 0.08%)</title><rect x="367.0" y="197" width="1.0" height="15.0" fill="rgb(236,120,26)" rx="2" ry="2" />
+<text  x="370.03" y="207.5" ></text>
+</g>
+<g >
+<title>syscall.syscall (385 samples, 8.17%)</title><rect x="161.7" y="181" width="96.4" height="15.0" fill="rgb(211,149,19)" rx="2" ry="2" />
+<text  x="164.73" y="191.5" >syscall.sys..</text>
+</g>
+<g >
+<title>runtime.startm (9 samples, 0.19%)</title><rect x="757.6" y="197" width="2.3" height="15.0" fill="rgb(253,25,36)" rx="2" ry="2" />
+<text  x="760.61" y="207.5" ></text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/rpc/protocol.UnpackStream (1 samples, 0.02%)</title><rect x="106.1" y="261" width="0.3" height="15.0" fill="rgb(242,72,8)" rx="2" ry="2" />
+<text  x="109.14" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.mallocgc (1 samples, 0.02%)</title><rect x="19.0" y="165" width="0.3" height="15.0" fill="rgb(212,196,2)" rx="2" ry="2" />
+<text  x="22.01" y="175.5" ></text>
+</g>
+<g >
+<title>runtime.mallocgc (1 samples, 0.02%)</title><rect x="14.5" y="181" width="0.3" height="15.0" fill="rgb(231,116,30)" rx="2" ry="2" />
+<text  x="17.51" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.handoffp (4 samples, 0.08%)</title><rect x="256.1" y="117" width="1.0" height="15.0" fill="rgb(233,82,52)" rx="2" ry="2" />
+<text  x="259.12" y="127.5" ></text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/rpc/pb.(*Msg).XXX_Unmarshal (1 samples, 0.02%)</title><rect x="11.3" y="213" width="0.2" height="15.0" fill="rgb(207,210,2)" rx="2" ry="2" />
+<text  x="14.25" y="223.5" ></text>
+</g>
+<g >
+<title>reflect.unsafe_New (3 samples, 0.06%)</title><rect x="19.3" y="165" width="0.7" height="15.0" fill="rgb(218,217,46)" rx="2" ry="2" />
+<text  x="22.26" y="175.5" ></text>
+</g>
+<g >
+<title>runtime.sysmon (22 samples, 0.47%)</title><rect x="807.9" y="245" width="5.5" height="15.0" fill="rgb(254,45,34)" rx="2" ry="2" />
+<text  x="810.93" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.asmcgocall (9 samples, 0.19%)</title><rect x="360.8" y="277" width="2.2" height="15.0" fill="rgb(229,80,1)" rx="2" ry="2" />
+<text  x="363.77" y="287.5" ></text>
+</g>
+<g >
+<title>runtime.mallocgc (3 samples, 0.06%)</title><rect x="19.3" y="149" width="0.7" height="15.0" fill="rgb(222,171,19)" rx="2" ry="2" />
+<text  x="22.26" y="159.5" ></text>
+</g>
+<g >
+<title>runtime.memmove (1 samples, 0.02%)</title><rect x="259.9" y="101" width="0.2" height="15.0" fill="rgb(241,144,35)" rx="2" ry="2" />
+<text  x="262.87" y="111.5" ></text>
+</g>
+<g >
+<title>runtime.assertI2I2 (1 samples, 0.02%)</title><rect x="23.0" y="165" width="0.3" height="15.0" fill="rgb(215,201,20)" rx="2" ry="2" />
+<text  x="26.02" y="175.5" ></text>
+</g>
+<g >
+<title>runtime.goready (2 samples, 0.04%)</title><rect x="25.3" y="213" width="0.5" height="15.0" fill="rgb(223,130,25)" rx="2" ry="2" />
+<text  x="28.27" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.notewakeup (1 samples, 0.02%)</title><rect x="357.0" y="85" width="0.3" height="15.0" fill="rgb(251,48,24)" rx="2" ry="2" />
+<text  x="360.01" y="95.5" ></text>
+</g>
+<g >
+<title>internal/poll.(*pollDesc).wait (2 samples, 0.04%)</title><rect x="106.4" y="197" width="0.5" height="15.0" fill="rgb(236,60,20)" rx="2" ry="2" />
+<text  x="109.39" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.semasleep (5 samples, 0.11%)</title><rect x="1183.7" y="181" width="1.3" height="15.0" fill="rgb(208,149,54)" rx="2" ry="2" />
+<text  x="1186.74" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.notetsleep (5 samples, 0.11%)</title><rect x="1183.7" y="213" width="1.3" height="15.0" fill="rgb(213,197,7)" rx="2" ry="2" />
+<text  x="1186.74" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.notesleep (1 samples, 0.02%)</title><rect x="756.9" y="181" width="0.2" height="15.0" fill="rgb(227,165,20)" rx="2" ry="2" />
+<text  x="759.86" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.mallocgc (3 samples, 0.06%)</title><rect x="259.9" y="229" width="0.7" height="15.0" fill="rgb(239,227,54)" rx="2" ry="2" />
+<text  x="262.87" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.mapaccess2 (1 samples, 0.02%)</title><rect x="17.8" y="117" width="0.2" height="15.0" fill="rgb(208,20,15)" rx="2" ry="2" />
+<text  x="20.76" y="127.5" ></text>
+</g>
+<g >
+<title>runtime.injectglist (9 samples, 0.19%)</title><rect x="757.6" y="213" width="2.3" height="15.0" fill="rgb(244,135,26)" rx="2" ry="2" />
+<text  x="760.61" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.semawakeup (2 samples, 0.04%)</title><rect x="256.6" y="69" width="0.5" height="15.0" fill="rgb(212,229,26)" rx="2" ry="2" />
+<text  x="259.62" y="79.5" ></text>
+</g>
+<g >
+<title>runtime.newMarkBits (1 samples, 0.02%)</title><rect x="363.3" y="229" width="0.2" height="15.0" fill="rgb(234,87,34)" rx="2" ry="2" />
+<text  x="366.27" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.memclrNoHeapPointers (3 samples, 0.06%)</title><rect x="11.5" y="197" width="0.8" height="15.0" fill="rgb(226,52,10)" rx="2" ry="2" />
+<text  x="14.50" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.mstart (1,525 samples, 32.36%)</title><rect x="807.9" y="277" width="381.8" height="15.0" fill="rgb(240,116,29)" rx="2" ry="2" />
+<text  x="810.93" y="287.5" >runtime.mstart</text>
+</g>
+<g >
+<title>reflect.(*rtype).exportedMethods (1 samples, 0.02%)</title><rect x="18.8" y="165" width="0.2" height="15.0" fill="rgb(251,122,10)" rx="2" ry="2" />
+<text  x="21.76" y="175.5" ></text>
+</g>
+<g >
+<title>runtime.freedefer (216 samples, 4.58%)</title><rect x="107.1" y="197" width="54.1" height="15.0" fill="rgb(251,143,41)" rx="2" ry="2" />
+<text  x="110.14" y="207.5" >runti..</text>
+</g>
+<g >
+<title>runtime.(*_type).typeOff (1 samples, 0.02%)</title><rect x="20.8" y="133" width="0.2" height="15.0" fill="rgb(212,157,16)" rx="2" ry="2" />
+<text  x="23.77" y="143.5" ></text>
+</g>
+<g >
+<title>runtime.nextFreeFast (2 samples, 0.04%)</title><rect x="13.8" y="197" width="0.5" height="15.0" fill="rgb(214,181,44)" rx="2" ry="2" />
+<text  x="16.76" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.stopm (1,492 samples, 31.66%)</title><rect x="383.1" y="245" width="373.5" height="15.0" fill="rgb(225,136,5)" rx="2" ry="2" />
+<text  x="386.05" y="255.5" >runtime.stopm</text>
+</g>
+<g >
+<title>runtime.libcCall (1 samples, 0.02%)</title><rect x="257.9" y="165" width="0.2" height="15.0" fill="rgb(238,209,39)" rx="2" ry="2" />
+<text  x="260.87" y="175.5" ></text>
+</g>
+<g >
+<title>runtime.entersyscallblock (2 samples, 0.04%)</title><rect x="356.8" y="165" width="0.5" height="15.0" fill="rgb(252,186,45)" rx="2" ry="2" />
+<text  x="359.76" y="175.5" ></text>
+</g>
+<g >
+<title>runtime.startm (2 samples, 0.04%)</title><rect x="256.6" y="101" width="0.5" height="15.0" fill="rgb(214,31,33)" rx="2" ry="2" />
+<text  x="259.62" y="111.5" ></text>
+</g>
+<g >
+<title>runtime.scanstack (1 samples, 0.02%)</title><rect x="364.0" y="165" width="0.3" height="15.0" fill="rgb(219,117,17)" rx="2" ry="2" />
+<text  x="367.03" y="175.5" ></text>
+</g>
+<g >
+<title>reflect.(*rtype).String (3 samples, 0.06%)</title><rect x="15.0" y="165" width="0.8" height="15.0" fill="rgb(248,32,51)" rx="2" ry="2" />
+<text  x="18.01" y="175.5" ></text>
+</g>
+<g >
+<title>runtime.startm (1 samples, 0.02%)</title><rect x="807.7" y="197" width="0.2" height="15.0" fill="rgb(236,185,50)" rx="2" ry="2" />
+<text  x="810.68" y="207.5" ></text>
+</g>
+<g >
+<title>runtime._System (1 samples, 0.02%)</title><rect x="360.5" y="277" width="0.3" height="15.0" fill="rgb(232,101,28)" rx="2" ry="2" />
+<text  x="363.52" y="287.5" ></text>
+</g>
+<g >
+<title>runtime.(*mSpanList).remove (1 samples, 0.02%)</title><rect x="382.1" y="133" width="0.2" height="15.0" fill="rgb(247,139,3)" rx="2" ry="2" />
+<text  x="385.05" y="143.5" ></text>
+</g>
+<g >
+<title>runtime.(*gcWork).balance (1 samples, 0.02%)</title><rect x="259.9" y="133" width="0.2" height="15.0" fill="rgb(231,188,37)" rx="2" ry="2" />
+<text  x="262.87" y="143.5" ></text>
+</g>
+<g >
+<title>runtime.systemstack (2 samples, 0.04%)</title><rect x="356.8" y="149" width="0.5" height="15.0" fill="rgb(215,210,1)" rx="2" ry="2" />
+<text  x="359.76" y="159.5" ></text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/rpc.(*Server).HandleRPC (41 samples, 0.87%)</title><rect x="14.3" y="245" width="10.2" height="15.0" fill="rgb(246,35,47)" rx="2" ry="2" />
+<text  x="17.26" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.nanotime (4 samples, 0.08%)</title><rect x="759.9" y="213" width="1.0" height="15.0" fill="rgb(207,223,5)" rx="2" ry="2" />
+<text  x="762.86" y="223.5" ></text>
+</g>
+<g >
+<title>reflect.funcLayout (2 samples, 0.04%)</title><rect x="17.5" y="149" width="0.5" height="15.0" fill="rgb(229,209,54)" rx="2" ry="2" />
+<text  x="20.51" y="159.5" ></text>
+</g>
+<g >
+<title>runtime.acquirep (1 samples, 0.02%)</title><rect x="382.1" y="197" width="0.2" height="15.0" fill="rgb(235,162,15)" rx="2" ry="2" />
+<text  x="385.05" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_cond_signal (1,432 samples, 30.38%)</title><rect x="814.2" y="165" width="358.5" height="15.0" fill="rgb(205,131,24)" rx="2" ry="2" />
+<text  x="817.19" y="175.5" >runtime.pthread_cond_signal</text>
+</g>
+<g >
+<title>reflect.(*rtype).Name (3 samples, 0.06%)</title><rect x="15.0" y="181" width="0.8" height="15.0" fill="rgb(242,61,8)" rx="2" ry="2" />
+<text  x="18.01" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.getitab (1 samples, 0.02%)</title><rect x="21.5" y="165" width="0.3" height="15.0" fill="rgb(216,113,52)" rx="2" ry="2" />
+<text  x="24.52" y="175.5" ></text>
+</g>
+<g >
+<title>runtime.lock (1 samples, 0.02%)</title><rect x="383.3" y="229" width="0.3" height="15.0" fill="rgb(230,127,39)" rx="2" ry="2" />
+<text  x="386.30" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.exitsyscall0 (1,566 samples, 33.23%)</title><rect x="364.8" y="261" width="392.1" height="15.0" fill="rgb(220,82,22)" rx="2" ry="2" />
+<text  x="367.78" y="271.5" >runtime.exitsyscall0</text>
+</g>
+<g >
+<title>runtime.libcCall (1 samples, 0.02%)</title><rect x="756.4" y="181" width="0.2" height="15.0" fill="rgb(241,15,23)" rx="2" ry="2" />
+<text  x="759.36" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.libcCall (1 samples, 0.02%)</title><rect x="756.1" y="181" width="0.3" height="15.0" fill="rgb(236,99,23)" rx="2" ry="2" />
+<text  x="759.11" y="191.5" ></text>
+</g>
+<g >
+<title>github.com/golang/protobuf/proto.Marshal (6 samples, 0.13%)</title><rect x="12.3" y="229" width="1.5" height="15.0" fill="rgb(221,9,47)" rx="2" ry="2" />
+<text  x="15.25" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_mutex_unlock (1 samples, 0.02%)</title><rect x="256.9" y="53" width="0.2" height="15.0" fill="rgb(230,113,31)" rx="2" ry="2" />
+<text  x="259.87" y="63.5" ></text>
+</g>
+<g >
+<title>runtime.gentraceback (1 samples, 0.02%)</title><rect x="364.0" y="149" width="0.3" height="15.0" fill="rgb(243,171,20)" rx="2" ry="2" />
+<text  x="367.03" y="159.5" ></text>
+</g>
+<g >
+<title>github.com/golang/protobuf/proto.unmarshalInt32Value (1 samples, 0.02%)</title><rect x="11.3" y="165" width="0.2" height="15.0" fill="rgb(254,218,24)" rx="2" ry="2" />
+<text  x="14.25" y="175.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_cond_wait (61 samples, 1.29%)</title><rect x="792.4" y="165" width="15.3" height="15.0" fill="rgb(215,15,33)" rx="2" ry="2" />
+<text  x="795.41" y="175.5" ></text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/funcs.(*Funcs).Call (17 samples, 0.36%)</title><rect x="15.0" y="197" width="4.3" height="15.0" fill="rgb(243,1,7)" rx="2" ry="2" />
+<text  x="18.01" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.memclrNoHeapPointers (1 samples, 0.02%)</title><rect x="18.0" y="133" width="0.3" height="15.0" fill="rgb(249,2,33)" rx="2" ry="2" />
+<text  x="21.01" y="143.5" ></text>
+</g>
+<g >
+<title>runtime.systemstack (1,503 samples, 31.89%)</title><rect x="813.4" y="261" width="376.3" height="15.0" fill="rgb(231,64,17)" rx="2" ry="2" />
+<text  x="816.44" y="271.5" >runtime.systemstack</text>
+</g>
+<g >
+<title>net.(*netFD).Read (606 samples, 12.86%)</title><rect x="106.4" y="245" width="151.7" height="15.0" fill="rgb(209,52,49)" rx="2" ry="2" />
+<text  x="109.39" y="255.5" >net.(*netFD).Read</text>
+</g>
+<g >
+<title>runtime.kevent (1 samples, 0.02%)</title><rect x="1185.0" y="197" width="0.2" height="15.0" fill="rgb(235,109,19)" rx="2" ry="2" />
+<text  x="1187.99" y="207.5" ></text>
+</g>
+<g >
+<title>syscall.Read (387 samples, 8.21%)</title><rect x="161.2" y="213" width="96.9" height="15.0" fill="rgb(224,195,1)" rx="2" ry="2" />
+<text  x="164.22" y="223.5" >syscall.Read</text>
+</g>
+<g >
+<title>github.com/golang/protobuf/proto.(*marshalInfo).size (2 samples, 0.04%)</title><rect x="22.3" y="133" width="0.5" height="15.0" fill="rgb(238,31,21)" rx="2" ry="2" />
+<text  x="25.27" y="143.5" ></text>
+</g>
+<g >
+<title>runtime.systemstack (5 samples, 0.11%)</title><rect x="363.5" y="261" width="1.3" height="15.0" fill="rgb(212,118,33)" rx="2" ry="2" />
+<text  x="366.52" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.markroot (1 samples, 0.02%)</title><rect x="260.1" y="133" width="0.3" height="15.0" fill="rgb(225,209,31)" rx="2" ry="2" />
+<text  x="263.12" y="143.5" ></text>
+</g>
+<g >
+<title>runtime.goready.func1 (1 samples, 0.02%)</title><rect x="25.5" y="181" width="0.3" height="15.0" fill="rgb(238,15,17)" rx="2" ry="2" />
+<text  x="28.52" y="191.5" ></text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/rpc.(*Msg).Decode (5 samples, 0.11%)</title><rect x="11.0" y="245" width="1.3" height="15.0" fill="rgb(243,109,33)" rx="2" ry="2" />
+<text  x="14.00" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.notesleep (1,490 samples, 31.61%)</title><rect x="383.6" y="229" width="373.0" height="15.0" fill="rgb(247,225,50)" rx="2" ry="2" />
+<text  x="386.55" y="239.5" >runtime.notesleep</text>
+</g>
+<g >
+<title>runtime.semawakeup (18 samples, 0.38%)</title><rect x="1185.2" y="165" width="4.5" height="15.0" fill="rgb(228,40,16)" rx="2" ry="2" />
+<text  x="1188.24" y="175.5" ></text>
+</g>
+<g >
+<title>runtime.newobject (2 samples, 0.04%)</title><rect x="13.8" y="229" width="0.5" height="15.0" fill="rgb(214,127,39)" rx="2" ry="2" />
+<text  x="16.76" y="239.5" ></text>
+</g>
+<g >
+<title>net.(*netFD).Write (398 samples, 8.44%)</title><rect x="260.6" y="245" width="99.7" height="15.0" fill="rgb(230,90,21)" rx="2" ry="2" />
+<text  x="263.62" y="255.5" >net.(*netFD)..</text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/rpc.(*Msg).Encode (8 samples, 0.17%)</title><rect x="12.3" y="245" width="2.0" height="15.0" fill="rgb(205,180,12)" rx="2" ry="2" />
+<text  x="15.25" y="255.5" ></text>
+</g>
+<g >
+<title>reflect.(*rtype).typeOff (1 samples, 0.02%)</title><rect x="20.8" y="165" width="0.2" height="15.0" fill="rgb(211,19,7)" rx="2" ry="2" />
+<text  x="23.77" y="175.5" ></text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/rpc.(*Server).Handler (41 samples, 0.87%)</title><rect x="14.3" y="229" width="10.2" height="15.0" fill="rgb(214,223,43)" rx="2" ry="2" />
+<text  x="17.26" y="239.5" ></text>
+</g>
+<g >
+<title>reflect.Value.call (10 samples, 0.21%)</title><rect x="15.8" y="165" width="2.5" height="15.0" fill="rgb(230,164,45)" rx="2" ry="2" />
+<text  x="18.76" y="175.5" ></text>
+</g>
+<g >
+<title>runtime.netpollready (1 samples, 0.02%)</title><rect x="789.9" y="197" width="0.3" height="15.0" fill="rgb(211,155,44)" rx="2" ry="2" />
+<text  x="792.91" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.(*mcache).nextFree (1 samples, 0.02%)</title><rect x="19.0" y="149" width="0.3" height="15.0" fill="rgb(211,5,53)" rx="2" ry="2" />
+<text  x="22.01" y="159.5" ></text>
+</g>
+<g >
+<title>runtime.freedefer (118 samples, 2.50%)</title><rect x="260.6" y="197" width="29.6" height="15.0" fill="rgb(246,114,24)" rx="2" ry="2" />
+<text  x="263.62" y="207.5" >ru..</text>
+</g>
+<g >
+<title>runtime.mallocgc (2 samples, 0.04%)</title><rect x="13.8" y="213" width="0.5" height="15.0" fill="rgb(230,180,53)" rx="2" ry="2" />
+<text  x="16.76" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.notetsleep (7 samples, 0.15%)</title><rect x="809.7" y="229" width="1.7" height="15.0" fill="rgb(238,22,9)" rx="2" ry="2" />
+<text  x="812.69" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_cond_signal_trampoline (1 samples, 0.02%)</title><rect x="362.8" y="261" width="0.2" height="15.0" fill="rgb(248,34,2)" rx="2" ry="2" />
+<text  x="365.77" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.lock (3 samples, 0.06%)</title><rect x="813.4" y="197" width="0.8" height="15.0" fill="rgb(208,207,30)" rx="2" ry="2" />
+<text  x="816.44" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.gcMarkDone.func1 (5 samples, 0.11%)</title><rect x="1183.7" y="245" width="1.3" height="15.0" fill="rgb(248,220,50)" rx="2" ry="2" />
+<text  x="1186.74" y="255.5" ></text>
+</g>
+<g >
+<title>github.com/golang/protobuf/proto.(*InternalMessageInfo).Unmarshal (1 samples, 0.02%)</title><rect x="21.3" y="149" width="0.2" height="15.0" fill="rgb(244,46,41)" rx="2" ry="2" />
+<text  x="24.27" y="159.5" ></text>
+</g>
+<g >
+<title>net.(*conn).Read (606 samples, 12.86%)</title><rect x="106.4" y="261" width="151.7" height="15.0" fill="rgb(244,190,53)" rx="2" ry="2" />
+<text  x="109.39" y="271.5" >net.(*conn).Read</text>
+</g>
+<g >
+<title>runtime.resolveTypeOff (1 samples, 0.02%)</title><rect x="20.8" y="117" width="0.2" height="15.0" fill="rgb(250,66,46)" rx="2" ry="2" />
+<text  x="23.77" y="127.5" ></text>
+</g>
+<g >
+<title>reflect.Value.assignTo (1 samples, 0.02%)</title><rect x="17.3" y="149" width="0.2" height="15.0" fill="rgb(206,144,41)" rx="2" ry="2" />
+<text  x="20.26" y="159.5" ></text>
+</g>
+<g >
+<title>runtime.semasleep (61 samples, 1.29%)</title><rect x="792.4" y="181" width="15.3" height="15.0" fill="rgb(214,105,44)" rx="2" ry="2" />
+<text  x="795.41" y="191.5" ></text>
+</g>
+<g >
+<title>reflect.(*rtype).Kind (1 samples, 0.02%)</title><rect x="18.5" y="165" width="0.3" height="15.0" fill="rgb(238,116,22)" rx="2" ry="2" />
+<text  x="21.51" y="175.5" ></text>
+</g>
+<g >
+<title>runtime.kevent (100 samples, 2.12%)</title><rect x="764.9" y="197" width="25.0" height="15.0" fill="rgb(228,35,11)" rx="2" ry="2" />
+<text  x="767.87" y="207.5" >r..</text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/rpc.ReplyEncode (6 samples, 0.13%)</title><rect x="21.8" y="197" width="1.5" height="15.0" fill="rgb(219,16,13)" rx="2" ry="2" />
+<text  x="24.77" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.semawakeup (9 samples, 0.19%)</title><rect x="757.6" y="165" width="2.3" height="15.0" fill="rgb(221,133,37)" rx="2" ry="2" />
+<text  x="760.61" y="175.5" ></text>
+</g>
+<g >
+<title>runtime.schedule (203 samples, 4.31%)</title><rect x="757.1" y="245" width="50.8" height="15.0" fill="rgb(219,92,31)" rx="2" ry="2" />
+<text  x="760.11" y="255.5" >runti..</text>
+</g>
+<g >
+<title>runtime.kevent_trampoline (2 samples, 0.04%)</title><rect x="362.3" y="261" width="0.5" height="15.0" fill="rgb(232,173,48)" rx="2" ry="2" />
+<text  x="365.27" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.libcCall (1 samples, 0.02%)</title><rect x="256.6" y="37" width="0.3" height="15.0" fill="rgb(244,139,28)" rx="2" ry="2" />
+<text  x="259.62" y="47.5" ></text>
+</g>
+<g >
+<title>runtime.gosched_m (1 samples, 0.02%)</title><rect x="756.9" y="261" width="0.2" height="15.0" fill="rgb(220,70,3)" rx="2" ry="2" />
+<text  x="759.86" y="271.5" ></text>
+</g>
+<g >
+<title>reflect.New (3 samples, 0.06%)</title><rect x="19.3" y="181" width="0.7" height="15.0" fill="rgb(216,176,26)" rx="2" ry="2" />
+<text  x="22.26" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.osyield (4 samples, 0.08%)</title><rect x="364.8" y="229" width="1.0" height="15.0" fill="rgb(217,182,44)" rx="2" ry="2" />
+<text  x="367.78" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.wakep (1 samples, 0.02%)</title><rect x="807.7" y="213" width="0.2" height="15.0" fill="rgb(253,151,41)" rx="2" ry="2" />
+<text  x="810.68" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.notesleep (33 samples, 0.70%)</title><rect x="373.8" y="197" width="8.3" height="15.0" fill="rgb(236,213,46)" rx="2" ry="2" />
+<text  x="376.79" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.libcCall (1 samples, 0.02%)</title><rect x="360.0" y="165" width="0.3" height="15.0" fill="rgb(231,28,13)" rx="2" ry="2" />
+<text  x="363.02" y="175.5" ></text>
+</g>
+<g >
+<title>runtime.systemstack (4 samples, 0.08%)</title><rect x="256.1" y="149" width="1.0" height="15.0" fill="rgb(245,174,49)" rx="2" ry="2" />
+<text  x="259.12" y="159.5" ></text>
+</g>
+<g >
+<title>runtime.deferreturn (118 samples, 2.50%)</title><rect x="260.6" y="213" width="29.6" height="15.0" fill="rgb(254,195,9)" rx="2" ry="2" />
+<text  x="263.62" y="223.5" >ru..</text>
+</g>
+<g >
+<title>runtime.pthread_cond_wait (1 samples, 0.02%)</title><rect x="382.3" y="165" width="0.3" height="15.0" fill="rgb(213,138,33)" rx="2" ry="2" />
+<text  x="385.30" y="175.5" ></text>
+</g>
+<g >
+<title>runtime.usleep (4 samples, 0.08%)</title><rect x="364.8" y="213" width="1.0" height="15.0" fill="rgb(216,160,36)" rx="2" ry="2" />
+<text  x="367.78" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.heapBits.initSpan (1 samples, 0.02%)</title><rect x="19.0" y="85" width="0.3" height="15.0" fill="rgb(221,66,27)" rx="2" ry="2" />
+<text  x="22.01" y="95.5" ></text>
+</g>
+<g >
+<title>reflect.directlyAssignable (1 samples, 0.02%)</title><rect x="16.8" y="133" width="0.2" height="15.0" fill="rgb(212,190,8)" rx="2" ry="2" />
+<text  x="19.76" y="143.5" ></text>
+</g>
+<g >
+<title>runtime.gcAssistAlloc (3 samples, 0.06%)</title><rect x="259.9" y="213" width="0.7" height="15.0" fill="rgb(244,48,32)" rx="2" ry="2" />
+<text  x="262.87" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.gcAssistAlloc1 (3 samples, 0.06%)</title><rect x="259.9" y="165" width="0.7" height="15.0" fill="rgb(233,143,39)" rx="2" ry="2" />
+<text  x="262.87" y="175.5" ></text>
+</g>
+<g >
+<title>runtime.mallocgc (3 samples, 0.06%)</title><rect x="13.0" y="197" width="0.8" height="15.0" fill="rgb(241,51,15)" rx="2" ry="2" />
+<text  x="16.00" y="207.5" ></text>
+</g>
+<g >
+<title>syscall.write (280 samples, 5.94%)</title><rect x="290.2" y="197" width="70.1" height="15.0" fill="rgb(209,218,14)" rx="2" ry="2" />
+<text  x="293.17" y="207.5" >syscall..</text>
+</g>
+<g >
+<title>runtime.funcspdelta (1 samples, 0.02%)</title><rect x="364.0" y="133" width="0.3" height="15.0" fill="rgb(219,127,0)" rx="2" ry="2" />
+<text  x="367.03" y="143.5" ></text>
+</g>
+<g >
+<title>runtime.(*mspan).sweep (1 samples, 0.02%)</title><rect x="363.3" y="245" width="0.2" height="15.0" fill="rgb(210,106,30)" rx="2" ry="2" />
+<text  x="366.27" y="255.5" ></text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/rpc.(*Response).Encode (2 samples, 0.04%)</title><rect x="14.3" y="213" width="0.5" height="15.0" fill="rgb(207,214,54)" rx="2" ry="2" />
+<text  x="17.26" y="223.5" ></text>
+</g>
+<g >
+<title>github.com/golang/protobuf/proto.unmarshalInt32Value (1 samples, 0.02%)</title><rect x="21.3" y="117" width="0.2" height="15.0" fill="rgb(243,125,40)" rx="2" ry="2" />
+<text  x="24.27" y="127.5" ></text>
+</g>
+<g >
+<title>runtime.entersyscallblock_handoff (1,478 samples, 31.36%)</title><rect x="813.4" y="245" width="370.1" height="15.0" fill="rgb(239,119,26)" rx="2" ry="2" />
+<text  x="816.44" y="255.5" >runtime.entersyscallblock_handoff</text>
+</g>
+<g >
+<title>reflect.(*rtype).AssignableTo (1 samples, 0.02%)</title><rect x="16.8" y="149" width="0.2" height="15.0" fill="rgb(250,227,31)" rx="2" ry="2" />
+<text  x="19.76" y="159.5" ></text>
+</g>
+<g >
+<title>runtime.newobject (3 samples, 0.06%)</title><rect x="11.5" y="229" width="0.8" height="15.0" fill="rgb(233,228,30)" rx="2" ry="2" />
+<text  x="14.50" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.entersyscallblock_handoff (2 samples, 0.04%)</title><rect x="356.8" y="133" width="0.5" height="15.0" fill="rgb(208,62,18)" rx="2" ry="2" />
+<text  x="359.76" y="143.5" ></text>
+</g>
+<g >
+<title>runtime.runqgrab (2 samples, 0.04%)</title><rect x="373.0" y="197" width="0.5" height="15.0" fill="rgb(225,75,22)" rx="2" ry="2" />
+<text  x="376.04" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.(*itabTableType).find (1 samples, 0.02%)</title><rect x="23.0" y="133" width="0.3" height="15.0" fill="rgb(214,122,43)" rx="2" ry="2" />
+<text  x="26.02" y="143.5" ></text>
+</g>
+<g >
+<title>runtime.nanotime (1 samples, 0.02%)</title><rect x="368.0" y="213" width="0.3" height="15.0" fill="rgb(238,63,45)" rx="2" ry="2" />
+<text  x="371.03" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.schedule (1 samples, 0.02%)</title><rect x="756.9" y="229" width="0.2" height="15.0" fill="rgb(239,61,44)" rx="2" ry="2" />
+<text  x="759.86" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.stopm (61 samples, 1.29%)</title><rect x="792.4" y="213" width="15.3" height="15.0" fill="rgb(238,182,9)" rx="2" ry="2" />
+<text  x="795.41" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.mallocgc (1 samples, 0.02%)</title><rect x="14.3" y="165" width="0.2" height="15.0" fill="rgb(234,16,29)" rx="2" ry="2" />
+<text  x="17.26" y="175.5" ></text>
+</g>
+<g >
+<title>runtime.stopm (34 samples, 0.72%)</title><rect x="373.5" y="213" width="8.6" height="15.0" fill="rgb(235,16,34)" rx="2" ry="2" />
+<text  x="376.54" y="223.5" ></text>
+</g>
+<g >
+<title>github.com/golang/protobuf/proto.Unmarshal (1 samples, 0.02%)</title><rect x="11.3" y="229" width="0.2" height="15.0" fill="rgb(231,216,11)" rx="2" ry="2" />
+<text  x="14.25" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_mutex_lock (12 samples, 0.25%)</title><rect x="1172.7" y="165" width="3.0" height="15.0" fill="rgb(207,61,17)" rx="2" ry="2" />
+<text  x="1175.72" y="175.5" ></text>
+</g>
+<g >
+<title>runtime.runqsteal (2 samples, 0.04%)</title><rect x="373.0" y="213" width="0.5" height="15.0" fill="rgb(237,15,40)" rx="2" ry="2" />
+<text  x="376.04" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.semawakeup (1,475 samples, 31.30%)</title><rect x="814.2" y="181" width="369.3" height="15.0" fill="rgb(209,61,43)" rx="2" ry="2" />
+<text  x="817.19" y="191.5" >runtime.semawakeup</text>
+</g>
+<g >
+<title>runtime.pthread_cond_timedwait_relative_np (3 samples, 0.06%)</title><rect x="810.7" y="181" width="0.7" height="15.0" fill="rgb(224,206,23)" rx="2" ry="2" />
+<text  x="813.69" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.notetsleep_internal (5 samples, 0.11%)</title><rect x="1183.7" y="197" width="1.3" height="15.0" fill="rgb(237,91,26)" rx="2" ry="2" />
+<text  x="1186.74" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.scang (1 samples, 0.02%)</title><rect x="364.0" y="181" width="0.3" height="15.0" fill="rgb(208,120,47)" rx="2" ry="2" />
+<text  x="367.03" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_cond_signal (1 samples, 0.02%)</title><rect x="807.7" y="149" width="0.2" height="15.0" fill="rgb(238,84,11)" rx="2" ry="2" />
+<text  x="810.68" y="159.5" ></text>
+</g>
+<g >
+<title>runtime.runqgrab (8 samples, 0.17%)</title><rect x="790.4" y="197" width="2.0" height="15.0" fill="rgb(231,153,48)" rx="2" ry="2" />
+<text  x="793.41" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.gogo (1 samples, 0.02%)</title><rect x="360.5" y="261" width="0.3" height="15.0" fill="rgb(251,98,49)" rx="2" ry="2" />
+<text  x="363.52" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.gcmarknewobject (1 samples, 0.02%)</title><rect x="13.5" y="181" width="0.3" height="15.0" fill="rgb(232,62,27)" rx="2" ry="2" />
+<text  x="16.51" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.gentraceback (1 samples, 0.02%)</title><rect x="260.1" y="69" width="0.3" height="15.0" fill="rgb(244,218,18)" rx="2" ry="2" />
+<text  x="263.12" y="79.5" ></text>
+</g>
+<g >
+<title>runtime.findrunnable (201 samples, 4.26%)</title><rect x="757.4" y="229" width="50.3" height="15.0" fill="rgb(240,132,3)" rx="2" ry="2" />
+<text  x="760.36" y="239.5" >runti..</text>
+</g>
+<g >
+<title>internal/poll.(*FD).Write (398 samples, 8.44%)</title><rect x="260.6" y="229" width="99.7" height="15.0" fill="rgb(208,75,8)" rx="2" ry="2" />
+<text  x="263.62" y="239.5" >internal/pol..</text>
+</g>
+<g >
+<title>runtime.pthread_mutex_unlock (1 samples, 0.02%)</title><rect x="756.4" y="197" width="0.2" height="15.0" fill="rgb(248,109,22)" rx="2" ry="2" />
+<text  x="759.36" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.startm (2 samples, 0.04%)</title><rect x="356.8" y="101" width="0.5" height="15.0" fill="rgb(237,139,23)" rx="2" ry="2" />
+<text  x="359.76" y="111.5" ></text>
+</g>
+<g >
+<title>runtime.getitab (3 samples, 0.06%)</title><rect x="12.3" y="197" width="0.7" height="15.0" fill="rgb(224,39,14)" rx="2" ry="2" />
+<text  x="15.25" y="207.5" ></text>
+</g>
+<g >
+<title>github.com/golang/protobuf/proto.Unmarshal (1 samples, 0.02%)</title><rect x="21.3" y="181" width="0.2" height="15.0" fill="rgb(248,134,36)" rx="2" ry="2" />
+<text  x="24.27" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.scang (1 samples, 0.02%)</title><rect x="260.1" y="101" width="0.3" height="15.0" fill="rgb(219,108,10)" rx="2" ry="2" />
+<text  x="263.12" y="111.5" ></text>
+</g>
+<g >
+<title>runtime.entersyscallblock_handoff (4 samples, 0.08%)</title><rect x="256.1" y="133" width="1.0" height="15.0" fill="rgb(228,160,28)" rx="2" ry="2" />
+<text  x="259.12" y="143.5" ></text>
+</g>
+<g >
+<title>runtime.scanstack (1 samples, 0.02%)</title><rect x="260.1" y="85" width="0.3" height="15.0" fill="rgb(253,138,6)" rx="2" ry="2" />
+<text  x="263.12" y="95.5" ></text>
+</g>
+<g >
+<title>runtime.pidleput (1 samples, 0.02%)</title><rect x="790.2" y="213" width="0.2" height="15.0" fill="rgb(208,93,5)" rx="2" ry="2" />
+<text  x="793.16" y="223.5" ></text>
+</g>
+<g >
+<title>github.com/golang/protobuf/proto.(*marshalInfo).marshal (1 samples, 0.02%)</title><rect x="22.0" y="133" width="0.3" height="15.0" fill="rgb(207,140,34)" rx="2" ry="2" />
+<text  x="25.02" y="143.5" ></text>
+</g>
+<g >
+<title>runtime.schedule (68 samples, 1.44%)</title><rect x="366.0" y="245" width="17.1" height="15.0" fill="rgb(225,119,10)" rx="2" ry="2" />
+<text  x="369.03" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.notesleep (1 samples, 0.02%)</title><rect x="382.3" y="197" width="0.3" height="15.0" fill="rgb(210,11,13)" rx="2" ry="2" />
+<text  x="385.30" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.gcDrainN (3 samples, 0.06%)</title><rect x="259.9" y="149" width="0.7" height="15.0" fill="rgb(224,109,12)" rx="2" ry="2" />
+<text  x="262.87" y="159.5" ></text>
+</g>
+<g >
+<title>runtime.usleep (8 samples, 0.17%)</title><rect x="790.4" y="181" width="2.0" height="15.0" fill="rgb(251,49,16)" rx="2" ry="2" />
+<text  x="793.41" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.(*mcentral).uncacheSpan (1 samples, 0.02%)</title><rect x="382.1" y="149" width="0.2" height="15.0" fill="rgb(223,175,49)" rx="2" ry="2" />
+<text  x="385.05" y="159.5" ></text>
+</g>
+<g >
+<title>runtime.notewakeup (1 samples, 0.02%)</title><rect x="807.7" y="181" width="0.2" height="15.0" fill="rgb(245,165,47)" rx="2" ry="2" />
+<text  x="810.68" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.nextFreeFast (1 samples, 0.02%)</title><rect x="24.3" y="181" width="0.2" height="15.0" fill="rgb(224,104,42)" rx="2" ry="2" />
+<text  x="27.27" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.handoff (1 samples, 0.02%)</title><rect x="259.9" y="117" width="0.2" height="15.0" fill="rgb(208,153,16)" rx="2" ry="2" />
+<text  x="262.87" y="127.5" ></text>
+</g>
+<g >
+<title>runtime.resetspinning (1 samples, 0.02%)</title><rect x="807.7" y="229" width="0.2" height="15.0" fill="rgb(222,103,15)" rx="2" ry="2" />
+<text  x="810.68" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.notewakeup (18 samples, 0.38%)</title><rect x="1185.2" y="181" width="4.5" height="15.0" fill="rgb(239,229,20)" rx="2" ry="2" />
+<text  x="1188.24" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.convTstring (5 samples, 0.11%)</title><rect x="23.3" y="213" width="1.2" height="15.0" fill="rgb(205,101,4)" rx="2" ry="2" />
+<text  x="26.27" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.gcStart.func2 (1 samples, 0.02%)</title><rect x="1185.0" y="245" width="0.2" height="15.0" fill="rgb(205,25,0)" rx="2" ry="2" />
+<text  x="1187.99" y="255.5" ></text>
+</g>
+<g >
+<title>net.(*conn).Write (398 samples, 8.44%)</title><rect x="260.6" y="261" width="99.7" height="15.0" fill="rgb(208,190,26)" rx="2" ry="2" />
+<text  x="263.62" y="271.5" >net.(*conn)...</text>
+</g>
+<g >
+<title>runtime.heapBitsSetType (1 samples, 0.02%)</title><rect x="23.5" y="181" width="0.3" height="15.0" fill="rgb(240,31,28)" rx="2" ry="2" />
+<text  x="26.52" y="191.5" ></text>
+</g>
+<g >
+<title>reflect.typedmemclrpartial (1 samples, 0.02%)</title><rect x="18.0" y="149" width="0.3" height="15.0" fill="rgb(205,61,7)" rx="2" ry="2" />
+<text  x="21.01" y="159.5" ></text>
+</g>
+<g >
+<title>runtime.notewakeup (9 samples, 0.19%)</title><rect x="757.6" y="181" width="2.3" height="15.0" fill="rgb(214,49,12)" rx="2" ry="2" />
+<text  x="760.61" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.execute (1 samples, 0.02%)</title><rect x="757.1" y="229" width="0.3" height="15.0" fill="rgb(241,171,33)" rx="2" ry="2" />
+<text  x="760.11" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.forEachP (5 samples, 0.11%)</title><rect x="1183.7" y="229" width="1.3" height="15.0" fill="rgb(217,194,11)" rx="2" ry="2" />
+<text  x="1186.74" y="239.5" ></text>
+</g>
+<g >
+<title>internal/poll.(*FD).Read (606 samples, 12.86%)</title><rect x="106.4" y="229" width="151.7" height="15.0" fill="rgb(219,88,38)" rx="2" ry="2" />
+<text  x="109.39" y="239.5" >internal/poll.(*FD)..</text>
+</g>
+<g >
+<title>runtime.semawakeup (1 samples, 0.02%)</title><rect x="807.7" y="165" width="0.2" height="15.0" fill="rgb(254,97,14)" rx="2" ry="2" />
+<text  x="810.68" y="175.5" ></text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/rpc.(*Server).CallService (34 samples, 0.72%)</title><rect x="14.8" y="213" width="8.5" height="15.0" fill="rgb(248,146,12)" rx="2" ry="2" />
+<text  x="17.76" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.assertE2I (1 samples, 0.02%)</title><rect x="21.5" y="181" width="0.3" height="15.0" fill="rgb(234,38,25)" rx="2" ry="2" />
+<text  x="24.52" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.exitsyscallfast_pidle (1 samples, 0.02%)</title><rect x="1183.5" y="229" width="0.2" height="15.0" fill="rgb(248,202,18)" rx="2" ry="2" />
+<text  x="1186.49" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.exitsyscallfast (8 samples, 0.17%)</title><rect x="358.0" y="149" width="2.0" height="15.0" fill="rgb(210,162,48)" rx="2" ry="2" />
+<text  x="361.02" y="159.5" ></text>
+</g>
+<g >
+<title>runtime.startm (18 samples, 0.38%)</title><rect x="1185.2" y="197" width="4.5" height="15.0" fill="rgb(233,18,24)" rx="2" ry="2" />
+<text  x="1188.24" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.(*waitq).dequeueSudoG (316 samples, 6.70%)</title><rect x="26.8" y="245" width="79.1" height="15.0" fill="rgb(209,90,18)" rx="2" ry="2" />
+<text  x="29.77" y="255.5" >runtime.(..</text>
+</g>
+<g >
+<title>runtime.makeslice (1 samples, 0.02%)</title><rect x="14.3" y="181" width="0.2" height="15.0" fill="rgb(207,184,27)" rx="2" ry="2" />
+<text  x="17.26" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.chanrecv2 (1 samples, 0.02%)</title><rect x="360.3" y="261" width="0.2" height="15.0" fill="rgb(210,187,54)" rx="2" ry="2" />
+<text  x="363.27" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.exitsyscall (3 samples, 0.06%)</title><rect x="257.1" y="165" width="0.8" height="15.0" fill="rgb(208,114,42)" rx="2" ry="2" />
+<text  x="260.12" y="175.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_mutex_unlock (31 samples, 0.66%)</title><rect x="1175.7" y="165" width="7.8" height="15.0" fill="rgb(250,189,15)" rx="2" ry="2" />
+<text  x="1178.73" y="175.5" ></text>
+</g>
+<g >
+<title>runtime.netpoll (19 samples, 0.40%)</title><rect x="368.3" y="213" width="4.7" height="15.0" fill="rgb(206,174,5)" rx="2" ry="2" />
+<text  x="371.28" y="223.5" ></text>
+</g>
+<g >
+<title>sync.(*Map).Load (2 samples, 0.04%)</title><rect x="17.5" y="133" width="0.5" height="15.0" fill="rgb(247,128,11)" rx="2" ry="2" />
+<text  x="20.51" y="143.5" ></text>
+</g>
+<g >
+<title>runtime.findrunnable (61 samples, 1.29%)</title><rect x="366.8" y="229" width="15.3" height="15.0" fill="rgb(252,152,19)" rx="2" ry="2" />
+<text  x="369.78" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.chansend (1 samples, 0.02%)</title><rect x="106.1" y="229" width="0.3" height="15.0" fill="rgb(226,219,9)" rx="2" ry="2" />
+<text  x="109.14" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.findrunnable (1 samples, 0.02%)</title><rect x="756.9" y="213" width="0.2" height="15.0" fill="rgb(208,60,14)" rx="2" ry="2" />
+<text  x="759.86" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.markroot (3 samples, 0.06%)</title><rect x="363.5" y="213" width="0.8" height="15.0" fill="rgb(237,0,49)" rx="2" ry="2" />
+<text  x="366.52" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.growslice (1 samples, 0.02%)</title><rect x="259.4" y="245" width="0.2" height="15.0" fill="rgb(252,86,52)" rx="2" ry="2" />
+<text  x="262.37" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.kevent (10 samples, 0.21%)</title><rect x="370.5" y="197" width="2.5" height="15.0" fill="rgb(225,161,13)" rx="2" ry="2" />
+<text  x="373.53" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.semasleep (1 samples, 0.02%)</title><rect x="813.9" y="181" width="0.3" height="15.0" fill="rgb(214,76,0)" rx="2" ry="2" />
+<text  x="816.94" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.semawakeup (1 samples, 0.02%)</title><rect x="1183.5" y="197" width="0.2" height="15.0" fill="rgb(205,49,1)" rx="2" ry="2" />
+<text  x="1186.49" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.(*mcache).refill (1 samples, 0.02%)</title><rect x="19.0" y="133" width="0.3" height="15.0" fill="rgb(243,169,32)" rx="2" ry="2" />
+<text  x="22.01" y="143.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_cond_wait (1 samples, 0.02%)</title><rect x="813.9" y="165" width="0.3" height="15.0" fill="rgb(211,108,20)" rx="2" ry="2" />
+<text  x="816.94" y="175.5" ></text>
+</g>
+<g >
+<title>syscall.read (385 samples, 8.17%)</title><rect x="161.7" y="197" width="96.4" height="15.0" fill="rgb(222,213,39)" rx="2" ry="2" />
+<text  x="164.73" y="207.5" >syscall.read</text>
+</g>
+<g >
+<title>runtime.exitsyscall (11 samples, 0.23%)</title><rect x="357.3" y="165" width="2.7" height="15.0" fill="rgb(205,46,44)" rx="2" ry="2" />
+<text  x="360.27" y="175.5" ></text>
+</g>
+<g >
+<title>reflect.packEface (2 samples, 0.04%)</title><rect x="20.3" y="149" width="0.5" height="15.0" fill="rgb(230,182,44)" rx="2" ry="2" />
+<text  x="23.27" y="159.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_cond_signal (1 samples, 0.02%)</title><rect x="256.6" y="53" width="0.3" height="15.0" fill="rgb(220,85,36)" rx="2" ry="2" />
+<text  x="259.62" y="63.5" ></text>
+</g>
+<g >
+<title>reflect.resolveTypeOff (1 samples, 0.02%)</title><rect x="20.8" y="149" width="0.2" height="15.0" fill="rgb(242,151,16)" rx="2" ry="2" />
+<text  x="23.77" y="159.5" ></text>
+</g>
+<g >
+<title>runtime.deferproc (1 samples, 0.02%)</title><rect x="24.5" y="245" width="0.3" height="15.0" fill="rgb(251,147,2)" rx="2" ry="2" />
+<text  x="27.52" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.exitsyscallfast.func1 (1 samples, 0.02%)</title><rect x="1183.5" y="245" width="0.2" height="15.0" fill="rgb(245,98,16)" rx="2" ry="2" />
+<text  x="1186.49" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.park_m (203 samples, 4.31%)</title><rect x="757.1" y="261" width="50.8" height="15.0" fill="rgb(228,125,28)" rx="2" ry="2" />
+<text  x="760.11" y="271.5" >runti..</text>
+</g>
+<g >
+<title>runtime.markroot.func1 (1 samples, 0.02%)</title><rect x="260.1" y="117" width="0.3" height="15.0" fill="rgb(208,135,24)" rx="2" ry="2" />
+<text  x="263.12" y="127.5" ></text>
+</g>
+<g >
+<title>github.com/golang/protobuf/proto.(*InternalMessageInfo).Marshal (1 samples, 0.02%)</title><rect x="22.0" y="149" width="0.3" height="15.0" fill="rgb(230,168,48)" rx="2" ry="2" />
+<text  x="25.02" y="159.5" ></text>
+</g>
+<g >
+<title>runtime.runqempty (2 samples, 0.04%)</title><rect x="256.1" y="101" width="0.5" height="15.0" fill="rgb(206,93,2)" rx="2" ry="2" />
+<text  x="259.12" y="111.5" ></text>
+</g>
+<g >
+<title>runtime.goschedImpl (1 samples, 0.02%)</title><rect x="756.9" y="245" width="0.2" height="15.0" fill="rgb(250,218,40)" rx="2" ry="2" />
+<text  x="759.86" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.heapBitsSetType (1 samples, 0.02%)</title><rect x="19.3" y="133" width="0.2" height="15.0" fill="rgb(254,2,19)" rx="2" ry="2" />
+<text  x="22.26" y="143.5" ></text>
+</g>
+<g >
+<title>runtime.semasleep (1 samples, 0.02%)</title><rect x="382.3" y="181" width="0.3" height="15.0" fill="rgb(212,5,28)" rx="2" ry="2" />
+<text  x="385.30" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.deferreturn (217 samples, 4.60%)</title><rect x="106.9" y="213" width="54.3" height="15.0" fill="rgb(233,222,14)" rx="2" ry="2" />
+<text  x="109.89" y="223.5" >runti..</text>
+</g>
+<g >
+<title>runtime.releasem (1 samples, 0.02%)</title><rect x="14.3" y="149" width="0.2" height="15.0" fill="rgb(213,228,11)" rx="2" ry="2" />
+<text  x="17.26" y="159.5" ></text>
+</g>
+<g >
+<title>runtime.exitsyscallfast (3 samples, 0.06%)</title><rect x="257.1" y="149" width="0.8" height="15.0" fill="rgb(237,184,45)" rx="2" ry="2" />
+<text  x="260.12" y="159.5" ></text>
+</g>
+<g >
+<title>runtime.scanobject (2 samples, 0.04%)</title><rect x="364.3" y="213" width="0.5" height="15.0" fill="rgb(213,15,9)" rx="2" ry="2" />
+<text  x="367.28" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_cond_wait (1,486 samples, 31.53%)</title><rect x="384.3" y="197" width="372.1" height="15.0" fill="rgb(242,51,35)" rx="2" ry="2" />
+<text  x="387.31" y="207.5" >runtime.pthread_cond_wait</text>
+</g>
+<g >
+<title>runtime.usleep (4 samples, 0.08%)</title><rect x="367.0" y="181" width="1.0" height="15.0" fill="rgb(243,191,49)" rx="2" ry="2" />
+<text  x="370.03" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.(*itabTableType).find (3 samples, 0.06%)</title><rect x="12.3" y="181" width="0.7" height="15.0" fill="rgb(254,140,44)" rx="2" ry="2" />
+<text  x="15.25" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.send (2 samples, 0.04%)</title><rect x="25.3" y="229" width="0.5" height="15.0" fill="rgb(218,187,14)" rx="2" ry="2" />
+<text  x="28.27" y="239.5" ></text>
+</g>
+<g >
+<title>reflect.Value.Call (10 samples, 0.21%)</title><rect x="15.8" y="181" width="2.5" height="15.0" fill="rgb(226,170,30)" rx="2" ry="2" />
+<text  x="18.76" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.(*gcControllerState).findRunnableGCWorker (1 samples, 0.02%)</title><rect x="366.5" y="229" width="0.3" height="15.0" fill="rgb(248,110,45)" rx="2" ry="2" />
+<text  x="369.53" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.findObject (1 samples, 0.02%)</title><rect x="260.4" y="117" width="0.2" height="15.0" fill="rgb(234,15,23)" rx="2" ry="2" />
+<text  x="263.37" y="127.5" ></text>
+</g>
+<g >
+<title>runtime.stopm (2 samples, 0.04%)</title><rect x="382.1" y="213" width="0.5" height="15.0" fill="rgb(226,23,41)" rx="2" ry="2" />
+<text  x="385.05" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.wakep (18 samples, 0.38%)</title><rect x="1185.2" y="213" width="4.5" height="15.0" fill="rgb(242,172,9)" rx="2" ry="2" />
+<text  x="1188.24" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.gcBgMarkWorker.func2 (5 samples, 0.11%)</title><rect x="363.5" y="245" width="1.3" height="15.0" fill="rgb(219,93,11)" rx="2" ry="2" />
+<text  x="366.52" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.notewakeup (1,475 samples, 31.30%)</title><rect x="814.2" y="197" width="369.3" height="15.0" fill="rgb(244,8,22)" rx="2" ry="2" />
+<text  x="817.19" y="207.5" >runtime.notewakeup</text>
+</g>
+<g >
+<title>runtime.syscall (1 samples, 0.02%)</title><rect x="1189.7" y="277" width="0.3" height="15.0" fill="rgb(221,101,54)" rx="2" ry="2" />
+<text  x="1192.75" y="287.5" ></text>
+</g>
+<g >
+<title>runtime.ready (18 samples, 0.38%)</title><rect x="1185.2" y="229" width="4.5" height="15.0" fill="rgb(216,68,0)" rx="2" ry="2" />
+<text  x="1188.24" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.gcstopm (2 samples, 0.04%)</title><rect x="382.1" y="229" width="0.5" height="15.0" fill="rgb(206,126,11)" rx="2" ry="2" />
+<text  x="385.05" y="239.5" ></text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/funcs.(*Funcs).GetFuncIn (7 samples, 0.15%)</title><rect x="19.3" y="197" width="1.7" height="15.0" fill="rgb(224,48,14)" rx="2" ry="2" />
+<text  x="22.26" y="207.5" ></text>
+</g>
+<g >
+<title>github.com/golang/protobuf/proto.(*InternalMessageInfo).Unmarshal (1 samples, 0.02%)</title><rect x="11.3" y="197" width="0.2" height="15.0" fill="rgb(226,76,15)" rx="2" ry="2" />
+<text  x="14.25" y="207.5" ></text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/rpc/examples/example/pb/service.(*ArithRequest).XXX_Unmarshal (1 samples, 0.02%)</title><rect x="21.3" y="165" width="0.2" height="15.0" fill="rgb(223,63,42)" rx="2" ry="2" />
+<text  x="24.27" y="175.5" ></text>
+</g>
+<g >
+<title>runtime.lock (4 samples, 0.08%)</title><rect x="367.0" y="213" width="1.0" height="15.0" fill="rgb(210,101,38)" rx="2" ry="2" />
+<text  x="370.03" y="223.5" ></text>
+</g>
+<g >
+<title>runtime.unlock (1 samples, 0.02%)</title><rect x="756.6" y="245" width="0.3" height="15.0" fill="rgb(212,111,43)" rx="2" ry="2" />
+<text  x="759.61" y="255.5" ></text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/rpc.ServeTCPConn (384 samples, 8.15%)</title><rect x="10.0" y="277" width="96.1" height="15.0" fill="rgb(236,99,11)" rx="2" ry="2" />
+<text  x="13.00" y="287.5" >hslam.com/m..</text>
+</g>
+<g >
+<title>runtime.heapBitsSetType (1 samples, 0.02%)</title><rect x="14.5" y="165" width="0.3" height="15.0" fill="rgb(250,91,36)" rx="2" ry="2" />
+<text  x="17.51" y="175.5" ></text>
+</g>
+<g >
+<title>runtime.semawakeup (1 samples, 0.02%)</title><rect x="357.0" y="69" width="0.3" height="15.0" fill="rgb(226,157,18)" rx="2" ry="2" />
+<text  x="360.01" y="79.5" ></text>
+</g>
+<g >
+<title>runtime.memclrNoHeapPointers (2 samples, 0.04%)</title><rect x="23.8" y="181" width="0.5" height="15.0" fill="rgb(236,130,52)" rx="2" ry="2" />
+<text  x="26.77" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.memclrNoHeapPointers (1 samples, 0.02%)</title><rect x="19.5" y="133" width="0.3" height="15.0" fill="rgb(234,212,37)" rx="2" ry="2" />
+<text  x="22.51" y="143.5" ></text>
+</g>
+<g >
+<title>runtime.semasleep (33 samples, 0.70%)</title><rect x="373.8" y="181" width="8.3" height="15.0" fill="rgb(211,96,22)" rx="2" ry="2" />
+<text  x="376.79" y="191.5" ></text>
+</g>
+<g >
+<title>reflect.(*funcType).in (1 samples, 0.02%)</title><rect x="17.0" y="133" width="0.3" height="15.0" fill="rgb(236,228,6)" rx="2" ry="2" />
+<text  x="20.01" y="143.5" ></text>
+</g>
+<g >
+<title>runtime.mstart1 (22 samples, 0.47%)</title><rect x="807.9" y="261" width="5.5" height="15.0" fill="rgb(251,87,9)" rx="2" ry="2" />
+<text  x="810.93" y="271.5" ></text>
+</g>
+<g >
+<title>runtime.startTheWorldWithSema (1 samples, 0.02%)</title><rect x="1185.0" y="229" width="0.2" height="15.0" fill="rgb(254,177,19)" rx="2" ry="2" />
+<text  x="1187.99" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.netpoll (117 samples, 2.48%)</title><rect x="760.9" y="213" width="29.3" height="15.0" fill="rgb(219,192,5)" rx="2" ry="2" />
+<text  x="763.86" y="223.5" >ru..</text>
+</g>
+<g >
+<title>hslam.com/mgit/Mort/rpc/examples/example/pb/service.(*Arith).Multiply (1 samples, 0.02%)</title><rect x="16.5" y="149" width="0.3" height="15.0" fill="rgb(205,58,22)" rx="2" ry="2" />
+<text  x="19.51" y="159.5" ></text>
+</g>
+<g >
+<title>runtime.newobject (4 samples, 0.08%)</title><rect x="259.6" y="245" width="1.0" height="15.0" fill="rgb(219,22,34)" rx="2" ry="2" />
+<text  x="262.62" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.usleep (2 samples, 0.04%)</title><rect x="373.0" y="181" width="0.5" height="15.0" fill="rgb(249,126,40)" rx="2" ry="2" />
+<text  x="376.04" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.lock (5 samples, 0.11%)</title><rect x="364.8" y="245" width="1.2" height="15.0" fill="rgb(250,131,26)" rx="2" ry="2" />
+<text  x="367.78" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.gcBgMarkWorker (5 samples, 0.11%)</title><rect x="363.5" y="277" width="1.3" height="15.0" fill="rgb(227,4,33)" rx="2" ry="2" />
+<text  x="366.52" y="287.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_cond_timedwait_relative_np (5 samples, 0.11%)</title><rect x="1183.7" y="165" width="1.3" height="15.0" fill="rgb(222,204,51)" rx="2" ry="2" />
+<text  x="1186.74" y="175.5" ></text>
+</g>
+<g >
+<title>runtime.mallocgc (5 samples, 0.11%)</title><rect x="23.3" y="197" width="1.2" height="15.0" fill="rgb(215,152,45)" rx="2" ry="2" />
+<text  x="26.27" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_cond_signal (1 samples, 0.02%)</title><rect x="1183.5" y="181" width="0.2" height="15.0" fill="rgb(253,36,44)" rx="2" ry="2" />
+<text  x="1186.49" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.systemstack (1 samples, 0.02%)</title><rect x="25.5" y="197" width="0.3" height="15.0" fill="rgb(205,221,9)" rx="2" ry="2" />
+<text  x="28.52" y="207.5" ></text>
+</g>
+<g >
+<title>runtime.stopm (1 samples, 0.02%)</title><rect x="756.9" y="197" width="0.2" height="15.0" fill="rgb(211,26,44)" rx="2" ry="2" />
+<text  x="759.86" y="207.5" ></text>
+</g>
+<g >
+<title>syscall.Write (280 samples, 5.94%)</title><rect x="290.2" y="213" width="70.1" height="15.0" fill="rgb(206,50,43)" rx="2" ry="2" />
+<text  x="293.17" y="223.5" >syscall..</text>
+</g>
+<g >
+<title>runtime.handoffp (1,478 samples, 31.36%)</title><rect x="813.4" y="229" width="370.1" height="15.0" fill="rgb(253,170,30)" rx="2" ry="2" />
+<text  x="816.44" y="239.5" >runtime.handoffp</text>
+</g>
+<g >
+<title>runtime.(*mcache).prepareForSweep (1 samples, 0.02%)</title><rect x="382.1" y="181" width="0.2" height="15.0" fill="rgb(233,120,2)" rx="2" ry="2" />
+<text  x="385.05" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.(*waitq).dequeue (1 samples, 0.02%)</title><rect x="106.1" y="213" width="0.3" height="15.0" fill="rgb(213,46,4)" rx="2" ry="2" />
+<text  x="109.14" y="223.5" ></text>
+</g>
+<g >
+<title>all (4,713 samples, 100%)</title><rect x="10.0" y="293" width="1180.0" height="15.0" fill="rgb(213,198,17)" rx="2" ry="2" />
+<text  x="13.00" y="303.5" ></text>
+</g>
+<g >
+<title>runtime.(*mcentral).cacheSpan (1 samples, 0.02%)</title><rect x="19.0" y="117" width="0.3" height="15.0" fill="rgb(220,178,51)" rx="2" ry="2" />
+<text  x="22.01" y="127.5" ></text>
+</g>
+<g >
+<title>github.com/golang/protobuf/proto.Marshal (5 samples, 0.11%)</title><rect x="22.0" y="181" width="1.3" height="15.0" fill="rgb(242,16,49)" rx="2" ry="2" />
+<text  x="25.02" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_cond_wait (1 samples, 0.02%)</title><rect x="756.9" y="149" width="0.2" height="15.0" fill="rgb(247,25,42)" rx="2" ry="2" />
+<text  x="759.86" y="159.5" ></text>
+</g>
+<g >
+<title>runtime.chansend (3 samples, 0.06%)</title><rect x="25.0" y="245" width="0.8" height="15.0" fill="rgb(206,6,42)" rx="2" ry="2" />
+<text  x="28.02" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.semasleep (1,488 samples, 31.57%)</title><rect x="384.1" y="213" width="372.5" height="15.0" fill="rgb(211,50,14)" rx="2" ry="2" />
+<text  x="387.05" y="223.5" >runtime.semasleep</text>
+</g>
+<g >
+<title>runtime.nanotime (7 samples, 0.15%)</title><rect x="807.9" y="229" width="1.8" height="15.0" fill="rgb(232,190,27)" rx="2" ry="2" />
+<text  x="810.93" y="239.5" ></text>
+</g>
+<g >
+<title>runtime.spanOf (1 samples, 0.02%)</title><rect x="260.4" y="101" width="0.2" height="15.0" fill="rgb(221,192,28)" rx="2" ry="2" />
+<text  x="263.37" y="111.5" ></text>
+</g>
+<g >
+<title>runtime.semasleep (1 samples, 0.02%)</title><rect x="756.9" y="165" width="0.2" height="15.0" fill="rgb(254,20,3)" rx="2" ry="2" />
+<text  x="759.86" y="175.5" ></text>
+</g>
+<g >
+<title>runtime.pthread_cond_wait (33 samples, 0.70%)</title><rect x="373.8" y="165" width="8.3" height="15.0" fill="rgb(233,48,26)" rx="2" ry="2" />
+<text  x="376.79" y="175.5" ></text>
+</g>
+<g >
+<title>runtime.osyield (2 samples, 0.04%)</title><rect x="813.4" y="181" width="0.5" height="15.0" fill="rgb(244,211,22)" rx="2" ry="2" />
+<text  x="816.44" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.selectgo (321 samples, 6.81%)</title><rect x="25.8" y="261" width="80.3" height="15.0" fill="rgb(226,185,17)" rx="2" ry="2" />
+<text  x="28.77" y="271.5" >runtime.s..</text>
+</g>
+<g >
+<title>runtime.(*mcentral).grow (1 samples, 0.02%)</title><rect x="19.0" y="101" width="0.3" height="15.0" fill="rgb(234,0,45)" rx="2" ry="2" />
+<text  x="22.01" y="111.5" ></text>
+</g>
+<g >
+<title>runtime.netpollunblock (1 samples, 0.02%)</title><rect x="789.9" y="181" width="0.3" height="15.0" fill="rgb(226,52,1)" rx="2" ry="2" />
+<text  x="792.91" y="191.5" ></text>
+</g>
+<g >
+<title>runtime.chansend1 (1 samples, 0.02%)</title><rect x="106.1" y="245" width="0.3" height="15.0" fill="rgb(252,125,3)" rx="2" ry="2" />
+<text  x="109.14" y="255.5" ></text>
+</g>
+<g >
+<title>runtime.pcvalue (1 samples, 0.02%)</title><rect x="364.0" y="117" width="0.3" height="15.0" fill="rgb(217,152,23)" rx="2" ry="2" />
+<text  x="367.03" y="127.5" ></text>
+</g>
+<g >
+<title>reflect.(*rtype).In (1 samples, 0.02%)</title><rect x="17.0" y="149" width="0.3" height="15.0" fill="rgb(229,204,37)" rx="2" ry="2" />
+<text  x="20.01" y="159.5" ></text>
+</g>
+</g>
+</svg>
+
