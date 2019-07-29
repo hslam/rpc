@@ -22,7 +22,7 @@ var saddr string
 func init()  {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	flag.StringVar(&network, "network", "tcp", "network: -network=fast;ws;tcp;quic;udp")
-	flag.BoolVar(&debug, "debug", false, "debug: -debug=false")
+	flag.BoolVar(&debug, "debug", true, "debug: -debug=false")
 	flag.IntVar(&debug_port, "dp", 6060, "debug_port: -dp=6060")
 	flag.IntVar(&port, "p", 9999, "port: -p=9999")
 	flag.IntVar(&num, "n", 65536, "num: -n=1024")

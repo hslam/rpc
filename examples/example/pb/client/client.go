@@ -65,7 +65,7 @@ func main()  {
 		}
 		if batch {pool.EnabledBatch()}
 		for i:=0;i<clients;i++{
-			go run(pool.Get(),log_once)
+			go run(pool.Get())
 		}
 
 	}else if clients==1 {
@@ -74,7 +74,7 @@ func main()  {
 			log.Fatalln("dailing error: ", err)
 		}
 		if batch {conn.EnabledBatch()}
-		go run(conn,log_once)
+		go run(conn)
 	}else {
 		return
 	}
@@ -85,7 +85,7 @@ func main()  {
 	time.Sleep(time.Second*3)
 	fmt.Println(count/int(run_time_second),int(run_time_second*1000000000)/count)
 }
-func run(conn rpc.Conn,log_once bool)  {
+func run(conn rpc.Conn)  {
 	var err error
 	req := &service.ArithRequest{A:9,B:2}
 	var res service.ArithResponse

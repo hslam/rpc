@@ -2,7 +2,7 @@ package main
 
 import (
 	"hslam.com/mgit/Mort/rpc"
-	"hslam.com/mgit/Mort/rpc/examples/example/pb/service"
+	"hslam.com/mgit/Mort/rpc/examples/stats/service"
 	_ "net/http/pprof"
 	"net/http"
 	"strconv"

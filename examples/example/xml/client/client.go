@@ -1,7 +1,7 @@
 package main
 
 import (
-	"hslam.com/mgit/Mort/rpc/examples/example/json/service"
+	"hslam.com/mgit/Mort/rpc/examples/example/xml/service"
 	"hslam.com/mgit/Mort/rpc"
 	_ "net/http/pprof"
 	"math/rand"
@@ -23,6 +23,7 @@ var debug bool
 var debug_port int
 var host string
 var port int
+var log_once bool
 var run_time_second int64
 var addr string
 var batch bool
@@ -38,11 +39,12 @@ func init()  {
 	flag.IntVar(&debug_port, "dp", 6060, "debug_port: -dp=6060")
 	flag.StringVar(&host, "h", "localhost", "host: -h=localhost")
 	flag.IntVar(&port, "p", 9999, "port: -p=9999")
-	flag.Int64Var(&run_time_second, "ts", 60, "run_time_second: -ts=60")
-	flag.BoolVar(&batch, "batch", false, "batch: -batch=false")
-	flag.BoolVar(&concurrent, "concurrent", false, "concurrent: -concurrent=false")
-	flag.BoolVar(&noresponse, "noresponse", false, "noresponse: -noresponse=false")
-	flag.IntVar(&clients, "clients", 1, "num: -clients=1")
+	flag.BoolVar(&log_once, "log_once", false, "log_once: -log_once=false")
+	flag.Int64Var(&run_time_second, "ts", 180, "run_time_second: -ts=60")
+	flag.BoolVar(&batch, "batch", true, "batch: -batch=false")
+	flag.BoolVar(&concurrent, "concurrent", true, "concurrent: -concurrent=false")
+	flag.BoolVar(&noresponse, "noresponse", true, "noresponse: -noresponse=false")
+	flag.IntVar(&clients, "clients", 2, "num: -clients=1")
 	log.SetFlags(0)
 	flag.Parse()
 	addr=host+":"+strconv.Itoa(port)
@@ -83,36 +85,39 @@ func main()  {
 	time.Sleep(time.Second*3)
 	fmt.Println(count/int(run_time_second),int(run_time_second*1000000000)/count)
 }
-func run(conn rpc.Client)  {
+func run(conn rpc.Conn)  {
 	var err error
 	req := &service.ArithRequest{A:9,B:2}
 	var res service.ArithResponse
-	err = conn.Call("Arith.Multiply", req, &res) // 乘法运算
-	if err != nil {
-		log.Fatalln("arith error: ", err)
-	}
-	fmt.Printf("%d * %d = %d\n", req.A, req.B, res.Pro)
+	if log_once{
+		err = conn.Call("Arith.Multiply", req, &res) // 乘法运算
+		if err != nil {
+			log.Fatalln("arith error: ", err)
+		}
+		fmt.Printf("%d * %d = %d\n", req.A, req.B, res.Pro)
 
-	err = conn.Call("Arith.Divide", req, &res)
-	if err != nil {
-		log.Fatalln("arith error: ", err)
+		err = conn.Call("Arith.Divide", req, &res)
+		if err != nil {
+			log.Fatalln("arith error: ", err)
+		}
+		fmt.Printf("%d / %d, quo is %d, rem is %d\n", req.A, req.B, res.Quo, res.Rem)
 	}
-	fmt.Printf("%d / %d, quo is %d, rem is %d\n", req.A, req.B, res.Quo, res.Rem)
+	parallel:=1
 	if batch{
-		for i:=0;i<conn.GetMaxBatchRequest();i++ {
-			go work(conn,countchan)
-		}
+		parallel=conn.GetMaxBatchRequest()
 	}else if concurrent{
-		for i:=0;i<conn.GetMaxConcurrentRequest();i++ {
-			go work(conn,countchan)
-		}
-	}else {
+		parallel=conn.GetMaxConcurrentRequest()
+	}
+	if log_once{
+		fmt.Println("parallel - ",parallel)
+	}
+	for i:=0;i<parallel;i++{
 		go work(conn,countchan)
 	}
 	defer conn.Close()
 	select {}
 }
-func work(conn rpc.Client, countchan chan int) {
+func work(conn rpc.Conn, countchan chan int) {
 	start_time:=time.Now().UnixNano()
 	var err error
 	for{
