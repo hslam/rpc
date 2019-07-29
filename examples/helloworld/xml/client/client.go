@@ -32,7 +32,7 @@ func main()  {
 	defer conn.Close()
 	req := &service.ArithRequest{A:9,B:2}
 	var res service.ArithResponse
-	err = conn.Call("Arith.Multiply", req, &res) // 乘法运算
+	err = conn.Call("Arith.Multiply", req, &res)
 	if err != nil {
 		log.Fatalln("arith error: ", err)
 	}
