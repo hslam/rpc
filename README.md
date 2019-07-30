@@ -20,7 +20,7 @@ JSONRPC     TCP         json        9099    28999   43981   48143
 GRPC        HTTP2       protobuf    6008    21172   44233   50994
 ```
 
-### Mac 4 CPU 8 GiB Localhost 99th percentile time  (ms)
+### Mac 4 CPU 8 GiB Localhost 99th percentile time (ms)
 ```
 package     protocol    codec       1t      mt      1t_con  2t_con  1t_bat  2t_bat  1t_no   2t_no   1t_cb   2t_cb   1t_bn   2t_bn   1t_cn   2t_cn   1t_cbn  2t_cbn
 MRPC        UDP         protobuf    0.21    3.33    1.82    4.13    0.47    0.59    0.33    0.62    0.51    0.63    0.81    0.83    4.57    10.35   0.83    0.88
