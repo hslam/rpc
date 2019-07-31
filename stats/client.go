@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 )
 type Client interface {
-	Call()bool
+	Call()(int64,bool)
 }
 func StartClientStats(numParallels int,totalCalls int, clients []Client) []byte {
 	responseChannel := make(chan *Response, totalCalls*2)
@@ -76,8 +76,9 @@ func run (responseChannel chan *Response,waitGroup *sync.WaitGroup,totalCalls in
 	for {
 		timer.Reset()
 		respObj := &Response{}
-		ok:=c.Call()
+		bodySize,ok:=c.Call()
 		respObj.Error=!ok
+		respObj.Size=bodySize
 		respObj.Duration = timer.Duration()
 		if len(responseChannel) >= totalCalls {
 			break

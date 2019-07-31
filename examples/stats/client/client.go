@@ -84,7 +84,7 @@ type WrkClient struct {
 	rpc.Conn
 }
 
-func (c *WrkClient)Call()bool{
+func (c *WrkClient)Call()(int64,bool){
 	var err error
 	A:= rand.Int31n(100)
 	B:= rand.Int31n(100)
@@ -92,13 +92,13 @@ func (c *WrkClient)Call()bool{
 	if noresponse{
 		err = c.Conn.CallNoResponse("Arith.Multiply", req) // 乘法运算
 		if err==nil{
-			return true
+			return 0,true
 		}
 	}else {
 		var res service.ArithResponse
 		err = c.Conn.Call("Arith.Multiply", req, &res) // 乘法运算
 		if res.Pro==A*B{
-			return true
+			return 0,true
 		}else {
 			fmt.Printf("err %d * %d = %d\n",A,B,res.Pro,)
 		}
@@ -106,5 +106,5 @@ func (c *WrkClient)Call()bool{
 			fmt.Println("arith error: ", err)
 		}
 	}
-	return false
+	return 0,false
 }
