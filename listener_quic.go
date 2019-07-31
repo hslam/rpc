@@ -4,6 +4,7 @@ import (
 	"sync"
 	"github.com/lucas-clemente/quic-go"
 	"hslam.com/mgit/Mort/rpc/protocol"
+	"hslam.com/mgit/Mort/rpc/log"
 )
 
 type QUICListener struct {
@@ -14,20 +15,20 @@ type QUICListener struct {
 func ListenQUIC(address string) (Listener, error) {
 	quic_listener, err := quic.ListenAddr(address, generateTLSConfig(), nil)
 	if err!=nil{
-		Fatalf("fatal error: %s", err)
+		log.Fatalf("fatal error: %s", err)
 	}
 	listener:= &QUICListener{address:address,quicListener:quic_listener}
 	return listener,nil
 }
 func (l *QUICListener)Serve() (error) {
-	Allf( "%s", "Waiting for clients")
+	log.Allf( "%s", "Waiting for clients")
 	for{
 		sess, err := l.quicListener.Accept()
 		if err != nil {
-			Warnf("Accept: %s", err)
+			log.Warnf("Accept: %s", err)
 			continue
 		}else{
-			Infof("new client %s comming",sess.RemoteAddr())
+			log.Infof("new client %s comming",sess.RemoteAddr())
 			if useWorkerPool{
 				workerPool.ProcessAsyn( func(obj interface{}, args ...interface{}) interface{} {
 					var s = obj.(quic.Session)
@@ -47,7 +48,7 @@ func ServeQUICConn(sess quic.Session)error {
 	var RemoteAddr=sess.RemoteAddr().String()
 	stream, err := sess.AcceptStream()
 	if err != nil {
-		Errorln(err)
+		log.Errorln(err)
 		panic(err)
 		return err
 	}
@@ -74,6 +75,6 @@ func ServeQUICConn(sess quic.Session)error {
 	close(writeChan)
 	close(readChan)
 	close(stopChan)
-	Infof("client %s exiting",RemoteAddr)
+	log.Infof("client %s exiting",RemoteAddr)
 	return ErrConnExit
 }

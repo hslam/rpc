@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"github.com/golang/protobuf/proto"
+	"hslam.com/mgit/Mort/rpc/log"
 	"errors"
 	"encoding/json"
 	"encoding/xml"
@@ -16,19 +17,19 @@ func ArgsEncode(args interface{},funcsCodecType CodecType) ([]byte, error)  {
 	case FUNCS_CODEC_JSON:
 		req_bytes,err =json.Marshal(args)
 		if err!=nil{
-			Errorln("ArgsEncode json.Marshal error: ", err)
+			log.Errorln("ArgsEncode json.Marshal error: ", err)
 			return nil,err
 		}
 	case FUNCS_CODEC_PROTOBUF:
 		req_bytes, err = proto.Marshal(args.(proto.Message))
 		if err != nil {
-			Errorln("ArgsEncode proto.Marshal error: ", err)
+			log.Errorln("ArgsEncode proto.Marshal error: ", err)
 			return nil,err
 		}
 	case FUNCS_CODEC_XML:
 		req_bytes,err=xml.Marshal(args)
 		if err!=nil{
-			Errorln("ArgsEncode xml.Marshal error: ", err)
+			log.Errorln("ArgsEncode xml.Marshal error: ", err)
 			return nil,err
 		}
 	default:
@@ -42,19 +43,19 @@ func ArgsDecode(args_bytes []byte,args interface{},funcsCodecType CodecType) (er
 	case FUNCS_CODEC_JSON:
 		err:=json.Unmarshal(args_bytes,args)
 		if err!=nil{
-			Errorln("ArgsDecode json.Unmarshal error: ", err)
+			log.Errorln("ArgsDecode json.Unmarshal error: ", err)
 			return err
 		}
 	case FUNCS_CODEC_PROTOBUF:
 		err := proto.Unmarshal(args_bytes, args.(proto.Message))
 		if err != nil {
-			Errorln("ArgsDecode proto.Unmarshal error: ", err)
+			log.Errorln("ArgsDecode proto.Unmarshal error: ", err)
 			return err
 		}
 	case FUNCS_CODEC_XML:
 		err:=xml.Unmarshal(args_bytes,args)
 		if err!=nil{
-			Errorln("ArgsDecode xml.Unmarshal error: ", err)
+			log.Errorln("ArgsDecode xml.Unmarshal error: ", err)
 			return err
 		}
 	default:
@@ -72,19 +73,19 @@ func ReplyEncode(reply interface{},funcsCodecType CodecType) ([]byte, error)  {
 	case FUNCS_CODEC_JSON:
 		res_bytes, err = json.Marshal(reply)
 		if err != nil {
-			Errorln("ReplyEncode json.Marshal error: ", err)
+			log.Errorln("ReplyEncode json.Marshal error: ", err)
 			return nil,err
 		}
 	case FUNCS_CODEC_PROTOBUF:
 		res_bytes, err = proto.Marshal(reply.(proto.Message))
 		if err != nil {
-			Errorln("ReplyEncode proto.Marshal error: ", err)
+			log.Errorln("ReplyEncode proto.Marshal error: ", err)
 			return nil,err
 		}
 	case FUNCS_CODEC_XML:
 		res_bytes, err = xml.Marshal(reply)
 		if err != nil {
-			Errorln("ReplyEncode xml.Marshal error: ", err)
+			log.Errorln("ReplyEncode xml.Marshal error: ", err)
 			return nil,err
 		}
 	default:
@@ -98,21 +99,21 @@ func ReplyDecode(reply_bytes []byte,reply interface{},funcsCodecType CodecType) 
 	case FUNCS_CODEC_JSON:
 		err := json.Unmarshal(reply_bytes, reply)
 		if err != nil {
-			Errorln("ReplyDecode json.Unmarshal error: ", err)
+			log.Errorln("ReplyDecode json.Unmarshal error: ", err)
 			return err
 		}
 		return nil
 	case FUNCS_CODEC_PROTOBUF:
 		err := proto.Unmarshal(reply_bytes, reply.(proto.Message))
 		if err != nil {
-			Errorln("ReplyDecode proto.Unmarshal error: ", err)
+			log.Errorln("ReplyDecode proto.Unmarshal error: ", err)
 			return err
 		}
 		return nil
 	case FUNCS_CODEC_XML:
 		err := xml.Unmarshal(reply_bytes, reply)
 		if err != nil {
-			Errorln("ReplyDecode xml.Unmarshal error: ", err)
+			log.Errorln("ReplyDecode xml.Unmarshal error: ", err)
 			return err
 		}
 		return nil

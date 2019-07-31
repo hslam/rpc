@@ -5,6 +5,7 @@ package pb;
 enum MsgType{
      req = 0;
      res = 1;
+     hea = 2;
 }
 
 message Msg {

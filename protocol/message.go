@@ -160,9 +160,9 @@ func HandleMessage(readWriter io.ReadWriter,readChan chan []byte,writeChan chan 
 	writeMessageChan := make(chan *Message,WindowSize)
 	idChan := make(chan uint16,WindowSize)
 	queueMsg:=&QueueMsg{
-		m:make(map[uint16]*Notice),
-		queue:make([]uint16,0),
-		pop:make(chan *Notice,WindowSize),
+		M:make(map[uint16]*Notice),
+		Queue:make([]uint16,0),
+		Pop:make(chan *Notice,WindowSize),
 	}
 	var startbit =uint(rand.Intn(13))
 	var id =uint16(rand.Int31n(int32(1<<startbit)))
@@ -177,7 +177,7 @@ func HandleMessage(readWriter io.ReadWriter,readChan chan []byte,writeChan chan 
 			case revmsg,ok := <-readMessageChan:
 				if ok{
 					if notice,ok:= queueMsg.IsExisted(revmsg.id);ok{
-						notice.recvChan<-true
+						notice.RecvChan<-true
 						queueMsg.SetValue(revmsg.id,revmsg)
 					}
 				}else {
@@ -190,12 +190,12 @@ func HandleMessage(readWriter io.ReadWriter,readChan chan []byte,writeChan chan 
 	go func(idChan chan uint16,queueMsg *QueueMsg,readChan chan []byte) {
 		for{
 			select {
-			case old_notice,ok := <-queueMsg.pop:
+			case old_notice,ok := <-queueMsg.Pop:
 				if ok{
-					if old_notice.recvmsg.oprationType==OprationTypeData{
-						readChan<-old_notice.recvmsg.message
+					if old_notice.Recvmsg.oprationType==OprationTypeData{
+						readChan<-old_notice.Recvmsg.message
 						<-idChan
-					}else if old_notice.recvmsg.oprationType==OprationTypeAck{
+					}else if old_notice.Recvmsg.oprationType==OprationTypeAck{
 						<-idChan
 					}
 					queueMsg.Check()
@@ -213,14 +213,20 @@ func HandleMessage(readWriter io.ReadWriter,readChan chan []byte,writeChan chan 
 		}
 		idChan<-id
 		recvChan:=make(chan bool)
-		notice:=&Notice{id,recvChan,nil}
+		notice:=&Notice{Id:id,RecvChan:recvChan}
 		queueMsg.Push(notice)
 		msg:=&Message{OprationTypeData,id,send_data}
 		go func(msg *Message,rto *RTO,recvChan chan bool ) {
 			start_time:=time.Now().UnixNano()
 			timer := time.NewTimer(time.Microsecond*time.Duration(lastRTO*8))
 			for {
-				writeMessageChan <-msg
+				func(){
+					defer func() {
+						if err := recover(); err != nil {
+						}
+					}()
+					writeMessageChan <-msg
+				}()
 				select {
 				case <-recvChan:
 					goto endfor
@@ -235,9 +241,9 @@ func HandleMessage(readWriter io.ReadWriter,readChan chan []byte,writeChan chan 
 	close(readMessageChan)
 	close(writeMessageChan)
 	close(idChan)
-	close(queueMsg.pop)
-	queueMsg.queue=nil
-	queueMsg.m=nil
+	close(queueMsg.Pop)
+	queueMsg.Queue=nil
+	queueMsg.M=nil
 	queueMsg=nil
 	rto=nil
 }

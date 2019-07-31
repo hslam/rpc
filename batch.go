@@ -3,6 +3,7 @@ import (
 	"sync"
 	"time"
 	"hslam.com/mgit/Mort/rpc/pb"
+	"hslam.com/mgit/Mort/rpc/log"
 )
 
 type RequestChan chan *BatchRequest
@@ -26,11 +27,11 @@ type Batch struct {
 }
 func NewBatch(conn Conn,maxDelayNanoSecond int) *Batch {
 	c:= &Batch{
-		reqChan:make(chan *BatchRequest,DefultMaxCacheRequest),
+		reqChan:make(chan *BatchRequest,DefaultMaxCacheRequest),
 		conn:conn,
 		readyRequests:make([]*BatchRequest,0),
 		sendRequests:make(chan []*BatchRequest,1),
-		maxBatchRequest:DefultMaxBatchRequest,
+		maxBatchRequest:DefaultMaxBatchRequest,
 		maxDelayNanoSecond:maxDelayNanoSecond,
 	}
 	go c.run()
@@ -111,6 +112,9 @@ func (c *Batch)Ticker(crs []*BatchRequest){
 				if err!=nil{
 					return
 				}
+				if msg.msgType!=MsgType(pb.MsgType_res){
+					return
+				}
 				batch:=&BatchCodec{}
 				err=batch.Decode(msg.data)
 				if err!=nil{
@@ -120,12 +124,20 @@ func (c *Batch)Ticker(crs []*BatchRequest){
 					for i,v:=range crs{
 						res:=Response{}
 						res.Decode(batch.data[i])
-						if v.noResponse==false{
-							if res.err!=nil{
-								v.reply_error<-res.err
-							}else {
-								v.reply_bytes<-res.data
-							}
+						if crs[i].id==res.id&& v.noResponse==false{
+							func() {
+								defer func() {
+									if err := recover(); err != nil {
+										log.Errorln("v.reply err", err)
+									}
+								}()
+								if res.err!=nil{
+									v.reply_error<-res.err
+								}else {
+									v.reply_bytes<-res.data
+								}
+							}()
+
 						}
 					}
 				}

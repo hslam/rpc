@@ -2,6 +2,8 @@ package rpc
 
 import (
 	"hslam.com/mgit/Mort/rpc/pb"
+	"fmt"
+	"hslam.com/mgit/Mort/rpc/log"
 )
 type ClientCodec struct{
 	client_id int64
@@ -11,17 +13,18 @@ type ClientCodec struct{
 	funcsCodecType CodecType
 	noResponse bool
 	reply interface{}
+	res	*Response
 }
 func(c *ClientCodec)Encode() ([]byte, error)  {
 	args_bytes,err:=ArgsEncode(c.args,c.funcsCodecType)
 	if err!=nil{
-		Errorln("ArgsEncode error: ", err)
+		log.Errorln("ArgsEncode error: ", err)
 		return nil,err
 	}
 	req:=&Request{c.req_id,c.name,args_bytes,c.noResponse}
 	req_bytes,err:=req.Encode()
 	if err!=nil{
-		Errorln("RequestEncode error: ", err)
+		log.Errorln("RequestEncode error: ", err)
 		return nil,err
 	}
 	msg:=&Msg{}
@@ -34,16 +37,29 @@ func(c *ClientCodec)Encode() ([]byte, error)  {
 }
 
 func (c *ClientCodec)Decode(b []byte) error  {
+	var req_id =c.req_id
 	msg:=&Msg{}
 	err:=msg.Decode(b)
-	res:=&Response{}
-	err=res.Decode(msg.data)
-	if err!=nil{
-		Errorln("ResponseDecode error: ", err)
-		return err
+	if msg.msgType==MsgType(pb.MsgType_res){
+		res:=&Response{}
+		err=res.Decode(msg.data)
+		if err!=nil{
+			log.Errorln("ResponseDecode error: ", err)
+			return err
+		}
+		c.res=res
+		if req_id==c.res.id{
+			if res.err!=nil{
+				return res.err
+			}
+			return ReplyDecode(res.data,c.reply,msg.codecType)
+		}else {
+			fmt.Println(ErrReqId,req_id,c.res.id)
+			return ErrReqId
+		}
+
+	}else if msg.msgType==MsgType(pb.MsgType_hea){
+		return nil
 	}
-	if res.err!=nil{
-		return res.err
-	}
-	return ReplyDecode(res.data,c.reply,msg.codecType)
+	return nil
 }

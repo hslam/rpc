@@ -4,6 +4,7 @@ import (
 	"net"
 	"sync"
 	"hslam.com/mgit/Mort/rpc/protocol"
+	"hslam.com/mgit/Mort/rpc/log"
 )
 
 type UDPListener struct {
@@ -14,18 +15,18 @@ type UDPListener struct {
 func ListenUDP(address string) (Listener, error) {
 	addr, err := net.ResolveUDPAddr("udp", address)
 	if err!=nil{
-		Fatalf("fatal error: %s", err)
+		log.Fatalf("fatal error: %s", err)
 	}
 	conn, err := net.ListenUDP("udp", addr)
 	if err != nil {
-		Fatalf("fatal error: %s", err)
+		log.Fatalf("fatal error: %s", err)
 	}
 	listener:=  &UDPListener{address:address,netUDPConn:conn}
 	return listener,nil
 }
 
 func (l *UDPListener)Serve() (error) {
-	Allf( "%s", "Waiting for clients")
+	log.Allf( "%s", "Waiting for clients")
 	readChan := make(chan *protocol.UDPMsg,10240)
 	writeChan := make(chan  *protocol.UDPMsg,10240)
 	stopChan := make(chan bool)
@@ -35,7 +36,7 @@ func (l *UDPListener)Serve() (error) {
 		select {
 		case udp_msg := <-readChan:
 			var RemoteAddr=udp_msg.RemoteAddr.String()
-			AllInfof("new client %s comming",RemoteAddr)
+			log.AllInfof("new client %s comming",RemoteAddr)
 			if useWorkerPool{
 				workerPool.ProcessAsyn( func(obj interface{}, args ...interface{}) interface{} {
 					var udp_msg = obj.(*protocol.UDPMsg)
@@ -68,6 +69,6 @@ func ServeUDPConn(udp_msg *protocol.UDPMsg,writeChan chan *protocol.UDPMsg)error
 	}else if ok{
 		writeChan <- &protocol.UDPMsg{udp_msg.ID,nil,udp_msg.RemoteAddr}
 	}
-	AllInfof("client %s exiting",udp_msg.RemoteAddr)
+	log.AllInfof("client %s exiting",udp_msg.RemoteAddr)
 	return ErrConnExit
 }

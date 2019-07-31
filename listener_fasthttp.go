@@ -4,6 +4,7 @@ import (
 	"sync"
 	"github.com/valyala/fasthttp"
 	"github.com/buaazp/fasthttprouter"
+	"hslam.com/mgit/Mort/rpc/log"
 )
 
 type FASTHTTPListener struct {
@@ -14,9 +15,9 @@ type FASTHTTPListener struct {
 }
 func ListenFASTHTTP(address string) (Listener, error) {
 	router := fasthttprouter.New()
-	router.POST("/", func (ctx *fasthttp.RequestCtx) {
+	router.PUT("/", func (ctx *fasthttp.RequestCtx) {
 		var RemoteAddr=ctx.RemoteAddr().String()
-		AllInfof("new client %s comming",RemoteAddr)
+		log.AllInfof("new client %s comming",RemoteAddr)
 		if useWorkerPool{
 			workerPool.Process(func(obj interface{}, args ...interface{}) interface{} {
 				var requestCtx = obj.(*fasthttp.RequestCtx)
@@ -25,17 +26,17 @@ func ListenFASTHTTP(address string) (Listener, error) {
 		}else {
 			ServeFASTHTTP(ctx,ctx.Request.Body())
 		}
-		AllInfof("client %s exiting",RemoteAddr)
+		log.AllInfof("client %s exiting",RemoteAddr)
 	})
 	listener:=  &FASTHTTPListener{address:address,fastrouter:router}
 	return listener,nil
 }
 
 func (l *FASTHTTPListener)Serve() (error) {
-	Allf( "%s", "Waiting for clients")
+	log.Allf( "%s", "Waiting for clients")
 	err:=fasthttp.ListenAndServe(l.address, l.fastrouter.Handler)
 	if err!=nil{
-		Fatalf("fatal error: %s", err)
+		log.Fatalf("fatal error: %s", err)
 	}
 	return nil
 }

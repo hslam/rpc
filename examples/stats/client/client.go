@@ -31,7 +31,7 @@ func init()  {
 	flag.IntVar(&port, "p", 9999, "port: -p=9999")
 	flag.IntVar(&total_calls, "total", 1000000, "total_calls: -total=10000")
 	flag.BoolVar(&batch, "batch", true, "batch: -batch=false")
-	flag.BoolVar(&concurrent, "concurrent", true, "concurrent: -concurrent=false")
+	flag.BoolVar(&concurrent, "concurrent", false, "concurrent: -concurrent=false")
 	flag.BoolVar(&noresponse, "noresponse", false, "noresponse: -noresponse=false")
 	flag.IntVar(&clients, "clients", 1, "num: -clients=1")
 	flag.BoolVar(&bar, "bar", true, "bar: -bar=true")
@@ -77,7 +77,7 @@ func main()  {
 	}else {
 		return
 	}
-	stats.StartStats(parallel,total_calls,wrkClients)
+	stats.StartClientStats(parallel,total_calls,wrkClients)
 }
 
 type WrkClient struct {
@@ -101,6 +101,9 @@ func (c *WrkClient)Call()bool{
 			return true
 		}else {
 			fmt.Printf("err %d * %d = %d\n",A,B,res.Pro,)
+		}
+		if err != nil {
+			fmt.Println("arith error: ", err)
 		}
 	}
 	return false

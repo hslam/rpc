@@ -32,6 +32,8 @@ func WriteConn(writer io.Writer, writeChan chan []byte, stopChan chan bool) {
 		_, err := writer.Write(send_data)
 		if err != nil {
 			stopChan <- true
+			goto endfor
 		}
 	}
+endfor:
 }

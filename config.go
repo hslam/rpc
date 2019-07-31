@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"errors"
+	"hslam.com/mgit/Mort/rpc/log"
 )
 
 type	CodecType	int32
@@ -28,18 +29,36 @@ const (
 	FUNCS_CODEC_PROTOBUF   	CodecType= 2
 	FUNCS_CODEC_XML   		CodecType= 3
 
-	DefultMaxCacheRequest	= 1024
-	DefultMaxBatchRequest	= 8
-	DefultMaxDelayNanoSecond= 1000
-	DefultMaxConcurrentRequest=32
+	DefaultMaxCacheRequest	= 1024
+	DefaultMaxBatchRequest	= 8
+	DefaultMaxDelayNanoSecond= 1000
+	DefaultMaxConcurrentRequest=32
 
-
+	DefaultClientTimeout	=10
+	DefaultClientMaxErrPerSecond=100
+	DefaultClientMaxErrHearbeat=3
+	DefaultClientHearbeatTicker=3
 	MsgTypeReq MsgType = 0
 	MsgTypeRes MsgType = 1
+	MsgTypeHea MsgType = 2
+
 )
 
 
 var (
 	ErrConnExit=errors.New("exit")
 	RPCConnNoResponse=errors.New("RPC NoResponse")
+	ErrHystrix=errors.New("Hystrix")
+	ErrSetClientID=errors.New("0<=ClientID<=1023")
+	ErrSetTimeout=errors.New("timeout>0")
+	ErrSetMaxErrPerSecond=errors.New("maxErrPerSecond>0")
+	ErrSetMaxBatchRequest=errors.New("maxBatchRequest>0")
+	ErrRemoteCall=errors.New("RemoteCall cbChan is close")
+	ErrTimeOut=errors.New("time out")
+	ErrReqId=errors.New("req_id err")
+
 )
+
+func SetLogLevel(level log.Level) {
+	log.SetLogLevel(level)
+}

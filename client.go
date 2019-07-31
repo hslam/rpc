@@ -1,14 +1,16 @@
 package rpc
 import (
 	"sync"
-	"errors"
 	"hslam.com/mgit/Mort/idgenerator"
 	"time"
+	"math/rand"
+	"hslam.com/mgit/Mort/rpc/log"
 )
 type Client struct {
 	mu 				sync.Mutex
 	transporter		Transporter
 	closed			bool
+	hystrix			bool
 	batchEnabled	bool
 	batch			*Batch
 	concurrent 		*Concurrent
@@ -18,49 +20,105 @@ type Client struct {
 	funcsCodecType 	CodecType
 	idgenerator		*idgenerator.IDGen
 	client_id		int64
+	timeout 	int64
+	errCntChan 		chan int
+	errCnt 			int
+	maxErrPerSecond	int
+	maxErrHearbeat	int
+	errHearbeat 	int
 }
 func NewClient(transporter Transporter,codec string)  (*Client, error) {
-	return NewClientnWithConcurrent(transporter,codec,DefultMaxConcurrentRequest)
+	return NewClientnWithConcurrent(transporter,codec,DefaultMaxConcurrentRequest)
 }
 func NewClientnWithConcurrent(transporter	Transporter,codec string,maxConcurrentRequest int)  (*Client, error)  {
 	funcsCodecType,err:=FuncsCodecType(codec)
 	if err!=nil{
 		return nil,err
 	}
-	readChan := make(chan []byte,maxConcurrentRequest)
-	writeChan := make(chan []byte,maxConcurrentRequest)
+
 	stopChan := make(chan bool)
+	errCntChan:=make(chan int,1000000)
 	var client_id int64=0
 	idgenerator:=idgenerator.NewSnowFlake(client_id)
-	conn :=  &Client{idgenerator:idgenerator,client_id:client_id,transporter:transporter,stopChan:stopChan,readChan:readChan,writeChan:writeChan,funcsCodecType:funcsCodecType}
-	transporter.Handle(readChan,writeChan,stopChan)
+	conn :=  &Client{client_id:client_id,transporter:transporter,stopChan:stopChan,funcsCodecType:funcsCodecType}
+	conn.readChan=make(chan []byte,maxConcurrentRequest)
+	conn.writeChan= make(chan []byte,maxConcurrentRequest)
+	conn.idgenerator=idgenerator
+	conn.errCntChan=errCntChan
+	conn.timeout=DefaultClientTimeout
+	conn.maxErrPerSecond=DefaultClientMaxErrPerSecond
+	conn.maxErrHearbeat=DefaultClientMaxErrHearbeat
+	conn.transporter.Handle(conn.readChan,conn.writeChan,conn.stopChan)
 	go func() {
-		select {
-		case <-conn.stopChan:
-			defer conn.Close()
-			close(writeChan)
-			close(readChan)
-			close(stopChan)
+		for{
+			select {
+			case <-conn.stopChan:
+				//defer conn.Close()
+				//close(conn.writeChan)
+				//close(conn.readChan)
+				//close(stopChan)
+				//close(errCntChan)
+				//fmt.Println("<-conn.stopChan")
+				conn.Close()
+
+			}
+		}
+
+	}()
+	go func() {
+		for c :=range conn.errCntChan{
+			conn.errCnt+=c
 		}
 	}()
-	conn.concurrent=NewConcurrent(maxConcurrentRequest,readChan,writeChan)
+	go func() {
+		time.Sleep(time.Millisecond*time.Duration(rand.Int63n(800)))
+		ticker:=time.NewTicker(time.Second)
+		heartbeat:=time.NewTicker(time.Second*DefaultClientHearbeatTicker)
+		for{
+			select {
+			case <-heartbeat.C:
+				if conn.closed==true{
+					conn.Close()
+					err:=conn.transporter.Retry()
+					if err!=nil{
+						conn.hystrix=true
+						log.Errorln(conn.client_id,"retry connection err ",err)
+					}else {
+						conn.closed=false
+						conn.errHearbeat=0
+						conn.hystrix=false
+						conn.concurrent.retry()
+					}
+				}
+			case <-ticker.C:
+				if conn.errCnt>DefaultClientMaxErrPerSecond{
+					conn.hystrix=true
+					conn.Close()
+				}else {
+					conn.hystrix=false
+				}
+				conn.errCnt-=conn.errCnt
+			}
+		}
+	}()
+	conn.concurrent=NewConcurrent(maxConcurrentRequest,conn.readChan,conn.writeChan,conn)
 	return conn, nil
 }
 func (c *Client)EnabledBatch(){
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.batchEnabled = true
-	c.batch=NewBatch(c,DefultMaxDelayNanoSecond*c.transporter.TickerFactor())
-	c.batch.SetMaxBatchRequest(DefultMaxBatchRequest*c.transporter.BatchFactor())
+	c.batch=NewBatch(c,DefaultMaxDelayNanoSecond*c.transporter.TickerFactor())
+	c.batch.SetMaxBatchRequest(DefaultMaxBatchRequest*c.transporter.BatchFactor())
 
 }
 func (c *Client)SetID(id int64)error{
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if id<0{
-		return errors.New("0<=ClientID<=1023")
+		return ErrSetClientID
 	}else if id>1023{
-		return errors.New("0<=ClientID<=1023")
+		return ErrSetClientID
 	}
 	c.client_id=id
 	c.idgenerator=idgenerator.NewSnowFlake(id)
@@ -71,6 +129,34 @@ func (c *Client)GetID()int64{
 	defer c.mu.Unlock()
 	return c.client_id
 }
+func (c *Client)SetTimeout(timeout int64)error{
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if timeout<=0{
+		return ErrSetTimeout
+	}
+	c.timeout=timeout
+	return nil
+}
+func (c *Client)GetTimeout()int64{
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.timeout
+}
+func (c *Client)SetMaxErrPerSecond(maxErrPerSecond int)error{
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if maxErrPerSecond<=0{
+		return ErrSetMaxErrPerSecond
+	}
+	c.maxErrPerSecond=maxErrPerSecond
+	return nil
+}
+func (c *Client)GetMaxErrPerSecond()int{
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.maxErrPerSecond
+}
 func (c *Client)GetMaxBatchRequest()int {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -79,10 +165,14 @@ func (c *Client)GetMaxBatchRequest()int {
 func (c *Client)GetMaxConcurrentRequest()(int){
 	return c.concurrent.GetMaxConcurrentRequest()
 }
-func (c *Client)SetMaxBatchRequest(maxBatchRequest int) {
+func (c *Client)SetMaxBatchRequest(maxBatchRequest int)error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if maxBatchRequest<=0{
+		return ErrSetMaxBatchRequest
+	}
 	c.batch.SetMaxBatchRequest(maxBatchRequest)
+	return nil
 }
 func (c *Client)CodecName()string {
 	return FuncsCodecName(c.funcsCodecType)
@@ -93,24 +183,46 @@ func (c *Client)CodecType()CodecType {
 func (c *Client)Call(name string, args interface{}, reply interface{}) ( err error) {
 	defer func() {
 		if err := recover(); err != nil {
-			Panicln("Call failed:", err)
+			log.Errorln("Call failed:", err)
 		}
 	}()
-	if c.batchEnabled{
-		return c.batchCall(name,args,reply)
+	if c.hystrix{
+		return ErrHystrix
 	}
-	return c.call(name,args,reply)
+	if c.batchEnabled{
+		err=c.batchCall(name,args,reply)
+		if err!=nil{
+			c.errCntChan<-1
+		}
+		return
+	}
+	err= c.call(name,args,reply)
+	if err!=nil{
+		c.errCntChan<-1
+	}
+	return
 }
 func (c *Client)CallNoResponse(name string, args interface{}) ( err error) {
 	defer func() {
 		if err := recover(); err != nil {
-			Errorln("Call failed:", err)
+			log.Errorln("CallNoResponse failed:", err)
 		}
 	}()
-	if c.batchEnabled{
-		return c.batchCallNoResponse(name,args)
+	if c.hystrix{
+		return ErrHystrix
 	}
-	return c.callNoResponse(name,args)
+	if c.batchEnabled{
+		err= c.batchCallNoResponse(name,args)
+		if err!=nil{
+			c.errCntChan<-1
+		}
+		return
+	}
+	err= c.callNoResponse(name,args)
+	if err!=nil{
+		c.errCntChan<-1
+	}
+	return
 }
 func (c *Client)RemoteCall(b []byte)([]byte,error){
 	cbChan := make(chan []byte,1)
@@ -119,7 +231,7 @@ func (c *Client)RemoteCall(b []byte)([]byte,error){
 	if ok{
 		return data,nil
 	}
-	return nil,errors.New("c.readChan is close")
+	return nil,ErrRemoteCall
 }
 func (c *Client)RemoteCallNoResponse(b []byte)(error){
 	c.concurrent.concurrentChan<-NewConcurrentRequest(b,nil)
@@ -132,6 +244,9 @@ func (c *Client)Close() ( err error) {
 	c.closed = true
 	return c.transporter.Close()
 }
+func (c *Client)Closed()bool{
+	return c.closed
+}
 func (c *Client)call(name string, args interface{}, reply interface{}) ( err error) {
 	clientCodec:=&ClientCodec{}
 	clientCodec.client_id=c.client_id
@@ -141,13 +256,27 @@ func (c *Client)call(name string, args interface{}, reply interface{}) ( err err
 	clientCodec.noResponse=false
 	clientCodec.funcsCodecType=c.funcsCodecType
 	rpc_req_bytes, _ :=clientCodec.Encode()
-	data,err:=c.RemoteCall(rpc_req_bytes)
-	if err != nil {
-		Errorln("Write error: ", err)
-		return err
+	ch := make(chan int)
+	go func() {
+		data,err:=c.RemoteCall(rpc_req_bytes)
+		if err != nil {
+			log.Errorln("Write error: ", err)
+			return
+		}
+		clientCodec.reply=reply
+		err=clientCodec.Decode(data)
+		if clientCodec.res!=nil&&err==nil{
+			if clientCodec.res.err==nil{
+				ch<-1
+			}
+		}
+	}()
+	select {
+	case <-ch:
+	case <-time.After(time.Second * time.Duration(c.timeout)):
+		err=ErrTimeOut
 	}
-	clientCodec.reply=reply
-	return clientCodec.Decode(data)
+	return err
 }
 
 func (c *Client)batchCall(name string, args interface{}, reply interface{}) ( err error) {
@@ -155,7 +284,7 @@ func (c *Client)batchCall(name string, args interface{}, reply interface{}) ( er
 	reply_error := make(chan error, 1)
 	args_bytes,err:=ArgsEncode(args,c.funcsCodecType)
 	if err!=nil{
-		Errorln("ArgsEncode error: ", err)
+		log.Errorln("ArgsEncode error: ", err)
 	}
 	cr:=&BatchRequest{
 		id:uint64(c.idgenerator.GenUniqueIDInt64()),
@@ -175,10 +304,10 @@ func (c *Client)batchCall(name string, args interface{}, reply interface{}) ( er
 		if ok{
 			return err
 		}
-	case <-time.After(time.Second * 60):
+	case <-time.After(time.Second * time.Duration(c.timeout)):
 		close(reply_bytes)
 		close(reply_error)
-		return errors.New("time out")
+		return ErrTimeOut
 	}
 	return nil
 }
@@ -193,7 +322,7 @@ func (c *Client)callNoResponse(name string, args interface{}) ( err error) {
 	rpc_req_bytes, _ :=clientCodec.Encode()
 	err=c.RemoteCallNoResponse(rpc_req_bytes)
 	if err != nil {
-		Errorln("Write error: ", err)
+		log.Errorln("Write error: ", err)
 		return err
 	}
 	return nil
@@ -201,7 +330,7 @@ func (c *Client)callNoResponse(name string, args interface{}) ( err error) {
 func (c *Client)batchCallNoResponse(name string, args interface{}) ( err error) {
 	args_bytes,err:=ArgsEncode(args,c.funcsCodecType)
 	if err!=nil{
-		Errorln("ArgsEncode error: ", err)
+		log.Errorln("ArgsEncode error: ", err)
 	}
 	cr:=&BatchRequest{
 		id:uint64(c.idgenerator.GenUniqueIDInt64()),

@@ -15,9 +15,9 @@ func HandleFASTHTTP(fastclient *fasthttp.Client,address string,readChan chan []b
 	readMessageChan := make(chan *Message,WindowSize)
 	idChan := make(chan uint16,WindowSize)
 	queueMsg:=&QueueMsg{
-		m:make(map[uint16]*Notice),
-		queue:make([]uint16,0),
-		pop:make(chan *Notice,WindowSize),
+		M:make(map[uint16]*Notice),
+		Queue:make([]uint16,0),
+		Pop:make(chan *Notice,WindowSize),
 	}
 	var startbit =uint(rand.Intn(13))
 	var id =uint16(rand.Int31n(int32(1<<startbit)))
@@ -39,12 +39,12 @@ func HandleFASTHTTP(fastclient *fasthttp.Client,address string,readChan chan []b
 	go func(idChan chan uint16,queueMsg *QueueMsg,readChan chan []byte) {
 		for{
 			select {
-			case old_notice,ok := <-queueMsg.pop:
+			case old_notice,ok := <-queueMsg.Pop:
 				if ok{
-					if old_notice.recvmsg.oprationType==OprationTypeData{
-						readChan<-old_notice.recvmsg.message
+					if old_notice.Recvmsg.oprationType==OprationTypeData{
+						readChan<-old_notice.Recvmsg.message
 						<-idChan
-					}else if old_notice.recvmsg.oprationType==OprationTypeAck{
+					}else if old_notice.Recvmsg.oprationType==OprationTypeAck{
 						<-idChan
 					}
 					queueMsg.Check()
@@ -61,14 +61,13 @@ func HandleFASTHTTP(fastclient *fasthttp.Client,address string,readChan chan []b
 			id=1
 		}
 		idChan<-id
-		notice:=&Notice{id,nil,nil}
+		notice:=&Notice{Id:id,}
 		queueMsg.Push(notice)
 		msg:=&Message{OprationTypeData,id,send_data}
 		go func(fastclient *fasthttp.Client,address string,msg *Message) {
-			retry:=64
-			for i:=0;i<retry;i++ {
+			for {
 				req := &fasthttp.Request{}
-				req.Header.SetMethod("POST")
+				req.Header.SetMethod("PUT")
 				req.SetBody(msg.message)
 				u := url.URL{Scheme: "http", Host: address, Path: "/"}
 				req.SetRequestURI(u.String())
@@ -90,9 +89,9 @@ func HandleFASTHTTP(fastclient *fasthttp.Client,address string,readChan chan []b
 	}
 	close(readMessageChan)
 	close(idChan)
-	close(queueMsg.pop)
-	queueMsg.queue=nil
-	queueMsg.m=nil
+	close(queueMsg.Pop)
+	queueMsg.Queue=nil
+	queueMsg.M=nil
 	queueMsg=nil
 }
 

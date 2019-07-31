@@ -63,6 +63,24 @@ func WriteStream(writer io.Writer, writeChan chan []byte, stopChan chan bool) {
 		_, err := writer.Write(dataPacket)
 		if err != nil {
 			stopChan <- true
+			goto endfor
 		}
 	}
+endfor:
+}
+
+func WriteStream1(writer io.Writer, writeChan chan []byte, stopChan chan []byte) {
+	defer func() {
+		if err := recover(); err != nil {
+		}
+	}()
+	for send_data:= range writeChan{
+		dataPacket:=PacketStream(send_data)
+		_, err := writer.Write(dataPacket)
+		if err != nil {
+			stopChan <- send_data
+			goto endfor
+		}
+	}
+endfor:
 }

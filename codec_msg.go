@@ -5,6 +5,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"errors"
 	"hslam.com/mgit/Mort/rpc/pb"
+	"hslam.com/mgit/Mort/rpc/log"
 )
 
 const (
@@ -65,9 +66,14 @@ func (m *Msg)Encode() ([]byte, error) {
 	case RPC_CODEC_ME:
 		return m.data,nil
 	case RPC_CODEC_PROTOBUF:
-		msg:=pb.Msg{Version:Version,Id:m.id,MsgType:pb.MsgType(m.msgType),Batch:m.batch,Data:m.data,CodecType:int32(m.codecType)}
+		var msg pb.Msg
+		if m.msgType==MsgType(pb.MsgType_req)||m.msgType==MsgType(pb.MsgType_res){
+			msg=pb.Msg{Version:Version,Id:m.id,MsgType:pb.MsgType(m.msgType),Batch:m.batch,Data:m.data,CodecType:int32(m.codecType)}
+		}else if m.msgType==MsgType(pb.MsgType_hea) {
+			msg=pb.Msg{Version:Version,Id:m.id,MsgType:pb.MsgType(m.msgType)}
+		}
 		if data,err:=proto.Marshal(&msg);err!=nil{
-			Errorln("MsgEncode proto.Unmarshal error: ", err)
+			log.Errorln("MsgEncode proto.Unmarshal error: ", err)
 			return nil,err
 		}else {
 			return data,nil
@@ -89,19 +95,18 @@ func (m *Msg)Decode(b []byte)(error) {
 	case RPC_CODEC_PROTOBUF:
 		var msg pb.Msg
 		if err := proto.Unmarshal(b, &msg); err != nil {
-			Errorln("MsgDecode proto.Unmarshal error: ", err)
+			log.Errorln("MsgDecode proto.Unmarshal error: ", err)
 			return err
 		}
+		m.version=msg.Version
+		m.id=msg.Id
+		m.msgType=MsgType(msg.MsgType)
 		if msg.MsgType==pb.MsgType_req||msg.MsgType==pb.MsgType_res{
-			m.version=msg.Version
-			m.id=msg.Id
 			m.data=msg.Data
 			m.batch=msg.Batch
-			m.msgType=MsgType(msg.MsgType)
 			m.codecType=CodecType(msg.CodecType)
-			return nil
 		}
-		return errors.New("this data is not MsgType_req")
+		return nil
 	default:
 		return errors.New("this mrpc_serialize is not supported")
 	}

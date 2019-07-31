@@ -33,7 +33,7 @@ var clients int
 
 func init()  {
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	flag.StringVar(&network, "network", "tcp", "network: -network=fast|ws|tcp|quic|udp")
+	flag.StringVar(&network, "network", "fast", "network: -network=fast|ws|tcp|quic|udp")
 	flag.StringVar(&codec, "codec", "pb", "codec: -codec=pb|json|xml")
 	flag.BoolVar(&debug, "debug", false, "debug: -debug=false")
 	flag.IntVar(&debug_port, "dp", 6060, "debug_port: -dp=6060")
@@ -41,10 +41,10 @@ func init()  {
 	flag.IntVar(&port, "p", 9999, "port: -p=9999")
 	flag.BoolVar(&log_once, "log_once", false, "log_once: -log_once=false")
 	flag.Int64Var(&run_time_second, "ts", 180, "run_time_second: -ts=60")
-	flag.BoolVar(&batch, "batch", true, "batch: -batch=false")
-	flag.BoolVar(&concurrent, "concurrent", true, "concurrent: -concurrent=false")
-	flag.BoolVar(&noresponse, "noresponse", true, "noresponse: -noresponse=false")
-	flag.IntVar(&clients, "clients", 2, "num: -clients=1")
+	flag.BoolVar(&batch, "batch", false, "batch: -batch=false")
+	flag.BoolVar(&concurrent, "concurrent", false, "concurrent: -concurrent=false")
+	flag.BoolVar(&noresponse, "noresponse", false, "noresponse: -noresponse=false")
+	flag.IntVar(&clients, "clients", 1, "num: -clients=1")
 	log.SetFlags(0)
 	flag.Parse()
 	addr=host+":"+strconv.Itoa(port)
@@ -80,7 +80,7 @@ func main()  {
 	}
 	for i:=1;i<int(run_time_second);i++ {
 		time.Sleep(time.Second)
-		fmt.Println(i,count/i)
+		fmt.Println(i,count/i,count)
 	}
 	time.Sleep(time.Second*3)
 	fmt.Println(count/int(run_time_second),int(run_time_second*1000000000)/count)
@@ -92,13 +92,13 @@ func run(conn rpc.Conn)  {
 	if log_once{
 		err = conn.Call("Arith.Multiply", req, &res) // 乘法运算
 		if err != nil {
-			log.Fatalln("arith error: ", err)
+			fmt.Println("arith error: ", err)
 		}
 		fmt.Printf("%d * %d = %d\n", req.A, req.B, res.Pro)
 
 		err = conn.Call("Arith.Divide", req, &res)
 		if err != nil {
-			log.Fatalln("arith error: ", err)
+			fmt.Println("arith error: ", err)
 		}
 		fmt.Printf("%d / %d, quo is %d, rem is %d\n", req.A, req.B, res.Quo, res.Rem)
 	}
@@ -125,19 +125,19 @@ func work(conn rpc.Conn, countchan chan int) {
 		B:= rand.Int31n(100)
 		req := &service.ArithRequest{A:A,B:B}
 		if noresponse{
-			err = conn.CallNoResponse("Arith.Multiply", req) // 乘法运算
+			conn.CallNoResponse("Arith.Multiply", req) // 乘法运算
 			countchan<-1
 		}else {
 			var res service.ArithResponse
-			err = conn.Call("Arith.Multiply", req, &res) // 乘法运算
+			err=conn.Call("Arith.Multiply", req, &res) // 乘法运算
 			if res.Pro==A*B{
 				countchan<-1
 			}else {
-				fmt.Printf("err %d * %d = %d\n",A,B,res.Pro,)
+				//fmt.Printf("err %d * %d = %d\n",A,B,res.Pro,)
 			}
 		}
 		if err != nil {
-			log.Fatalln("arith error: ", err)
+			fmt.Println("arith error: ", err)
 		}
 		if time.Now().UnixNano()-start_time>run_time_second*1000000000{
 			break

@@ -12,12 +12,17 @@ type Conn interface {
 	EnabledBatch()
 	GetMaxConcurrentRequest()(int)
 	GetMaxBatchRequest()(int)
-	SetMaxBatchRequest(maxConcurrentRequest int)
+	SetMaxBatchRequest(maxConcurrentRequest int)error
 	SetID(id int64)error
 	GetID()int64
+	SetTimeout(timeout int64)error
+	GetTimeout()int64
+	SetMaxErrPerSecond(maxErrPerSecond int)error
+	GetMaxErrPerSecond()int
 	CodecName()(string)
 	CodecType()(CodecType)
 	Close()(error)
+	Closed()bool
 }
 
 func Dial(network,address,codec string) (Conn, error) {

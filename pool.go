@@ -3,6 +3,7 @@ package rpc
 import (
 	"sync"
 	"errors"
+	"hslam.com/mgit/Mort/rpc/log"
 )
 
 type ConnPool chan Conn
@@ -45,14 +46,20 @@ func (p *Pool)GetMaxBatchRequest()int {
 	}
 	return -1
 }
-func (p *Pool)SetMaxBatchRequest(maxBatchRequest int) {
+func (p *Pool)SetMaxBatchRequest(maxBatchRequest int) error{
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	for _,c:= range p.conns{
-		c.SetMaxBatchRequest(maxBatchRequest)
+		err:=c.SetMaxBatchRequest(maxBatchRequest)
+		if err!=nil{
+			return err
+		}
 	}
+	return nil
 }
 func (p *Pool)GetMaxConcurrentRequest()(int){
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	for _,c:= range p.conns{
 		return c.GetMaxConcurrentRequest()
 	}
@@ -64,7 +71,10 @@ func (p *Pool)SetID(id int64)error{
 	var i int64=0
 	p.pool_id=id
 	for _,c:= range p.conns{
-		c.SetID(id+i)
+		err:=c.SetID(id+i)
+		if err!=nil{
+			return err
+		}
 		i++
 	}
 	return nil
@@ -74,13 +84,55 @@ func (p *Pool)GetID()int64{
 	defer p.mu.Unlock()
 	return p.pool_id
 }
+func (p *Pool)SetTimeout(timeout int64)error{
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for _,c:= range p.conns{
+		err:=c.SetTimeout(timeout)
+		if err!=nil{
+			return err
+		}
+	}
+	return nil
+}
+func (p *Pool)GetTimeout()int64{
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for _,c:= range p.conns{
+		return c.GetTimeout()
+	}
+	return -1
+}
+func (p *Pool)SetMaxErrPerSecond(maxErrPerSecond int)error{
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for _,c:= range p.conns{
+		err:=c.SetMaxErrPerSecond(maxErrPerSecond)
+		if err!=nil{
+			return err
+		}
+	}
+	return nil
+}
+func (p *Pool)GetMaxErrPerSecond()int{
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for _,c:= range p.conns{
+		return c.GetMaxErrPerSecond()
+	}
+	return -1
+}
 func (p *Pool)CodecName()string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	for _,c:= range p.conns{
 		return c.CodecName()
 	}
 	return ""
 }
 func (p *Pool)CodecType()CodecType {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	for _,c:= range p.conns{
 		return c.CodecType()
 	}
@@ -89,7 +141,7 @@ func (p *Pool)CodecType()CodecType {
 func (p *Pool)Call(name string, args interface{}, reply interface{}) ( err error) {
 	defer func() {
 		if err := recover(); err != nil {
-			Panicln("Call failed:", err)
+			log.Errorln("Call failed:", err)
 		}
 	}()
 	c:=<-p.connPool
@@ -101,7 +153,7 @@ func (p *Pool)Call(name string, args interface{}, reply interface{}) ( err error
 func (p *Pool)CallNoResponse(name string, args interface{}) ( err error) {
 	defer func() {
 		if err := recover(); err != nil {
-			Panicln("Call failed:", err)
+			log.Errorln("Call failed:", err)
 		}
 	}()
 	c:=<-p.connPool
@@ -121,4 +173,10 @@ func (p *Pool)Close() ( err error) {
 		err=c.Close()
 	}
 	return err
+}
+func (p *Pool)Closed()bool {
+	for _,c:= range p.conns{
+		return c.Closed()
+	}
+	return false
 }

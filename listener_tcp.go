@@ -4,6 +4,7 @@ import (
 	"net"
 	"sync"
 	"hslam.com/mgit/Mort/rpc/protocol"
+	"hslam.com/mgit/Mort/rpc/log"
 )
 
 type TCPListener struct {
@@ -14,20 +15,20 @@ type TCPListener struct {
 func ListenTCP(address string) (Listener, error) {
 	lis, err := net.Listen("tcp", address)
 	if err!=nil{
-		Fatalf("fatal error: %s", err)
+		log.Fatalf("fatal error: %s", err)
 	}
 	listener:= &TCPListener{address:address,netListener:lis}
 	return listener,nil
 }
 func (l *TCPListener)Serve() (error) {
-	Allf( "%s", "Waiting for clients")
+	log.Allf( "%s", "Waiting for clients")
 	for {
 		conn, err := l.netListener.Accept()
 		if err != nil {
-			Warnf("Accept: %s", err)
+			log.Warnf("Accept: %s", err)
 			continue
 		}
-		Infof("new client %s comming",conn.RemoteAddr())
+		log.Infof("new client %s comming",conn.RemoteAddr())
 		if useWorkerPool{
 			workerPool.ProcessAsyn( func(obj interface{}, args ...interface{}) interface{} {
 				var c = obj.(net.Conn )
@@ -67,6 +68,6 @@ func ServeTCPConn(conn net.Conn)error {
 		close(writeChan)
 		close(readChan)
 		close(stopChan)
-	Infof("client %s exiting",RemoteAddr)
+	log.Infof("client %s exiting",RemoteAddr)
 	return ErrConnExit
 }

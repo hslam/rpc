@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"github.com/gorilla/websocket"
 	"hslam.com/mgit/Mort/rpc/protocol"
+	"hslam.com/mgit/Mort/rpc/log"
 )
 var (
 	upgrader = websocket.Upgrader{
@@ -23,7 +24,7 @@ type WSListener struct {
 func ListenWS(address string) (Listener, error) {
 	lis, err := net.Listen("tcp", address)
 	if err!=nil{
-		Fatalf("fatal error: %s", err)
+		log.Fatalf("fatal error: %s", err)
 	}
 	var httpServer http.Server
 	httpServer.Addr = address
@@ -31,10 +32,10 @@ func ListenWS(address string) (Listener, error) {
 		r.Header.Del("Origin")
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
-			Warnf("upgrade : %s", err)
+			log.Warnf("upgrade : %s", err)
 			return
 		}
-		Infof("new client %s comming",conn.RemoteAddr())
+		log.Infof("new client %s comming",conn.RemoteAddr())
 		if useWorkerPool{
 			workerPool.Process(func(obj interface{}, args ...interface{}) interface{} {
 				var w = obj.( *websocket.Conn)
@@ -49,10 +50,10 @@ func ListenWS(address string) (Listener, error) {
 	return l,nil
 }
 func (l *WSListener)Serve() (error) {
-	Allf( "%s", "Waiting for clients")
+	log.Allf( "%s", "Waiting for clients")
 	err:=l.httpServer.Serve(l.listener)
 	if err != nil {
-		Fatalf("fatal error: %s", err)
+		log.Fatalf("fatal error: %s", err)
 	}
 	return nil
 }
@@ -85,7 +86,7 @@ endfor:
 	close(writeChan)
 	close(readChan)
 	close(stopChan)
-	Infof("client %s exiting",RemoteAddr)
+	log.Infof("client %s exiting",RemoteAddr)
 	return ErrConnExit
 }
 
