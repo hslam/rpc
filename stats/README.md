@@ -14,6 +14,6 @@ func (c *WrkClient)Call()(int64,bool){
 	parallel:=1
 	total_calls:=1000000
 	wrkClients[0]= &WrkClient{}
-	stats.StartStats(parallel,total_calls,wrkClients)
+	stats.StartClientStats(parallel,total_calls,wrkClients)
 ```
 
