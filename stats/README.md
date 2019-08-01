@@ -3,8 +3,9 @@ type WrkClient struct {
 }
 
 func (c *WrkClient)Call()(int64,bool){
-    //To Do return true
-	return 1024,false
+    //To Do
+    //return 1024,true
+	return 0,false
 }
 ```
 
