@@ -42,7 +42,7 @@ func init()  {
 	flag.BoolVar(&log_once, "log_once", false, "log_once: -log_once=false")
 	flag.Int64Var(&run_time_second, "ts", 180, "run_time_second: -ts=60")
 	flag.BoolVar(&batch, "batch", false, "batch: -batch=false")
-	flag.BoolVar(&concurrent, "concurrent", true, "concurrent: -concurrent=false")
+	flag.BoolVar(&concurrent, "concurrent", false, "concurrent: -concurrent=false")
 	flag.BoolVar(&noresponse, "noresponse", false, "noresponse: -noresponse=false")
 	flag.IntVar(&clients, "clients", 1, "num: -clients=1")
 	log.SetFlags(0)
