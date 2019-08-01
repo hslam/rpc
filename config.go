@@ -54,6 +54,7 @@ var (
 	ErrSetClientID=errors.New("0<=ClientID<=1023")
 	ErrSetTimeout=errors.New("timeout>0")
 	ErrSetMaxErrPerSecond=errors.New("maxErrPerSecond>0")
+	ErrSetMaxErrHeartbeat=errors.New("maxErrHeartbeat>0")
 	ErrSetMaxBatchRequest=errors.New("maxBatchRequest>0")
 	ErrRemoteCall=errors.New("RemoteCall cbChan is close")
 	ErrTimeOut=errors.New("time out")

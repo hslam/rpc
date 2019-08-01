@@ -20,7 +20,8 @@ type Client struct {
 	funcsCodecType 	CodecType
 	idgenerator		*idgenerator.IDGen
 	client_id		int64
-	timeout 	int64
+	timeout 		int64
+	heartbeatTimeout 		int64
 	errCntChan 		chan int
 	errCnt 			int
 	maxErrPerSecond	int
@@ -47,6 +48,7 @@ func NewClientnWithConcurrent(transporter	Transporter,codec string,maxConcurrent
 	conn.errCntChan=errCntChan
 	conn.timeout=DefaultClientTimeout
 	conn.maxErrPerSecond=DefaultClientMaxErrPerSecond
+	conn.heartbeatTimeout=DefaultClientHearbeatTimeout
 	conn.maxErrHeartbeat=DefaultClientMaxErrHearbeat
 	conn.transporter.Handle(conn.readChan,conn.writeChan,conn.stopChan)
 	go func() {
@@ -156,6 +158,21 @@ func (c *Client)GetTimeout()int64{
 	defer c.mu.Unlock()
 	return c.timeout
 }
+
+func (c *Client)SetHeartbeatTimeout(timeout int64)error{
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if timeout<=0{
+		return ErrSetTimeout
+	}
+	c.heartbeatTimeout=timeout
+	return nil
+}
+func (c *Client)GetHeartbeatTimeout()int64{
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.heartbeatTimeout
+}
 func (c *Client)SetMaxErrPerSecond(maxErrPerSecond int)error{
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -169,6 +186,20 @@ func (c *Client)GetMaxErrPerSecond()int{
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.maxErrPerSecond
+}
+func (c *Client)SetMaxErrHeartbeat(maxErrHeartbeat int)error{
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if maxErrHeartbeat<=0{
+		return ErrSetMaxErrHeartbeat
+	}
+	c.maxErrHeartbeat=maxErrHeartbeat
+	return nil
+}
+func (c *Client)GetMaxErrHeartbeat()int{
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.maxErrHeartbeat
 }
 func (c *Client)GetMaxBatchRequest()int {
 	c.mu.Lock()
@@ -318,7 +349,7 @@ func (c *Client)heartbeat() ( err error) {
 	}()
 	select {
 	case <-ch:
-	case <-time.After(time.Second * time.Duration(c.timeout)):
+	case <-time.After(time.Second * time.Duration(c.heartbeatTimeout)):
 		err=ErrTimeOut
 	}
 	return err

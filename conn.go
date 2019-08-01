@@ -17,6 +17,10 @@ type Conn interface {
 	GetID()int64
 	SetTimeout(timeout int64)error
 	GetTimeout()int64
+	SetHeartbeatTimeout(timeout int64)error
+	GetHeartbeatTimeout()int64
+	SetMaxErrHeartbeat(maxErrHeartbeat int)error
+	GetMaxErrHeartbeat()int
 	SetMaxErrPerSecond(maxErrPerSecond int)error
 	GetMaxErrPerSecond()int
 	CodecName()(string)

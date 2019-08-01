@@ -103,6 +103,48 @@ func (p *Pool)GetTimeout()int64{
 	}
 	return -1
 }
+
+func (p *Pool)SetHeartbeatTimeout(timeout int64)error{
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for _,c:= range p.conns{
+		err:=c.SetHeartbeatTimeout(timeout)
+		if err!=nil{
+			return err
+		}
+	}
+	return nil
+}
+func (p *Pool)GetHeartbeatTimeout()int64{
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for _,c:= range p.conns{
+		return c.GetHeartbeatTimeout()
+	}
+	return -1
+}
+
+
+func (p *Pool)SetMaxErrHeartbeat(maxErrHeartbeat int)error{
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for _,c:= range p.conns{
+		err:=c.SetMaxErrHeartbeat(maxErrHeartbeat)
+		if err!=nil{
+			return err
+		}
+	}
+	return nil
+}
+func (p *Pool)GetMaxErrHeartbeat()int{
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for _,c:= range p.conns{
+		return c.GetMaxErrHeartbeat()
+	}
+	return -1
+}
+
 func (p *Pool)SetMaxErrPerSecond(maxErrPerSecond int)error{
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -122,6 +164,7 @@ func (p *Pool)GetMaxErrPerSecond()int{
 	}
 	return -1
 }
+
 func (p *Pool)CodecName()string {
 	p.mu.Lock()
 	defer p.mu.Unlock()
