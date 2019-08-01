@@ -1,4 +1,3 @@
-### go test -v -run="none" -bench=. -benchtime=3s  -benchmem
 ```
 type WrkClient struct {
 }
