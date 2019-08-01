@@ -24,8 +24,6 @@ type Client struct {
 	errCntChan 		chan int
 	errCnt 			int
 	maxErrPerSecond	int
-	maxErrHearbeat	int
-	errHearbeat 	int
 }
 func NewClient(transporter Transporter,codec string)  (*Client, error) {
 	return NewClientnWithConcurrent(transporter,codec,DefaultMaxConcurrentRequest)
@@ -47,7 +45,6 @@ func NewClientnWithConcurrent(transporter	Transporter,codec string,maxConcurrent
 	conn.errCntChan=errCntChan
 	conn.timeout=DefaultClientTimeout
 	conn.maxErrPerSecond=DefaultClientMaxErrPerSecond
-	conn.maxErrHearbeat=DefaultClientMaxErrHearbeat
 	conn.transporter.Handle(conn.readChan,conn.writeChan,conn.stopChan)
 	go func() {
 		for{
@@ -85,7 +82,6 @@ func NewClientnWithConcurrent(transporter	Transporter,codec string,maxConcurrent
 						log.Errorln(conn.client_id,"retry connection err ",err)
 					}else {
 						conn.closed=false
-						conn.errHearbeat=0
 						conn.hystrix=false
 						conn.concurrent.retry()
 					}

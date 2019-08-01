@@ -34,10 +34,9 @@ const (
 	DefaultMaxDelayNanoSecond= 1000
 	DefaultMaxConcurrentRequest=32
 
-	DefaultClientTimeout	=10
+	DefaultClientTimeout	=60
 	DefaultClientMaxErrPerSecond=100
-	DefaultClientMaxErrHearbeat=3
-	DefaultClientHearbeatTicker=3
+	DefaultClientHearbeatTicker=8
 	MsgTypeReq MsgType = 0
 	MsgTypeRes MsgType = 1
 	MsgTypeHea MsgType = 2
