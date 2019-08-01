@@ -3,11 +3,10 @@
 type WrkClient struct {
 }
 
-func (c *WrkClient)Call()bool{
+func (c *WrkClient)Call()(int64,bool){
     //To Do return true
-	return false
+	return 1024,false
 }
-
 ```
 
 ```
