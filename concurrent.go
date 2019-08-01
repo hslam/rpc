@@ -27,8 +27,8 @@ type Concurrent struct {
 func NewConcurrent(maxConcurrentRequest int,readChan  chan []byte,writeChan  chan []byte,conn Conn) *Concurrent {
 	c:= &Concurrent{
 		concurrentChan:make(chan *ConcurrentRequest,maxConcurrentRequest),
-		actionConcurrentChan:make(chan *ConcurrentRequest,maxConcurrentRequest),
-		noResponseConcurrentChan:make(chan *ConcurrentRequest,maxConcurrentRequest),
+		actionConcurrentChan:make(chan *ConcurrentRequest,maxConcurrentRequest*2),
+		noResponseConcurrentChan:make(chan *ConcurrentRequest,maxConcurrentRequest*2),
 		readChan :readChan,
 		writeChan :writeChan,
 		conn:conn,
@@ -55,9 +55,11 @@ func (c *Concurrent)run() {
 				if !c.stop{
 					c.writeChan<-cr.data
 					if cr.cbChan!=nil{
-						c.actionConcurrentChan<-cr
+						if len(c.actionConcurrentChan)<=c.maxConcurrentRequest{
+							c.actionConcurrentChan<-cr
+						}
 					}else {
-						if len(c.noResponseConcurrentChan)==c.maxConcurrentRequest{
+						if len(c.noResponseConcurrentChan)>=c.maxConcurrentRequest{
 							<-c.noResponseConcurrentChan
 						}
 						c.noResponseConcurrentChan<-cr
@@ -89,6 +91,7 @@ func (c *Concurrent)retry() {
 		for i:=0;i<len(c.noResponseConcurrentChan);i++{
 			cr:=<-c.noResponseConcurrentChan
 			c.writeChan<-cr.data
+			c.noResponseConcurrentChan<-cr
 		}
 	}
 	if len(c.actionConcurrentChan)>0{

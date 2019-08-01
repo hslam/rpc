@@ -83,7 +83,7 @@ func (m *Msg)Encode() ([]byte, error) {
 }
 func (m *Msg)Decode(b []byte)(error) {
 	m.version=-1
-	m.id=0
+	m.id=-1
 	m.data=nil
 	m.batch=false
 	m.codecType=FUNCS_CODEC_INVALID

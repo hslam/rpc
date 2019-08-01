@@ -1,7 +1,6 @@
 package rpc
 
 import (
-	"hslam.com/mgit/Mort/rpc/pb"
 	"fmt"
 	"hslam.com/mgit/Mort/rpc/log"
 )
@@ -31,7 +30,7 @@ func(c *ClientCodec)Encode() ([]byte, error)  {
 	msg.id=c.client_id
 	msg.data=req_bytes
 	msg.batch=false
-	msg.msgType=MsgType(pb.MsgType_req)
+	msg.msgType=MsgType(MsgTypeReq)
 	msg.codecType=c.funcsCodecType
 	return msg.Encode()
 }
@@ -40,7 +39,7 @@ func (c *ClientCodec)Decode(b []byte) error  {
 	var req_id =c.req_id
 	msg:=&Msg{}
 	err:=msg.Decode(b)
-	if msg.msgType==MsgType(pb.MsgType_res){
+	if msg.msgType==MsgType(MsgTypeRes){
 		res:=&Response{}
 		err=res.Decode(msg.data)
 		if err!=nil{
@@ -58,7 +57,7 @@ func (c *ClientCodec)Decode(b []byte) error  {
 			return ErrReqId
 		}
 
-	}else if msg.msgType==MsgType(pb.MsgType_hea){
+	}else if msg.msgType==MsgType(MsgTypeHea){
 		return nil
 	}
 	return nil

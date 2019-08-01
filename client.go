@@ -24,6 +24,8 @@ type Client struct {
 	errCntChan 		chan int
 	errCnt 			int
 	maxErrPerSecond	int
+	maxErrHeartbeat	int
+	errCntHeartbeat	int
 }
 func NewClient(transporter Transporter,codec string)  (*Client, error) {
 	return NewClientnWithConcurrent(transporter,codec,DefaultMaxConcurrentRequest)
@@ -45,6 +47,7 @@ func NewClientnWithConcurrent(transporter	Transporter,codec string,maxConcurrent
 	conn.errCntChan=errCntChan
 	conn.timeout=DefaultClientTimeout
 	conn.maxErrPerSecond=DefaultClientMaxErrPerSecond
+	conn.maxErrHeartbeat=DefaultClientMaxErrHearbeat
 	conn.transporter.Handle(conn.readChan,conn.writeChan,conn.stopChan)
 	go func() {
 		defer func() {
@@ -70,10 +73,24 @@ func NewClientnWithConcurrent(transporter	Transporter,codec string,maxConcurrent
 	go func() {
 		time.Sleep(time.Millisecond*time.Duration(rand.Int63n(800)))
 		ticker:=time.NewTicker(time.Second)
-		heartbeat:=time.NewTicker(time.Second*DefaultClientHearbeatTicker)
+		heartbeatTicker:=time.NewTicker(time.Second*DefaultClientHearbeatTicker)
+		retryTicker:=time.NewTicker(time.Second*DefaultClientRetryTicker)
+
 		for{
 			select {
-			case <-heartbeat.C:
+			case <-heartbeatTicker.C:
+				if conn.closed==false{
+					err:=conn.heartbeat()
+					if err!=nil{
+						conn.errCntHeartbeat+=1
+					}else {
+					}
+					if conn.errCntHeartbeat>=conn.maxErrHeartbeat{
+						conn.Close()
+						conn.errCntHeartbeat=0
+					}
+				}
+			case <-retryTicker.C:
 				if conn.closed==true{
 					conn.Close()
 					err:=conn.transporter.Retry()
@@ -87,7 +104,7 @@ func NewClientnWithConcurrent(transporter	Transporter,codec string,maxConcurrent
 					}
 				}
 			case <-ticker.C:
-				if conn.errCnt>DefaultClientMaxErrPerSecond{
+				if conn.errCnt>=DefaultClientMaxErrPerSecond{
 					conn.hystrix=true
 					conn.Close()
 				}else {
@@ -159,7 +176,7 @@ func (c *Client)GetMaxBatchRequest()int {
 	return c.batch.GetMaxBatchRequest()
 }
 func (c *Client)GetMaxConcurrentRequest()(int){
-	return c.concurrent.GetMaxConcurrentRequest()
+	return c.concurrent.GetMaxConcurrentRequest()-1
 }
 func (c *Client)SetMaxBatchRequest(maxBatchRequest int)error {
 	c.mu.Lock()
@@ -257,15 +274,17 @@ func (c *Client)call(name string, args interface{}, reply interface{}) ( err err
 		data,err:=c.RemoteCall(rpc_req_bytes)
 		if err != nil {
 			log.Errorln("Write error: ", err)
+			ch<-1
 			return
 		}
 		clientCodec.reply=reply
 		err=clientCodec.Decode(data)
 		if clientCodec.res!=nil&&err==nil{
-			if clientCodec.res.err==nil{
-				ch<-1
+			if clientCodec.res.err!=nil{
+				err=clientCodec.res.err
 			}
 		}
+		ch<-1
 	}()
 	select {
 	case <-ch:
@@ -274,7 +293,36 @@ func (c *Client)call(name string, args interface{}, reply interface{}) ( err err
 	}
 	return err
 }
-
+func (c *Client)heartbeat() ( err error) {
+	uid:=c.idgenerator.GenUniqueIDInt64()
+	msg:=&Msg{}
+	msg.id=uid
+	msg.msgType=MsgType(MsgTypeHea)
+	msg_bytes, _ :=msg.Encode()
+	ch := make(chan int)
+	go func() {
+		data,err:=c.RemoteCall(msg_bytes)
+		if err != nil {
+			log.Errorln("Write error: ", err)
+			ch<-1
+			return
+		}
+		err=msg.Decode(data)
+		if err==nil{
+			if msg.id!=uid{
+				err=ErrClientId
+			}
+		}
+		ch<-1
+		return
+	}()
+	select {
+	case <-ch:
+	case <-time.After(time.Second * time.Duration(c.timeout)):
+		err=ErrTimeOut
+	}
+	return err
+}
 func (c *Client)batchCall(name string, args interface{}, reply interface{}) ( err error) {
 	reply_bytes := make(chan []byte, 1)
 	reply_error := make(chan error, 1)

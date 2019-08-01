@@ -32,11 +32,14 @@ const (
 	DefaultMaxCacheRequest	= 1024
 	DefaultMaxBatchRequest	= 8
 	DefaultMaxDelayNanoSecond= 1000
-	DefaultMaxConcurrentRequest=32
+	DefaultMaxConcurrentRequest=33
 
 	DefaultClientTimeout	=60
 	DefaultClientMaxErrPerSecond=1000
-	DefaultClientHearbeatTicker=8
+	DefaultClientHearbeatTicker=60
+	DefaultClientHearbeatTimeout	=60
+	DefaultClientMaxErrHearbeat=5
+	DefaultClientRetryTicker=10
 	MsgTypeReq MsgType = 0
 	MsgTypeRes MsgType = 1
 	MsgTypeHea MsgType = 2
@@ -55,6 +58,7 @@ var (
 	ErrRemoteCall=errors.New("RemoteCall cbChan is close")
 	ErrTimeOut=errors.New("time out")
 	ErrReqId=errors.New("req_id err")
+	ErrClientId=errors.New("client_id err")
 
 )
 
