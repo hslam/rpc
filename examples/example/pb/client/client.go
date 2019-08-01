@@ -42,7 +42,7 @@ func init()  {
 	flag.BoolVar(&log_once, "log_once", false, "log_once: -log_once=false")
 	flag.Int64Var(&run_time_second, "ts", 180, "run_time_second: -ts=60")
 	flag.BoolVar(&batch, "batch", false, "batch: -batch=false")
-	flag.BoolVar(&concurrent, "concurrent", false, "concurrent: -concurrent=false")
+	flag.BoolVar(&concurrent, "concurrent", true, "concurrent: -concurrent=false")
 	flag.BoolVar(&noresponse, "noresponse", false, "noresponse: -noresponse=false")
 	flag.IntVar(&clients, "clients", 1, "num: -clients=1")
 	log.SetFlags(0)
@@ -121,8 +121,8 @@ func work(conn rpc.Conn, countchan chan int) {
 	start_time:=time.Now().UnixNano()
 	var err error
 	for{
-		A:= rand.Int31n(100)
-		B:= rand.Int31n(100)
+		A:= rand.Int31n(1000)
+		B:= rand.Int31n(1000)
 		req := &service.ArithRequest{A:A,B:B}
 		if noresponse{
 			conn.CallNoResponse("Arith.Multiply", req) // 乘法运算
@@ -133,7 +133,7 @@ func work(conn rpc.Conn, countchan chan int) {
 			if res.Pro==A*B{
 				countchan<-1
 			}else {
-				//fmt.Printf("err %d * %d = %d\n",A,B,res.Pro,)
+				fmt.Printf("err %d * %d = %d\n",A,B,res.Pro,)
 			}
 		}
 		if err != nil {

@@ -47,17 +47,17 @@ func NewClientnWithConcurrent(transporter	Transporter,codec string,maxConcurrent
 	conn.maxErrPerSecond=DefaultClientMaxErrPerSecond
 	conn.transporter.Handle(conn.readChan,conn.writeChan,conn.stopChan)
 	go func() {
+		defer func() {
+			defer conn.Close()
+			close(conn.writeChan)
+			close(conn.readChan)
+			close(stopChan)
+			close(errCntChan)
+		}()
 		for{
 			select {
 			case <-conn.stopChan:
-				//defer conn.Close()
-				//close(conn.writeChan)
-				//close(conn.readChan)
-				//close(stopChan)
-				//close(errCntChan)
-				//fmt.Println("<-conn.stopChan")
 				conn.Close()
-
 			}
 		}
 

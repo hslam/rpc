@@ -86,8 +86,8 @@ type WrkClient struct {
 
 func (c *WrkClient)Call()(int64,bool){
 	var err error
-	A:= rand.Int31n(100)
-	B:= rand.Int31n(100)
+	A:= rand.Int31n(1000)
+	B:= rand.Int31n(1000)
 	req := &service.ArithRequest{A:A,B:B}
 	if noresponse{
 		err = c.Conn.CallNoResponse("Arith.Multiply", req) // 乘法运算

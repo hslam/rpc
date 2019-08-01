@@ -121,8 +121,8 @@ func work(conn rpc.Conn, countchan chan int) {
 	start_time:=time.Now().UnixNano()
 	var err error
 	for{
-		A:= rand.Int31n(100)
-		B:= rand.Int31n(100)
+		A:= rand.Int31n(1000)
+		B:= rand.Int31n(1000)
 		req := &service.ArithRequest{A:A,B:B}
 		if noresponse{
 			err = conn.CallNoResponse("Arith.Multiply", req) // 乘法运算

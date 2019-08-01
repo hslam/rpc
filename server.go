@@ -60,7 +60,7 @@ func ServeRPC(b []byte) (bool,[]byte,error) {
 func (s *Server)ServeRPC(b []byte) (bool,[]byte,error) {
 	defer func() {
 		if err := recover(); err != nil {
-			log.Panicf("CallService error: %s", err)
+			log.Errorf("CallService error: %s", err)
 		}
 	}()
 
