@@ -29,7 +29,7 @@ type Client struct {
 	errCntHeartbeat	int
 }
 func NewClient(transporter Transporter,codec string)  (*Client, error) {
-	return NewClientnWithConcurrent(transporter,codec,DefaultMaxConcurrentRequest)
+	return NewClientnWithConcurrent(transporter,codec,DefaultMaxConcurrentRequest+1)
 }
 func NewClientnWithConcurrent(transporter	Transporter,codec string,maxConcurrentRequest int)  (*Client, error)  {
 	funcsCodecType,err:=FuncsCodecType(codec)
@@ -86,6 +86,10 @@ func NewClientnWithConcurrent(transporter	Transporter,codec string,maxConcurrent
 					if err!=nil{
 						conn.errCntHeartbeat+=1
 					}else {
+						conn.errCntHeartbeat-=1
+						if conn.errCntHeartbeat<0{
+							conn.errCntHeartbeat=0
+						}
 					}
 					if conn.errCntHeartbeat>=conn.maxErrHeartbeat{
 						conn.Close()
