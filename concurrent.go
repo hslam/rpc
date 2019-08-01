@@ -15,6 +15,8 @@ type Concurrent struct {
 	mut sync.Mutex
 	concurrentChan chan *ConcurrentRequest
 	actionConcurrentChan chan *ConcurrentRequest
+	noResponseConcurrentChan chan *ConcurrentRequest
+
 	readChan chan []byte
 	writeChan chan []byte
 	conn Conn
@@ -26,6 +28,7 @@ func NewConcurrent(maxConcurrentRequest int,readChan  chan []byte,writeChan  cha
 	c:= &Concurrent{
 		concurrentChan:make(chan *ConcurrentRequest,maxConcurrentRequest),
 		actionConcurrentChan:make(chan *ConcurrentRequest,maxConcurrentRequest),
+		noResponseConcurrentChan:make(chan *ConcurrentRequest,maxConcurrentRequest),
 		readChan :readChan,
 		writeChan :writeChan,
 		conn:conn,
@@ -53,6 +56,11 @@ func (c *Concurrent)run() {
 					c.writeChan<-cr.data
 					if cr.cbChan!=nil{
 						c.actionConcurrentChan<-cr
+					}else {
+						if len(c.noResponseConcurrentChan)==c.maxConcurrentRequest{
+							<-c.noResponseConcurrentChan
+						}
+						c.noResponseConcurrentChan<-cr
 					}
 					break
 				}
@@ -75,6 +83,12 @@ func (c *Concurrent)retry() {
 	if len(c.writeChan)>0{
 		for i:=0;i<len(c.writeChan);i++{
 			<-c.writeChan
+		}
+	}
+	if len(c.noResponseConcurrentChan)>0{
+		for i:=0;i<len(c.noResponseConcurrentChan);i++{
+			cr:=<-c.noResponseConcurrentChan
+			c.writeChan<-cr.data
 		}
 	}
 	if len(c.actionConcurrentChan)>0{

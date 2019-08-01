@@ -35,7 +35,7 @@ const (
 	DefaultMaxConcurrentRequest=32
 
 	DefaultClientTimeout	=60
-	DefaultClientMaxErrPerSecond=100
+	DefaultClientMaxErrPerSecond=1000
 	DefaultClientHearbeatTicker=8
 	MsgTypeReq MsgType = 0
 	MsgTypeRes MsgType = 1
