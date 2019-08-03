@@ -14,6 +14,7 @@ type Client struct {
 	batchEnabled	bool
 	batch			*Batch
 	concurrent 		*Concurrent
+	concurrentChan	chan bool
 	readChan		chan []byte
 	writeChan		chan []byte
 	stopChan		chan bool
@@ -121,6 +122,7 @@ func NewClientnWithConcurrent(transporter	Transporter,codec string,maxConcurrent
 		}
 	}()
 	conn.concurrent=NewConcurrent(maxConcurrentRequest,conn.readChan,conn.writeChan,conn)
+	conn.concurrentChan = make(chan bool,maxConcurrentRequest)
 	return conn, nil
 }
 func (c *Client)EnabledBatch(){
@@ -273,16 +275,22 @@ func (c *Client)CallNoResponse(name string, args interface{}) ( err error) {
 	return
 }
 func (c *Client)RemoteCall(b []byte)([]byte,error){
+	c.concurrentChan<-true
 	cbChan := make(chan []byte,1)
-	c.concurrent.concurrentChan<-NewConcurrentRequest(b,cbChan)
+	c.concurrent.concurrentChan<-NewConcurrentRequest(b,false,cbChan)
 	data,ok := <-cbChan
+	<-c.concurrentChan
 	if ok{
 		return data,nil
 	}
 	return nil,ErrRemoteCall
 }
 func (c *Client)RemoteCallNoResponse(b []byte)(error){
-	c.concurrent.concurrentChan<-NewConcurrentRequest(b,nil)
+	c.concurrentChan<-true
+	cbChan := make(chan []byte,1)
+	c.concurrent.concurrentChan<-NewConcurrentRequest(b,true,cbChan)
+	<-cbChan
+	<-c.concurrentChan
 	return nil
 }
 func (c *Client)Close() ( err error) {

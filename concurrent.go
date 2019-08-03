@@ -6,8 +6,8 @@ import (
 type ConcurrentChan chan *ConcurrentRequest
 
 type ConcurrentRequest struct {
-	id  uint64
 	data []byte
+	noResponse  bool
 	cbChan chan []byte
 }
 
@@ -37,9 +37,10 @@ func NewConcurrent(maxConcurrentRequest int,readChan  chan []byte,writeChan  cha
 	go c.run()
 	return c
 }
-func NewConcurrentRequest(data []byte,cbChan  chan []byte) *ConcurrentRequest {
+func NewConcurrentRequest(data []byte,noResponse  bool,cbChan  chan []byte) *ConcurrentRequest {
 	c:= &ConcurrentRequest{
 		data:data,
+		noResponse:noResponse,
 		cbChan:cbChan,
 	}
 	return c
@@ -54,7 +55,7 @@ func (c *Concurrent)run() {
 			for {
 				if !c.stop{
 					c.writeChan<-cr.data
-					if cr.cbChan!=nil{
+					if cr.noResponse==false{
 						if len(c.actionConcurrentChan)<=c.maxConcurrentRequest{
 							c.actionConcurrentChan<-cr
 						}
@@ -63,6 +64,7 @@ func (c *Concurrent)run() {
 							<-c.noResponseConcurrentChan
 						}
 						c.noResponseConcurrentChan<-cr
+						cr.cbChan<-[]byte("0")
 					}
 					break
 				}
@@ -98,7 +100,7 @@ func (c *Concurrent)retry() {
 		for i:=0;i<len(c.actionConcurrentChan);i++{
 			cr:=<-c.actionConcurrentChan
 			c.writeChan<-cr.data
-			if cr.cbChan!=nil{
+			if cr.noResponse==false{
 				c.actionConcurrentChan<-cr
 			}
 		}
