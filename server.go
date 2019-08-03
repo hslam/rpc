@@ -113,7 +113,7 @@ func (s *Server)Handler(msg *Msg) ([]byte,bool) {
 		log.Warnln("id-%d  req-%d RequestDecode error: %s ",msg.id, req.id,err)
 		return s.ErrResponseEncode(req.id,err),false
 	}
-	reply_bytes,ok:=s.CallServiceMiddleware(req.id,req.method,req.data,req.noResponse,msg.codecType)
+	data,ok:=s.Middleware(req.id,req.method,req.data,req.noResponse,msg.codecType)
 	if ok{
 		log.AllInfof("id-%d  req-%d CallService %s success",msg.id, req.id,req.method)
 		if req.noResponse==true{
@@ -121,7 +121,7 @@ func (s *Server)Handler(msg *Msg) ([]byte,bool) {
 		}
 		res:=&Response{}
 		res.id=req.id
-		res.data=reply_bytes
+		res.data=data
 		res_bytes,_:=res.Encode()
 		if err!=nil{
 			log.Warnln("id-%d  req-%d ResponseEncode error: %s ",msg.id, req.id, err)
@@ -129,10 +129,10 @@ func (s *Server)Handler(msg *Msg) ([]byte,bool) {
 		}
 		return res_bytes,req.noResponse
 	}
-	return reply_bytes,req.noResponse
+	return data,req.noResponse
 }
 
-func (s *Server)CallServiceMiddleware(id uint64,method string,args_bytes []byte, noResponse bool,funcsCodecType CodecType) ([]byte,bool){
+func (s *Server)Middleware(id uint64,method string,args_bytes []byte, noResponse bool,funcsCodecType CodecType) ([]byte,bool){
 	if s.timeout>0{
 		ch := make(chan int)
 		var (
