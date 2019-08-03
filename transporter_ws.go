@@ -35,8 +35,6 @@ func (t *WSTransporter)Handle(readChan chan []byte,writeChan chan []byte, stopCh
 	t.writeChan=writeChan
 	t.stopChan=stopChan
 	t.handle()
-	//go protocol.ReadConn(t.conn, readChan, stopChan)
-	//go protocol.WriteConn(t.conn, writeChan,stopChan)
 }
 func (t *WSTransporter)handle(){
 	readChan:=make(chan []byte)

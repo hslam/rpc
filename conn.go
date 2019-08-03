@@ -3,6 +3,7 @@ package rpc
 import (
 	"errors"
 )
+
 //Dialer
 type Conn interface {
 	Call(name string, args interface{}, reply interface{}) (error)
