@@ -76,7 +76,10 @@ message ArithResponse {
 }
 ```
 
+### arith.pb.go
+```
 protoc ./arith.proto --go_out=./
+```
 
 ### server.go
 ```go
