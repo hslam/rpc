@@ -113,7 +113,7 @@ func (s *Server)Handler(msg *Msg) ([]byte,bool) {
 		log.Warnln("id-%d  req-%d RequestDecode error: %s ",msg.id, req.id,err)
 		return s.ErrResponseEncode(req.id,err),false
 	}
-	reply_bytes,ok:=s.CallServiceTimeOut(req.id,req.method,req.data,req.noResponse,msg.codecType)
+	reply_bytes,ok:=s.CallServiceMiddleware(req.id,req.method,req.data,req.noResponse,msg.codecType)
 	if ok{
 		log.AllInfof("id-%d  req-%d CallService %s success",msg.id, req.id,req.method)
 		if req.noResponse==true{
@@ -132,7 +132,7 @@ func (s *Server)Handler(msg *Msg) ([]byte,bool) {
 	return reply_bytes,req.noResponse
 }
 
-func (s *Server)CallServiceTimeOut(id uint64,method string,args_bytes []byte, noResponse bool,funcsCodecType CodecType) ([]byte,bool){
+func (s *Server)CallServiceMiddleware(id uint64,method string,args_bytes []byte, noResponse bool,funcsCodecType CodecType) ([]byte,bool){
 	if s.timeout>0{
 		ch := make(chan int)
 		var (
