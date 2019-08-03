@@ -16,6 +16,7 @@ type Request struct {
 func(r *Request)Encode() ([]byte, error)  {
 	switch rpc_codec {
 	case RPC_CODEC_ME:
+		var msg = Msg{}
 		return msg.Serialize(Version,r.method,r.data),nil
 	case RPC_CODEC_PROTOBUF:
 		req:=pb.Request{Id:r.id,Method:r.method,Data:r.data,NoResponse:r.noResponse}
@@ -33,6 +34,7 @@ func(r *Request)Decode(b []byte) (error)  {
 	r.noResponse=false
 	switch rpc_codec {
 	case RPC_CODEC_ME:
+		var msg = Msg{}
 		_,r.method,r.data=msg.Deserialize(b)
 	case RPC_CODEC_PROTOBUF:
 		var rpc_req_decode pb.Request

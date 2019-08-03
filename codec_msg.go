@@ -19,12 +19,12 @@ const (
 
 
 var (
-	msg Msg
+	//msg Msg
 	rpc_codec = RPC_CODEC_PROTOBUF
 )
 
 func init() {
-	msg = Msg{}
+	//msg = Msg{}
 }
 
 //type Msg struct {}

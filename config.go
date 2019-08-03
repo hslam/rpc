@@ -5,6 +5,7 @@ import (
 	"hslam.com/mgit/Mort/rpc/log"
 )
 
+
 type	CodecType	int32
 type	MsgType		int32
 
@@ -34,12 +35,17 @@ const (
 	DefaultMaxDelayNanoSecond= 1000
 	DefaultMaxConcurrentRequest=32
 
-	DefaultClientTimeout	=60
+	DefaultServerTimeout	=-1
+
+
+	DefaultClientTimeout	=60000
+	DefaultClientHearbeatTimeout	=10000
+	DefaultClientHearbeatTicker=10000
+	DefaultClientRetryTicker=10000
+
 	DefaultClientMaxErrPerSecond=1000
-	DefaultClientHearbeatTicker=10
-	DefaultClientHearbeatTimeout	=10
 	DefaultClientMaxErrHearbeat=3
-	DefaultClientRetryTicker=10
+
 	MsgTypeReq MsgType = 0
 	MsgTypeRes MsgType = 1
 	MsgTypeHea MsgType = 2
@@ -52,10 +58,10 @@ var (
 	RPCConnNoResponse=errors.New("RPC NoResponse")
 	ErrHystrix=errors.New("Hystrix")
 	ErrSetClientID=errors.New("0<=ClientID<=1023")
-	ErrSetTimeout=errors.New("timeout>0")
 	ErrSetMaxErrPerSecond=errors.New("maxErrPerSecond>0")
 	ErrSetMaxErrHeartbeat=errors.New("maxErrHeartbeat>0")
 	ErrSetMaxBatchRequest=errors.New("maxBatchRequest>0")
+	ErrSetTimeout=errors.New("timeout>0")
 	ErrRemoteCall=errors.New("RemoteCall cbChan is close")
 	ErrTimeOut=errors.New("time out")
 	ErrReqId=errors.New("req_id err")

@@ -2,10 +2,10 @@ package rpc
 
 import (
 	"hslam.com/mgit/Mort/funcs"
-	"hslam.com/mgit/Mort/rpc/pb"
 	"hslam.com/mgit/Mort/rpc/log"
 	"errors"
 	"fmt"
+	"time"
 )
 
 var DefaultServer = NewServer()
@@ -14,9 +14,10 @@ type Server struct {
 	network string
 	listener Listener
 	Funcs 	*funcs.Funcs
+	timeout int64
 }
 func NewServer() *Server {
-	return &Server{Funcs:funcs.New()}
+	return &Server{Funcs:funcs.New(),timeout:DefaultServerTimeout}
 }
 
 func Register(obj interface{}) error {
@@ -58,12 +59,6 @@ func ServeRPC(b []byte) (bool,[]byte,error) {
 	return DefaultServer.ServeRPC(b)
 }
 func (s *Server)ServeRPC(b []byte) (bool,[]byte,error) {
-	defer func() {
-		if err := recover(); err != nil {
-			log.Errorf("CallService error: %s", err)
-		}
-	}()
-
 	msg:=&Msg{}
 	err:=msg.Decode(b)
 	if err!=nil{
@@ -73,54 +68,44 @@ func (s *Server)ServeRPC(b []byte) (bool,[]byte,error) {
 	if msg.version!=Version{
 		return s.ErrRPCEncode(msg.batch,errors.New("Version is not matched"))
 	}
-	if msg.msgType==MsgType(pb.MsgType_hea){
+	if msg.msgType==MsgType(MsgTypeHea){
 		return true,b,err
 	}
 	var noResponse =false
 	var responseBytes []byte
 	if msg.batch{
-		responseBytes,noResponse=s.BatchHandleRPC(msg)
+		batchCodec:=&BatchCodec{}
+		batchCodec.Decode(msg.data)
+		res_bytes_s:=make([][]byte,len(batchCodec.data))
+		NoResponseCnt:=0
+		for i,v:=range batchCodec.data{
+			msg.data=v
+			res_bytes,nr:=s.Handler(msg)
+			if nr==true{
+				NoResponseCnt++
+				res_bytes_s[i]=[]byte("")
+			}else {
+				res_bytes_s[i]=res_bytes
+			}
+		}
+		if NoResponseCnt==len(batchCodec.data){
+			noResponse=true
+		}else {
+			batchCodec:=&BatchCodec{data:res_bytes_s}
+			responseBytes,_=batchCodec.Encode()
+		}
 	}else{
-		responseBytes,noResponse=s.HandleRPC(msg)
+		responseBytes,noResponse=s.Handler(msg)
 	}
 	if noResponse==true{
 		return true,nil,nil
 	}
 	msg.data=responseBytes
-	msg.msgType=MsgType(pb.MsgType_res)
+	msg.msgType=MsgType(MsgTypeRes)
 	msg_bytes,err:=msg.Encode()
 	return true,msg_bytes,err
 }
 
-func (s *Server)HandleRPC(msg *Msg) ([]byte,bool) {
-	return s.Handler(msg)
-}
-
-func (s *Server)BatchHandleRPC(msg *Msg) ([]byte,bool) {
-	var noResponse =false
-	var responseBytes []byte
-	batchCodec:=&BatchCodec{}
-	batchCodec.Decode(msg.data)
-	res_bytes_s:=make([][]byte,len(batchCodec.data))
-	NoResponseCnt:=0
-	for i,v:=range batchCodec.data{
-		msg.data=v
-		res_bytes,nr:=s.Handler(msg)
-		if nr==true{
-			NoResponseCnt++
-			res_bytes_s[i]=[]byte("")
-		}else {
-			res_bytes_s[i]=res_bytes
-		}
-	}
-	if NoResponseCnt==len(batchCodec.data){
-		noResponse=true
-	}else {
-		batchCodec:=&BatchCodec{data:res_bytes_s}
-		responseBytes,_=batchCodec.Encode()
-	}
-	return responseBytes,noResponse
-}
 func (s *Server)Handler(msg *Msg) ([]byte,bool) {
 	req:=&Request{}
 	err:=req.Decode(msg.data)
@@ -128,7 +113,7 @@ func (s *Server)Handler(msg *Msg) ([]byte,bool) {
 		log.Warnln("id-%d  req-%d RequestDecode error: %s ",msg.id, req.id,err)
 		return s.ErrResponseEncode(req.id,err),false
 	}
-	reply_bytes,ok:=s.CallService(req.id,req.method,req.data,req.noResponse,msg.codecType)
+	reply_bytes,ok:=s.CallServiceTimeOut(req.id,req.method,req.data,req.noResponse,msg.codecType)
 	if ok{
 		log.AllInfof("id-%d  req-%d CallService %s success",msg.id, req.id,req.method)
 		if req.noResponse==true{
@@ -147,6 +132,26 @@ func (s *Server)Handler(msg *Msg) ([]byte,bool) {
 	return reply_bytes,req.noResponse
 }
 
+func (s *Server)CallServiceTimeOut(id uint64,method string,args_bytes []byte, noResponse bool,funcsCodecType CodecType) ([]byte,bool){
+	if s.timeout>0{
+		ch := make(chan int)
+		var (
+			data []byte
+			ok bool
+		)
+		go func() {
+			data,ok=s.CallService(id,method,args_bytes, noResponse,funcsCodecType)
+			ch<-1
+		}()
+		select {
+		case <-ch:
+			return data,ok
+		case <-time.After(time.Millisecond * time.Duration(s.timeout)):
+			return s.ErrResponseEncode(id,errors.New(fmt.Sprintf("method %s time out",method))),false
+		}
+	}
+	return s.CallService(id,method,args_bytes, noResponse,funcsCodecType)
+}
 func (s *Server)CallService(id uint64,method string,args_bytes []byte, noResponse bool,funcsCodecType CodecType) ([]byte,bool) {
 	if s.Funcs.GetFunc(method)==nil{
 		log.AllInfof("CallService %s is not supposted",method)
@@ -178,7 +183,7 @@ func (s *Server)ErrRPCEncode(batch bool,errMsg error)(bool,[]byte,error)  {
 	msg:=&Msg{}
 	msg.data=res_bytes
 	msg.batch=batch
-	msg.msgType=MsgType(pb.MsgType_res)
+	msg.msgType=MsgType(MsgTypeRes)
 	msg.codecType=FUNCS_CODEC_INVALID
 	msg_bytes,err:=msg.Encode()
 	return false,msg_bytes,err

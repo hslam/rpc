@@ -22,6 +22,7 @@ const (
 	CacheGetFailed	= 20404
 	CacheSetFailed		= 20405
 
+	// Server specific
 )
 
 var statusText = map[int]string{

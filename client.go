@@ -76,8 +76,8 @@ func NewClientnWithConcurrent(transporter	Transporter,codec string,maxConcurrent
 	go func() {
 		time.Sleep(time.Millisecond*time.Duration(rand.Int63n(800)))
 		ticker:=time.NewTicker(time.Second)
-		heartbeatTicker:=time.NewTicker(time.Second*DefaultClientHearbeatTicker)
-		retryTicker:=time.NewTicker(time.Second*DefaultClientRetryTicker)
+		heartbeatTicker:=time.NewTicker(time.Millisecond*DefaultClientHearbeatTicker)
+		retryTicker:=time.NewTicker(time.Millisecond*DefaultClientRetryTicker)
 
 		for{
 			select {
@@ -314,7 +314,8 @@ func (c *Client)call(name string, args interface{}, reply interface{}) ( err err
 	rpc_req_bytes, _ :=clientCodec.Encode()
 	ch := make(chan int)
 	go func() {
-		data,err:=c.RemoteCall(rpc_req_bytes)
+		var data []byte
+		data,err=c.RemoteCall(rpc_req_bytes)
 		if err != nil {
 			log.Errorln("Write error: ", err)
 			ch<-1
@@ -322,16 +323,11 @@ func (c *Client)call(name string, args interface{}, reply interface{}) ( err err
 		}
 		clientCodec.reply=reply
 		err=clientCodec.Decode(data)
-		if clientCodec.res!=nil&&err==nil{
-			if clientCodec.res.err!=nil{
-				err=clientCodec.res.err
-			}
-		}
 		ch<-1
 	}()
 	select {
 	case <-ch:
-	case <-time.After(time.Second * time.Duration(c.timeout)):
+	case <-time.After(time.Millisecond * time.Duration(c.timeout)):
 		err=ErrTimeOut
 	}
 	return err
@@ -361,7 +357,7 @@ func (c *Client)heartbeat() ( err error) {
 	}()
 	select {
 	case <-ch:
-	case <-time.After(time.Second * time.Duration(c.heartbeatTimeout)):
+	case <-time.After(time.Millisecond * time.Duration(c.heartbeatTimeout)):
 		err=ErrTimeOut
 	}
 	return err
@@ -391,7 +387,7 @@ func (c *Client)batchCall(name string, args interface{}, reply interface{}) ( er
 		if ok{
 			return err
 		}
-	case <-time.After(time.Second * time.Duration(c.timeout)):
+	case <-time.After(time.Millisecond * time.Duration(c.timeout)):
 		close(reply_bytes)
 		close(reply_error)
 		return ErrTimeOut
