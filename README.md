@@ -62,7 +62,7 @@ MRPC        QUIC        protobuf    5476    49323
 ### arith.proto
 ```
 syntax = "proto3";
-package pb;
+package service;
 
 message ArithRequest {
     int32 a = 1;
