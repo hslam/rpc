@@ -59,7 +59,26 @@ GRPC        HTTP2       protobuf    6325    163704
 MRPC        QUIC        protobuf    5476    49323
 ```
 
-### server
+### arith.proto
+```
+syntax = "proto3";
+package pb;
+
+message ArithRequest {
+    int32 a = 1;
+    int32 b = 2;
+}
+
+message ArithResponse {
+    int32 pro = 1;
+    int32 quo = 2;
+    int32 rem = 3;
+}
+```
+
+protoc ./arith.proto --go_out=./
+
+### server.go
 ```go
 package main
 import (
@@ -83,7 +102,7 @@ func main()  {
 }
 ```
 
-### client
+### client.go
 ```go
 package main
 import (
