@@ -36,9 +36,9 @@ const (
 
 	DefaultClientTimeout	=60
 	DefaultClientMaxErrPerSecond=1000
-	DefaultClientHearbeatTicker=60
-	DefaultClientHearbeatTimeout	=60
-	DefaultClientMaxErrHearbeat=5
+	DefaultClientHearbeatTicker=10
+	DefaultClientHearbeatTimeout	=10
+	DefaultClientMaxErrHearbeat=3
 	DefaultClientRetryTicker=10
 	MsgTypeReq MsgType = 0
 	MsgTypeRes MsgType = 1
