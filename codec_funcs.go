@@ -86,6 +86,6 @@ func FuncsCodec(funcsCodecType CodecType)  (Codec)  {
 	case FUNCS_CODEC_GOB:
 		return &GobCodec{}
 	default:
-		return &JsonCodec{}
+		return nil
 	}
 }
