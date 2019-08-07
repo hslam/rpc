@@ -24,11 +24,13 @@ const (
 	JSON   					= "json"
 	PROTOBUF   				= "pb"
 	XML						= "xml"
+	GOB						= "gob"
 
 	FUNCS_CODEC_INVALID 	CodecType= 0
 	FUNCS_CODEC_JSON 		CodecType= 1
 	FUNCS_CODEC_PROTOBUF   	CodecType= 2
 	FUNCS_CODEC_XML   		CodecType= 3
+	FUNCS_CODEC_GOB   		CodecType= 4
 
 	DefaultMaxCacheRequest	= 1024
 	DefaultMaxBatchRequest	= 8

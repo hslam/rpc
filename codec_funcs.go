@@ -1,126 +1,48 @@
 package rpc
 
 import (
-	"github.com/golang/protobuf/proto"
 	"hslam.com/mgit/Mort/rpc/log"
 	"errors"
-	"encoding/json"
-	"encoding/xml"
 )
 
 func ArgsEncode(args interface{},funcsCodecType CodecType) ([]byte, error)  {
-	var (
-		req_bytes []byte
-		err error
-	)
-	switch funcsCodecType {
-	case FUNCS_CODEC_JSON:
-		req_bytes,err =json.Marshal(args)
-		if err!=nil{
-			log.Errorln("ArgsEncode json.Marshal error: ", err)
-			return nil,err
-		}
-	case FUNCS_CODEC_PROTOBUF:
-		req_bytes, err = proto.Marshal(args.(proto.Message))
-		if err != nil {
-			log.Errorln("ArgsEncode proto.Marshal error: ", err)
-			return nil,err
-		}
-	case FUNCS_CODEC_XML:
-		req_bytes,err=xml.Marshal(args)
-		if err!=nil{
-			log.Errorln("ArgsEncode xml.Marshal error: ", err)
-			return nil,err
-		}
-	default:
-		return nil,errors.New("this serialize is not supported")
+	codec:=FuncsCodec(funcsCodecType)
+	req_bytes,err :=codec.Encode(args)
+	if err!=nil{
+		log.Errorln("ArgsEncode error: ", err)
+		return nil,err
 	}
-	return req_bytes,err
+	return req_bytes,nil
 }
 
 func ArgsDecode(args_bytes []byte,args interface{},funcsCodecType CodecType) (error){
-	switch funcsCodecType {
-	case FUNCS_CODEC_JSON:
-		err:=json.Unmarshal(args_bytes,args)
-		if err!=nil{
-			log.Errorln("ArgsDecode json.Unmarshal error: ", err)
-			return err
-		}
-	case FUNCS_CODEC_PROTOBUF:
-		err := proto.Unmarshal(args_bytes, args.(proto.Message))
-		if err != nil {
-			log.Errorln("ArgsDecode proto.Unmarshal error: ", err)
-			return err
-		}
-	case FUNCS_CODEC_XML:
-		err:=xml.Unmarshal(args_bytes,args)
-		if err!=nil{
-			log.Errorln("ArgsDecode xml.Unmarshal error: ", err)
-			return err
-		}
-	default:
-		return errors.New("this serialize is not supported")
+	codec:=FuncsCodec(funcsCodecType)
+	err:=codec.Decode(args_bytes,args)
+	if err!=nil{
+		log.Errorln("ArgsDecode error: ", err)
+		return err
 	}
 	return nil
 }
 
 func ReplyEncode(reply interface{},funcsCodecType CodecType) ([]byte, error)  {
-	var(
-		res_bytes []byte
-		err error
-	)
-	switch funcsCodecType {
-	case FUNCS_CODEC_JSON:
-		res_bytes, err = json.Marshal(reply)
-		if err != nil {
-			log.Errorln("ReplyEncode json.Marshal error: ", err)
-			return nil,err
-		}
-	case FUNCS_CODEC_PROTOBUF:
-		res_bytes, err = proto.Marshal(reply.(proto.Message))
-		if err != nil {
-			log.Errorln("ReplyEncode proto.Marshal error: ", err)
-			return nil,err
-		}
-	case FUNCS_CODEC_XML:
-		res_bytes, err = xml.Marshal(reply)
-		if err != nil {
-			log.Errorln("ReplyEncode xml.Marshal error: ", err)
-			return nil,err
-		}
-	default:
-		return nil,errors.New("this serialize is not supported")
+	codec:=FuncsCodec(funcsCodecType)
+	res_bytes,err :=codec.Encode(reply)
+	if err!=nil{
+		log.Errorln("ReplyEncode error: ", err)
+		return nil,err
 	}
 	return res_bytes,nil
 }
 
 func ReplyDecode(reply_bytes []byte,reply interface{},funcsCodecType CodecType) (error){
-	switch funcsCodecType {
-	case FUNCS_CODEC_JSON:
-		err := json.Unmarshal(reply_bytes, reply)
-		if err != nil {
-			log.Errorln("ReplyDecode json.Unmarshal error: ", err)
-			return err
-		}
-		return nil
-	case FUNCS_CODEC_PROTOBUF:
-		err := proto.Unmarshal(reply_bytes, reply.(proto.Message))
-		if err != nil {
-			log.Errorln("ReplyDecode proto.Unmarshal error: ", err)
-			return err
-		}
-		return nil
-	case FUNCS_CODEC_XML:
-		err := xml.Unmarshal(reply_bytes, reply)
-		if err != nil {
-			log.Errorln("ReplyDecode xml.Unmarshal error: ", err)
-			return err
-		}
-		return nil
-	default:
-		return errors.New("this serialize is not supported")
+	codec:=FuncsCodec(funcsCodecType)
+	err:=codec.Decode(reply_bytes,reply)
+	if err!=nil{
+		log.Errorln("ArgsDecode error: ", err)
+		return err
 	}
-	return errors.New("failed")
+	return nil
 }
 
 
@@ -132,6 +54,8 @@ func FuncsCodecType(codec string)  (CodecType, error)  {
 		return FUNCS_CODEC_PROTOBUF,nil
 	case XML:
 		return FUNCS_CODEC_XML,nil
+	case GOB:
+		return FUNCS_CODEC_GOB,nil
 	default:
 		return FUNCS_CODEC_INVALID,errors.New("this codec is not supported")
 	}
@@ -145,7 +69,23 @@ func FuncsCodecName(funcsCodecType CodecType)string  {
 		return PROTOBUF
 	case FUNCS_CODEC_XML:
 		return XML
+	case FUNCS_CODEC_GOB:
+		return GOB
 	default:
 		return ""
+	}
+}
+func FuncsCodec(funcsCodecType CodecType)  (Codec)  {
+	switch funcsCodecType {
+	case FUNCS_CODEC_JSON:
+		return &JsonCodec{}
+	case FUNCS_CODEC_PROTOBUF:
+		return &ProtoCodec{}
+	case FUNCS_CODEC_XML:
+		return &XmlCodec{}
+	case FUNCS_CODEC_GOB:
+		return &GobCodec{}
+	default:
+		return &JsonCodec{}
 	}
 }
