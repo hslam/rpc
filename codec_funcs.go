@@ -56,6 +56,8 @@ func FuncsCodecType(codec string)  (CodecType, error)  {
 		return FUNCS_CODEC_XML,nil
 	case GOB:
 		return FUNCS_CODEC_GOB,nil
+	case BYTES:
+		return FUNCS_CODEC_BYTES,nil
 	default:
 		return FUNCS_CODEC_INVALID,errors.New("this codec is not supported")
 	}
@@ -71,6 +73,8 @@ func FuncsCodecName(funcsCodecType CodecType)string  {
 		return XML
 	case FUNCS_CODEC_GOB:
 		return GOB
+	case FUNCS_CODEC_BYTES:
+		return BYTES
 	default:
 		return ""
 	}
@@ -85,6 +89,8 @@ func FuncsCodec(funcsCodecType CodecType)  (Codec)  {
 		return &XmlCodec{}
 	case FUNCS_CODEC_GOB:
 		return &GobCodec{}
+	case FUNCS_CODEC_BYTES:
+		return &BytesCodec{}
 	default:
 		return nil
 	}

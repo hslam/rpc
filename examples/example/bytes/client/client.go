@@ -1,17 +1,18 @@
 package main
 
 import (
-	"hslam.com/mgit/Mort/rpc/examples/example/xml/service"
 	"hslam.com/mgit/Mort/rpc"
 	_ "net/http/pprof"
 	"math/rand"
 	"net/http"
 	"strconv"
 	"runtime"
+	"strings"
 	"flag"
 	"time"
 	"log"
 	"fmt"
+	"bytes"
 )
 
 var countchan chan int
@@ -34,17 +35,17 @@ var clients int
 func init()  {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	flag.StringVar(&network, "network", "tcp", "network: -network=fast|ws|tcp|quic|udp")
-	flag.StringVar(&codec, "codec", "xml", "codec: -codec=pb|json|xml")
+	flag.StringVar(&codec, "codec", "bytes", "codec: -codec=pb|json|xml|bytes")
 	flag.BoolVar(&debug, "debug", false, "debug: -debug=false")
 	flag.IntVar(&debug_port, "dp", 6060, "debug_port: -dp=6060")
 	flag.StringVar(&host, "h", "localhost", "host: -h=localhost")
 	flag.IntVar(&port, "p", 9999, "port: -p=9999")
 	flag.BoolVar(&log_once, "log_once", false, "log_once: -log_once=false")
 	flag.Int64Var(&run_time_second, "ts", 180, "run_time_second: -ts=60")
-	flag.BoolVar(&batch, "batch", true, "batch: -batch=false")
-	flag.BoolVar(&concurrent, "concurrent", true, "concurrent: -concurrent=false")
-	flag.BoolVar(&noresponse, "noresponse", true, "noresponse: -noresponse=false")
-	flag.IntVar(&clients, "clients", 2, "num: -clients=1")
+	flag.BoolVar(&batch, "batch", false, "batch: -batch=false")
+	flag.BoolVar(&concurrent, "concurrent", false, "concurrent: -concurrent=false")
+	flag.BoolVar(&noresponse, "noresponse", false, "noresponse: -noresponse=false")
+	flag.IntVar(&clients, "clients", 1, "num: -clients=1")
 	log.SetFlags(0)
 	flag.Parse()
 	addr=host+":"+strconv.Itoa(port)
@@ -87,20 +88,14 @@ func main()  {
 }
 func run(conn rpc.Conn)  {
 	var err error
-	req := &service.ArithRequest{A:9,B:2}
-	var res service.ArithResponse
+	var req =[]byte("Hello World")
+	var res []byte
 	if log_once{
-		err = conn.Call("Arith.Multiply", req, &res)
+		err = conn.Call("Echo.ToLower", &req, &res)
 		if err != nil {
-			log.Fatalln("arith error: ", err)
+			log.Fatalln("Echo error: ", err)
 		}
-		fmt.Printf("%d * %d = %d\n", req.A, req.B, res.Pro)
-
-		err = conn.Call("Arith.Divide", req, &res)
-		if err != nil {
-			log.Fatalln("arith error: ", err)
-		}
-		fmt.Printf("%d / %d, quo is %d, rem is %d\n", req.A, req.B, res.Quo, res.Rem)
+		fmt.Printf("Echo.ToLower : %s\n", string(res))
 	}
 	parallel:=1
 	if batch{
@@ -120,24 +115,30 @@ func run(conn rpc.Conn)  {
 func work(conn rpc.Conn, countchan chan int) {
 	start_time:=time.Now().UnixNano()
 	var err error
+	len:=10
 	for{
-		A:= rand.Int31n(1000)
-		B:= rand.Int31n(1000)
-		req := &service.ArithRequest{A:A,B:B}
+		req := make([]byte, len)
+		for i := 0; i < len; i++ {
+			b := rand.Intn(26) + 65
+			req[i] = byte(b)
+		}
 		if noresponse{
-			err = conn.CallNoResponse("Arith.Multiply", req)
+			err = conn.CallNoResponse("Echo.ToLower", &req)
 			countchan<-1
 		}else {
-			var res service.ArithResponse
-			err = conn.Call("Arith.Multiply", req, &res)
-			if res.Pro==A*B{
+			var res []byte
+			err = conn.Call("Echo.ToLower", &req, &res)
+			if err != nil {
+				log.Fatalln("Echo error: ", err)
+			}
+			if bytes.Equal(res,[]byte(strings.ToLower(string(req)))){
 				countchan<-1
 			}else {
-				fmt.Printf("err %d * %d = %d\n",A,B,res.Pro,)
+				fmt.Printf("Echo.ToLower is not equal: req-%s res-%s\n",string(req),string(res))
 			}
 		}
 		if err != nil {
-			log.Fatalln("arith error: ", err)
+			log.Fatalln("Echo error: ", err)
 		}
 		if time.Now().UnixNano()-start_time>run_time_second*1000000000{
 			break

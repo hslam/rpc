@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"encoding/gob"
+	"reflect"
 	"bytes"
+	"fmt"
 )
 
 type Codec interface {
@@ -63,4 +65,19 @@ func (c GobCodec) Encode(v interface{}) ([]byte, error) {
 
 func (c GobCodec) Decode(data []byte, v interface{}) error {
 	return gob.NewDecoder(bytes.NewReader(data)).Decode(v)
+}
+
+type BytesCodec struct{
+}
+
+func (c BytesCodec) Encode(v interface{}) ([]byte, error) {
+	if data, ok := v.(*[]byte); ok {
+		return *data, nil
+	}
+	return nil, fmt.Errorf("%T must be a *[]byte", v)
+}
+
+func (c BytesCodec) Decode(data []byte, v interface{}) error {
+	reflect.Indirect(reflect.ValueOf(v)).SetBytes(data)
+	return nil
 }

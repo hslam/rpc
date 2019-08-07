@@ -125,11 +125,11 @@ func work(conn rpc.Conn, countchan chan int) {
 		B:= rand.Int31n(1000)
 		req := &service.ArithRequest{A:A,B:B}
 		if noresponse{
-			conn.CallNoResponse("Arith.Multiply", req) // 乘法运算
+			conn.CallNoResponse("Arith.Multiply", req)
 			countchan<-1
 		}else {
 			var res service.ArithResponse
-			err=conn.Call("Arith.Multiply", req, &res) // 乘法运算
+			err=conn.Call("Arith.Multiply", req, &res)
 			if res.Pro==A*B{
 				countchan<-1
 			}else {

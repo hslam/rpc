@@ -2,7 +2,7 @@ package main
 
 import (
 	"hslam.com/mgit/Mort/rpc"
-	"hslam.com/mgit/Mort/rpc/examples/stats/service"
+	"hslam.com/mgit/Mort/rpc/examples/stats/bytes/service"
 	_ "net/http/pprof"
 	"net/http"
 	"strconv"
@@ -33,7 +33,7 @@ func init()  {
 }
 func main()  {
 	go func() {if debug{log.Println(http.ListenAndServe(":"+strconv.Itoa(debug_port), nil))}}()
-	rpc.Register(new(service.Arith))
+	rpc.Register(new(service.Echo))
 	rpc.SetLogLevel(6)
 	if useWorkerPool{
 		rpc.EnabledWorkerPoolWithSize(num,max)

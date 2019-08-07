@@ -90,7 +90,7 @@ func run(conn rpc.Conn)  {
 	req := &service.ArithRequest{A:9,B:2}
 	var res service.ArithResponse
 	if log_once{
-		err = conn.Call("Arith.Multiply", req, &res) // 乘法运算
+		err = conn.Call("Arith.Multiply", req, &res)
 		if err != nil {
 			log.Fatalln("arith error: ", err)
 		}
@@ -125,11 +125,11 @@ func work(conn rpc.Conn, countchan chan int) {
 		B:= rand.Int31n(1000)
 		req := &service.ArithRequest{A:A,B:B}
 		if noresponse{
-			err = conn.CallNoResponse("Arith.Multiply", req) // 乘法运算
+			err = conn.CallNoResponse("Arith.Multiply", req)
 			countchan<-1
 		}else {
 			var res service.ArithResponse
-			err = conn.Call("Arith.Multiply", req, &res) // 乘法运算
+			err = conn.Call("Arith.Multiply", req, &res)
 			if res.Pro==A*B{
 				countchan<-1
 			}else {

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"hslam.com/mgit/Mort/rpc/examples/stats/service"
 	"hslam.com/mgit/Mort/rpc"
 	"hslam.com/mgit/Mort/rpc/stats"
 	"math/rand"
@@ -10,6 +9,8 @@ import (
 	"flag"
 	"log"
 	"fmt"
+	"bytes"
+	"strings"
 )
 var network string
 var codec string
@@ -26,7 +27,7 @@ var bar bool
 func init()  {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	flag.StringVar(&network, "network", "tcp", "network: -network=fast|ws|tcp|quic|udp")
-	flag.StringVar(&codec, "codec", "pb", "codec: -codec=pb|json|xml")
+	flag.StringVar(&codec, "codec", "bytes", "codec: -codec=pb|json|xml|bytes")
 	flag.StringVar(&host, "h", "127.0.0.1", "host: -h=127.0.0.1")
 	flag.IntVar(&port, "p", 9999, "port: -p=9999")
 	flag.IntVar(&total_calls, "total", 1000000, "total_calls: -total=10000")
@@ -86,24 +87,27 @@ type WrkClient struct {
 
 func (c *WrkClient)Call()(int64,bool){
 	var err error
-	A:= rand.Int31n(1000)
-	B:= rand.Int31n(1000)
-	req := &service.ArithRequest{A:A,B:B}
+	len:=10
+	req := make([]byte, len)
+	for i := 0; i < len; i++ {
+		b := rand.Intn(26) + 65
+		req[i] = byte(b)
+	}
 	if noresponse{
-		err = c.Conn.CallNoResponse("Arith.Multiply", req) // 乘法运算
+		err = c.Conn.CallNoResponse("Echo.ToLower", &req)
 		if err==nil{
 			return 0,true
 		}
 	}else {
-		var res service.ArithResponse
-		err = c.Conn.Call("Arith.Multiply", req, &res) // 乘法运算
-		if res.Pro==A*B{
+		var res []byte
+		err = c.Conn.Call("Echo.ToLower", &req, &res)
+		if bytes.Equal(res,[]byte(strings.ToLower(string(req)))){
 			return 0,true
 		}else {
-			fmt.Printf("err %d * %d = %d\n",A,B,res.Pro,)
+			fmt.Printf("Echo.ToLower is not equal: req-%s res-%s\n",string(req),string(res))
 		}
 		if err != nil {
-			fmt.Println("arith error: ", err)
+			fmt.Println("Echo error: ", err)
 		}
 	}
 	return 0,false
