@@ -39,11 +39,11 @@ package     protocol    codec       1t      mt      1t_con  12_con  1t_bat  12t_
 MRPC        UDP         protobuf    12452   177727  70023   158784  51998   296501  181198  159354  610008  363127
 MRPC        TCP         protobuf    15188   259303  55518   314560  243115  446229  197284  740138  568227  821322
 MRPC        WS          protobuf    28583   280422  73847   259468  270826  582654  222924  821275  623432  839396
+MRPC        QUIC        protobuf    8848    39362
 RPC         TCP         gob         20935   275122
 RPC         HTTP        gob         21415   283631
 JSONRPC     TCP         json        19160   224116
 GRPC        HTTP2       protobuf    12059   113275
-MRPC        QUIC        protobuf    8848    39362
 ```
 
 ### Linux 12 vCPU 12 GiB Between  qps
@@ -52,11 +52,11 @@ package     protocol    codec       1t      mt      1t_con  12_con  1t_bat  12t_
 MRPC        UDP         protobuf    8456    207902  42920   195943  38454   310601  177132  143414  771688  572685
 MRPC        TCP         protobuf    9015    351772  45942   374813  247619  616358  384285  1234356 638546  649993
 MRPC        WS          protobuf    8815    381351  51022   298416  259927  640804  279694  832946  734921  892733
+MRPC        QUIC        protobuf    5476    49323
 RPC         TCP         gob         8166    270813
 RPC         HTTP        gob         8247    293821
 JSONRPC     TCP         json        7915    239660
 GRPC        HTTP2       protobuf    6325    163704
-MRPC        QUIC        protobuf    5476    49323
 ```
 
 ### arith.proto
