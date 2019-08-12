@@ -3,7 +3,6 @@ package rpc
 import (
 	"hslam.com/mgit/Mort/funcs"
 	"hslam.com/mgit/Mort/rpc/log"
-	"errors"
 	"fmt"
 	"time"
 )
@@ -66,7 +65,7 @@ func (s *Server)ServeRPC(b []byte) (bool,[]byte,error) {
 		return s.ErrRPCEncode(msg.batch,err)
 	}
 	if msg.version!=Version{
-		return s.ErrRPCEncode(msg.batch,errors.New("Version is not matched"))
+		return s.ErrRPCEncode(msg.batch,fmt.Errorf("%d %d Version is not matched",Version,msg.version))
 	}
 	if msg.msgType==MsgType(MsgTypeHea){
 		return true,b,err
@@ -147,7 +146,7 @@ func (s *Server)Middleware(id uint64,method string,args_bytes []byte, noResponse
 		case <-ch:
 			return data,ok
 		case <-time.After(time.Millisecond * time.Duration(s.timeout)):
-			return s.ErrResponseEncode(id,errors.New(fmt.Sprintf("method %s time out",method))),false
+			return s.ErrResponseEncode(id,fmt.Errorf("method %s time out",method)),false
 		}
 	}
 	return s.CallService(id,method,args_bytes, noResponse,funcsCodecType)
@@ -155,7 +154,7 @@ func (s *Server)Middleware(id uint64,method string,args_bytes []byte, noResponse
 func (s *Server)CallService(id uint64,method string,args_bytes []byte, noResponse bool,funcsCodecType CodecType) ([]byte,bool) {
 	if s.Funcs.GetFunc(method)==nil{
 		log.AllInfof("CallService %s is not supposted",method)
-		return s.ErrResponseEncode(id,errors.New(fmt.Sprintf("method %s is not supposted",method))),false
+		return s.ErrResponseEncode(id,fmt.Errorf("method %s is not supposted",method)),false
 	}
 	args := s.Funcs.GetFuncIn(method,0)
 	err:=ArgsDecode(args_bytes,args,funcsCodecType)
