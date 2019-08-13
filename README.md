@@ -150,3 +150,25 @@ func main()  {
 	fmt.Printf("%d / %d, quo is %d, rem is %d\n", req.A, req.B, res.Quo, res.Rem)
 }
 ```
+
+javascript client
+```
+<script type="text/javascript" src="./js/lib/rpc/rpc.min.js"></script>
+<script type="text/javascript">
+ ArithRequest = function(A,B) {
+        this.a=A;
+        this.b=B;
+    }
+    ArithResponse = function(Pro,Quo,Rem) {
+        this.pro=Pro;
+        this.quo=Quo;
+        this.rem=Rem;
+    }
+    var client = new rpc.Dial("127.0.0.1:9999");
+    var req = new ArithRequest(9,2)
+    var reply=client.Call("Arith.Multiply",req)
+    console.log(req.a.toString()+" * "+req.b.toString()+" = "+reply.pro.toString());
+    var reply=client.Call("Arith.Divide",req)
+    console.log(req.a.toString()+" / "+req.b.toString()+", quo is "+reply.quo.toString()+", rem is "+reply.rem.toString());
+</script>
+```
