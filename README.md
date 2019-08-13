@@ -81,7 +81,7 @@ message ArithResponse {
 protoc ./arith.proto --go_out=./
 ```
 
-### server.go
+### tcp-pb-server.go
 ```go
 package main
 import (
@@ -105,7 +105,7 @@ func main()  {
 }
 ```
 
-### client.go
+### tcp-pb-client.go
 ```go
 package main
 import (
@@ -151,7 +151,31 @@ func main()  {
 }
 ```
 
-javascript client
+
+### http-json-server.go
+```go
+package main
+import (
+	"hslam.com/mgit/Mort/rpc/examples/helloworld/json/service"
+	"hslam.com/mgit/Mort/rpc"
+	"strconv"
+	"flag"
+)
+var network string
+var port int
+var saddr string
+func init()  {
+	flag.StringVar(&network, "network", "fast", "network: -network=fast;ws;tcp;quic;udp")
+	flag.IntVar(&port, "p", 9999, "port: -p=9999")
+	flag.Parse()
+	saddr = ":"+strconv.Itoa(port)
+}
+func main()  {
+	rpc.Register(new(service.Arith))
+	rpc.ListenAndServe(network,saddr)
+}
+```
+### http-json-client-javascript
 ```
 <script type="text/javascript" src="./js/lib/rpc/rpc.min.js"></script>
 <script type="text/javascript">
