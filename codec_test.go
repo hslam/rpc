@@ -6,18 +6,18 @@ import (
 	//"github.com/golang/protobuf/proto"
 )
 
-func BenchmarkMe(t *testing.B) {
-	msg = Msg{}
-	name:="Arith.Multiply"
-	req_bytes:=make([]byte,20)
-	t.ResetTimer()
-	for i := 0; i < t.N; i++ {
-		//Serialize
-		Bytes:=msg.Serialize(Version,name,req_bytes)
-		//Deserialize
-		msg.Deserialize(Bytes)
-	}
-}
+//func BenchmarkMe(t *testing.B) {
+//	msg = Msg{}
+//	name:="Arith.Multiply"
+//	req_bytes:=make([]byte,20)
+//	t.ResetTimer()
+//	for i := 0; i < t.N; i++ {
+//		//Serialize
+//		Bytes:=msg.Serialize(Version,name,req_bytes)
+//		//Deserialize
+//		msg.Deserialize(Bytes)
+//	}
+//}
 
 //func BenchmarkProto(t *testing.B) {
 //	name:="Arith.Multiply"

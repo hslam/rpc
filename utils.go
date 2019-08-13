@@ -7,6 +7,8 @@ import (
 	"encoding/pem"
 	"crypto/rand"
 	"crypto/x509"
+	"encoding/binary"
+	"math"
 )
 
 func uint16ToBytes(n uint16) []byte {
@@ -36,6 +38,29 @@ func bytesToUint32(array []byte) uint32 {
 		data = data+uint32(uint(array[i])<<uint(8*i))
 	}
 	return data
+}
+func float32ToByte(float float32) []byte {
+	bits := math.Float32bits(float)
+	bytes := make([]byte, 4)
+	binary.LittleEndian.PutUint32(bytes, bits)
+	return bytes
+}
+
+func byteToFloat32(bytes []byte) float32 {
+	bits := binary.LittleEndian.Uint32(bytes)
+	return math.Float32frombits(bits)
+}
+
+func float64ToByte(float float64) []byte {
+	bits := math.Float64bits(float)
+	bytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(bytes, bits)
+	return bytes
+}
+
+func byteToFloat64(bytes []byte) float64 {
+	bits := binary.LittleEndian.Uint64(bytes)
+	return math.Float64frombits(bits)
 }
 
 func checkSum(b []byte) uint16 {

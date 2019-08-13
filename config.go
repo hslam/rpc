@@ -10,7 +10,7 @@ type	CodecType	int32
 type	MsgType		int32
 
 const (
-	Version			int32	= 0
+	Version			float32	= 1.0
 
 	TCP   					= "tcp"
 	UDP						= "udp"

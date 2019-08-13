@@ -67,7 +67,7 @@ func HandleFASTHTTP(fastclient *fasthttp.Client,address string,readChan chan []b
 		go func(fastclient *fasthttp.Client,address string,msg *Message) {
 			for {
 				req := &fasthttp.Request{}
-				req.Header.SetMethod("PUT")
+				req.Header.SetMethod("POST")
 				req.SetBody(msg.message)
 				u := url.URL{Scheme: "http", Host: address, Path: "/"}
 				req.SetRequestURI(u.String())

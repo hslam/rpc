@@ -7,13 +7,21 @@ enum MsgType{
      res = 1;
      hea = 2;
 }
+enum CodecType{
+     invalid    = 0;
+     json       = 1;
+     protobuf   = 2;
+     xml        = 3;
+     gob        = 4;
+     bytes      = 5;
+}
 
 message Msg {
-    int32 version = 1;
+    float version = 1;
     int64 id  = 2;
     MsgType msgType = 3;
     bool batch = 4;
-    int32 codecType = 5;
+    CodecType codecType = 5;
     bytes data = 6;
 }
 

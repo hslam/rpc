@@ -15,7 +15,8 @@ type FASTHTTPListener struct {
 }
 func ListenFASTHTTP(address string) (Listener, error) {
 	router := fasthttprouter.New()
-	router.PUT("/", func (ctx *fasthttp.RequestCtx) {
+	router.POST("/", func (ctx *fasthttp.RequestCtx) {
+		ctx.Response.Header.Set("Access-Control-Allow-Origin", "*")
 		var RemoteAddr=ctx.RemoteAddr().String()
 		log.AllInfof("new client %s comming",RemoteAddr)
 		if useWorkerPool{
@@ -46,6 +47,7 @@ func (l *FASTHTTPListener)Addr() (string) {
 func ServeFASTHTTP(ctx *fasthttp.RequestCtx,data []byte)error {
 	_,res_bytes, _ := ServeRPC(data)
 	if res_bytes!=nil{
+		log.Tracef("res_bytes %s len %d",res_bytes,len(res_bytes))
 		_,err:=ctx.Write(res_bytes)
 		return err
 	}else {

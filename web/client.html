@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>RPC</title>
+    <script type="text/javascript" src="./js/lib/rpc/client.js"></script>
+    <script type="text/javascript" src="./js/lib/rpc/rpc_main.js"></script>
+</head>
+<body>
+<div style="text-align:center;">
+    <textarea id="Result" rows="10"  placeholder=""></textarea>
+</div>
+</body>
+<script type="text/javascript">
+    ArithRequest = function(A,B) {
+        this.a=A;
+        this.b=B;
+    }
+    ArithResponse = function(Pro,Quo,Rem) {
+        this.pro=Pro;
+        this.quo=Quo;
+        this.rem=Rem;
+    }
+    var client = new rpc.Dial("127.0.0.1:9999");
+    var req = new ArithRequest(9,2)
+    var reply=client.Call("Arith.Multiply",req)
+    var result=req.a.toString()+" * "+req.b.toString()+" = "+reply.pro.toString()+"\n"
+    console.log(req.a.toString()+" * "+req.b.toString()+" = "+reply.pro.toString());
+    var reply=client.Call("Arith.Divide",req)
+    result+=req.a.toString()+" / "+req.b.toString()+", quo is "+reply.quo.toString()+", rem is "+reply.rem.toString()
+    document.getElementById("Result").value = result;
+    console.log(req.a.toString()+" / "+req.b.toString()+", quo is "+reply.quo.toString()+", rem is "+reply.rem.toString());
+</script>
+</html>
