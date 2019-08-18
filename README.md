@@ -200,14 +200,9 @@ func main()  {
 ```
 <script type="text/javascript" src="./js/lib/rpc/rpc.min.js"></script>
 <script type="text/javascript">
- ArithRequest = function(A,B) {
+    ArithRequest = function(A,B) {
         this.a=A;
         this.b=B;
-    }
-    ArithResponse = function(Pro,Quo,Rem) {
-        this.pro=Pro;
-        this.quo=Quo;
-        this.rem=Rem;
     }
     var client = new rpc.Dial("127.0.0.1:9999");
     var req = new ArithRequest(9,2)
