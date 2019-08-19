@@ -1,5 +1,4 @@
-var rpc = Object.prototype.hasOwnProperty;
-
+var rpc=function (){};
 rpc.Dial = function(address) {
     return new rpc.Client(address)
 }
