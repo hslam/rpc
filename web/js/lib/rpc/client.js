@@ -1,16 +1,21 @@
-var rpc=function (){};
+rpc_namespace=function (){
+    this.version=1.0
+};
+var rpc=new rpc_namespace();
 rpc.Dial = function(address) {
     return new rpc.Client(address)
 }
 rpc.Client = function(address) {
     this.address=address
-    this.version=1.0
     this.client_id=0
     this.url="http://"+address+"/"
+    this.SetClientId=function (client_id) {
+        this.client_id=client_id;
+    }
     this.Call=function (name, args) {
         var args_bytes=rpc.ArgsEncode(args)
         var req_bytes=rpc.RequestEncode(0,name,args_bytes,false)
-        var msg_bytes=rpc.MsgEncode(this.version, this.client_id,proto.pb.MsgType.REQ,false,proto.pb.CodecType.JSON,req_bytes)
+        var msg_bytes=rpc.MsgEncode(rpc.version, this.client_id,proto.pb.MsgType.REQ,false,proto.pb.CodecType.JSON,req_bytes)
         var result_bytes=this.RemoteCall(msg_bytes)
         var msg=rpc.MsgDecode(result_bytes)
         var res=rpc.ResponseDecode(msg.getData())
@@ -33,7 +38,6 @@ rpc.Client = function(address) {
         this.client_id=client_id
     }
 }
-
 rpc.ArgsEncode= function(args){
     var str=JSON.stringify(args);
     var args_bytes=rpc.StringToUint8Array(str);
