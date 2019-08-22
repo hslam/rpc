@@ -14,13 +14,10 @@ func HandleFASTHTTP(fastclient *fasthttp.Client,address string,readChan chan []b
 	WindowSize:=64
 	readMessageChan := make(chan *Message,WindowSize)
 	idChan := make(chan uint16,WindowSize)
-	queueMsg:=&QueueMsg{
-		M:make(map[uint16]*Notice),
-		Queue:make([]uint16,0),
-		Pop:make(chan *Notice,WindowSize),
-	}
+	queueMsg:=NewQueueMsg(WindowSize)
 	var startbit =uint(rand.Intn(13))
 	var id =uint16(rand.Int31n(int32(1<<startbit)))
+	var max_id=uint16(1<<16-1)
 	go func(readMessageChan chan *Message, queueMsg *QueueMsg) {
 		for{
 			select {
@@ -56,10 +53,7 @@ func HandleFASTHTTP(fastclient *fasthttp.Client,address string,readChan chan []b
 		endfor:
 	}(idChan,queueMsg,readChan)
 	for send_data:= range writeChan{
-		id++
-		if id>1<<15{
-			id=1
-		}
+		id=(id+1)%max_id
 		idChan<-id
 		notice:=&Notice{Id:id,}
 		queueMsg.Push(notice)

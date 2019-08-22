@@ -159,13 +159,10 @@ func HandleMessage(readWriter io.ReadWriter,readChan chan []byte,writeChan chan 
 	readMessageChan := make(chan *Message,WindowSize)
 	writeMessageChan := make(chan *Message,WindowSize)
 	idChan := make(chan uint16,WindowSize)
-	queueMsg:=&QueueMsg{
-		M:make(map[uint16]*Notice),
-		Queue:make([]uint16,0),
-		Pop:make(chan *Notice,WindowSize),
-	}
+	queueMsg:=NewQueueMsg(WindowSize)
 	var startbit =uint(rand.Intn(13))
 	var id =uint16(rand.Int31n(int32(1<<startbit)))
+	var max_id=uint16(1<<16-1)
 	var SmoothedRTT int64=1000000
 	rto := &RTO{}
 	lastRTO:=rto.updateRTT(SmoothedRTT)
@@ -207,10 +204,7 @@ func HandleMessage(readWriter io.ReadWriter,readChan chan []byte,writeChan chan 
 		endfor:
 	}(idChan,queueMsg,readChan)
 	for send_data:= range writeChan{
-		id++
-		if id>1<<15{
-			id=1
-		}
+		id=(id+1)%max_id
 		idChan<-id
 		recvChan:=make(chan bool)
 		notice:=&Notice{Id:id,RecvChan:recvChan}

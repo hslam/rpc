@@ -33,7 +33,7 @@ var clients int
 
 func init()  {
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	flag.StringVar(&network, "network", "tcp", "network: -network=fast|ws|tcp|quic|udp")
+	flag.StringVar(&network, "network", "udp", "network: -network=fast|ws|tcp|quic|udp")
 	flag.StringVar(&codec, "codec", "pb", "codec: -codec=pb|json|xml")
 	flag.BoolVar(&debug, "debug", false, "debug: -debug=false")
 	flag.IntVar(&debug_port, "dp", 6060, "debug_port: -dp=6060")
@@ -41,7 +41,7 @@ func init()  {
 	flag.IntVar(&port, "p", 9999, "port: -p=9999")
 	flag.BoolVar(&log_once, "log_once", false, "log_once: -log_once=false")
 	flag.Int64Var(&run_time_second, "ts", 180, "run_time_second: -ts=60")
-	flag.BoolVar(&batch, "batch", true, "batch: -batch=false")
+	flag.BoolVar(&batch, "batch", false, "batch: -batch=false")
 	flag.BoolVar(&concurrent, "concurrent", false, "concurrent: -concurrent=false")
 	flag.BoolVar(&noresponse, "noresponse", false, "noresponse: -noresponse=false")
 	flag.IntVar(&clients, "clients", 1, "num: -clients=1")
