@@ -59,7 +59,7 @@ func(q *QueueMsg)SetValue(id uint16,data *Message) {
 		return
 	}
 	q.M[id].Recvmsg=data
-	if len(q.Queue)>0{
+	if q.Length()>0{
 		pop_id,_:=q.Front()
 		if _,ok:=q.M[pop_id];ok{
 			if q.M[pop_id].Recvmsg!=nil{
@@ -76,7 +76,7 @@ func(q *QueueMsg)SetValue(id uint16,data *Message) {
 func(q *QueueMsg)Check(){
 	q.Mu.Lock()
 	defer q.Mu.Unlock()
-	if len(q.Queue)>0{
+	if q.Length()>0{
 		pop_id,_:=q.Front()
 		if _,ok:=q.M[pop_id];ok{
 			if q.M[pop_id].Recvmsg!=nil{
@@ -90,7 +90,7 @@ func(q *QueueMsg)Check(){
 }
 
 
-func (q *QueueMsg) Length() interface{} {
+func (q *QueueMsg) Length() int {
 	return (q.rear - q.front + q.maxSize) % q.maxSize
 }
 
