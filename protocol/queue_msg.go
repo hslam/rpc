@@ -61,7 +61,6 @@ func(q *QueueMsg)SetValue(id uint16,data *Message) {
 	q.M[id].Recvmsg=data
 	if len(q.Queue)>0{
 		pop_id,_:=q.Front()
-
 		if _,ok:=q.M[pop_id];ok{
 			if q.M[pop_id].Recvmsg!=nil{
 				min_msg:=q.M[pop_id]
