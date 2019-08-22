@@ -22,14 +22,14 @@ type QueueMsg struct {
 	Pop chan *Notice
 
 }
-func NewQueueMsg(WindowSize int) *QueueMsg {
+func NewQueueMsg(size int) *QueueMsg {
 	return &QueueMsg{
 		M:make(map[uint16]*Notice),
-		Queue:make([]uint16,WindowSize),
-		Pop:make(chan *Notice,WindowSize),
+		Queue:make([]uint16,size),
+		Pop:make(chan *Notice,size),
 		front: 0,
 		rear:  0,
-		maxSize:WindowSize,
+		maxSize:size,
 	}
 }
 func(q *QueueMsg)Push(notice *Notice)bool{
