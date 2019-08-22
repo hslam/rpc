@@ -187,7 +187,7 @@ func HandleMessage(readWriter io.ReadWriter,readChan chan []byte,writeChan chan 
 	go func(idChan chan uint16,queueMsg *QueueMsg,readChan chan []byte) {
 		for{
 			select {
-			case old_notice,ok := <-queueMsg.Pop:
+			case old_notice,ok := <-queueMsg.Pop():
 				if ok{
 					if old_notice.Recvmsg.oprationType==OprationTypeData{
 						readChan<-old_notice.Recvmsg.message
@@ -235,9 +235,6 @@ func HandleMessage(readWriter io.ReadWriter,readChan chan []byte,writeChan chan 
 	close(readMessageChan)
 	close(writeMessageChan)
 	close(idChan)
-	close(queueMsg.Pop)
-	queueMsg.Queue=nil
-	queueMsg.M=nil
-	queueMsg=nil
+	queueMsg.Close()
 	rto=nil
 }

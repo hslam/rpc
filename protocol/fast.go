@@ -36,7 +36,7 @@ func HandleFASTHTTP(fastclient *fasthttp.Client,address string,readChan chan []b
 	go func(idChan chan uint16,queueMsg *QueueMsg,readChan chan []byte) {
 		for{
 			select {
-			case old_notice,ok := <-queueMsg.Pop:
+			case old_notice,ok := <-queueMsg.Pop():
 				if ok{
 					if old_notice.Recvmsg.oprationType==OprationTypeData{
 						readChan<-old_notice.Recvmsg.message
@@ -83,9 +83,6 @@ func HandleFASTHTTP(fastclient *fasthttp.Client,address string,readChan chan []b
 	}
 	close(readMessageChan)
 	close(idChan)
-	close(queueMsg.Pop)
-	queueMsg.Queue=nil
-	queueMsg.M=nil
-	queueMsg=nil
+	queueMsg.Close()
 }
 
