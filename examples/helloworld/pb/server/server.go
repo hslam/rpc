@@ -11,7 +11,7 @@ var network string
 var port int
 var saddr string
 func init()  {
-	flag.StringVar(&network, "network", "tcp", "network: -network=fast;ws;tcp;quic;udp")
+	flag.StringVar(&network, "network", "tcp", "network: -network=tcp|ws|fast|http|http2|quic|udp")
 	flag.IntVar(&port, "p", 9999, "port: -p=9999")
 	flag.Parse()
 	saddr = ":"+strconv.Itoa(port)

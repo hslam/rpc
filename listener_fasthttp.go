@@ -1,16 +1,13 @@
 package rpc
 
 import (
-	"sync"
 	"github.com/valyala/fasthttp"
 	"github.com/buaazp/fasthttprouter"
 	"hslam.com/mgit/Mort/rpc/log"
 )
 
 type FASTHTTPListener struct {
-	reqMutex 		sync.Mutex
 	address			string
-	serialize		string
 	fastrouter		*fasthttprouter.Router
 }
 func ListenFASTHTTP(address string) (Listener, error) {
@@ -22,10 +19,10 @@ func ListenFASTHTTP(address string) (Listener, error) {
 		if useWorkerPool{
 			workerPool.Process(func(obj interface{}, args ...interface{}) interface{} {
 				var requestCtx = obj.(*fasthttp.RequestCtx)
-				return ServeFASTHTTP(requestCtx,requestCtx.Request.Body())
+				return ServeHTTP(requestCtx,requestCtx.Request.Body())
 			},ctx)
 		}else {
-			ServeFASTHTTP(ctx,ctx.Request.Body())
+			ServeHTTP(ctx,ctx.Request.Body())
 		}
 		log.AllInfof("client %s exiting",RemoteAddr)
 	})
@@ -44,15 +41,5 @@ func (l *FASTHTTPListener)Serve() (error) {
 func (l *FASTHTTPListener)Addr() (string) {
 	return l.address
 }
-func ServeFASTHTTP(ctx *fasthttp.RequestCtx,data []byte)error {
-	_,res_bytes, _ := ServeRPC(data)
-	if res_bytes!=nil{
-		log.Tracef("res_bytes %s len %d",res_bytes,len(res_bytes))
-		_,err:=ctx.Write(res_bytes)
-		return err
-	}else {
-		return nil
-	}
-	return ErrConnExit
-}
+
 

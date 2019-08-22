@@ -1,14 +1,12 @@
 package rpc
 
 import (
-	"sync"
 	"github.com/lucas-clemente/quic-go"
 	"hslam.com/mgit/Mort/rpc/protocol"
 	"hslam.com/mgit/Mort/rpc/log"
 )
 
 type QUICListener struct {
-	reqMutex 		sync.Mutex
 	address			string
 	quicListener	quic.Listener
 }

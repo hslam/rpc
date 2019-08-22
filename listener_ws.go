@@ -2,7 +2,6 @@
 
 import (
 	"net"
-	"sync"
 	"net/http"
 	"github.com/gorilla/websocket"
 	"hslam.com/mgit/Mort/rpc/protocol"
@@ -16,7 +15,6 @@ var (
 )
 
 type WSListener struct {
-	reqMutex 		sync.Mutex
 	address			string
 	httpServer		http.Server
 	listener		net.Listener

@@ -44,6 +44,10 @@ func Dial(network,address,codec string) (Conn, error) {
 		transporter,err=NewWSTransporter(address)
 	case FASTHTTP:
 		transporter,err=NewFASTHTTPTransporter(address)
+	case HTTP:
+		transporter,err=NewHTTPTransporter(address)
+	case HTTP2:
+		transporter,err=NewHTTP2Transporter(address)
 	default:
 		return nil, errors.New("this network is not suported")
 	}

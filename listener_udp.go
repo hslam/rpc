@@ -2,13 +2,11 @@ package rpc
 
 import (
 	"net"
-	"sync"
 	"hslam.com/mgit/Mort/rpc/protocol"
 	"hslam.com/mgit/Mort/rpc/log"
 )
 
 type UDPListener struct {
-	reqMutex 		sync.Mutex
 	address			string
 	netUDPConn		*net.UDPConn
 }

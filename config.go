@@ -17,6 +17,8 @@ const (
 	QUIC  					= "quic"
 	WS   					= "ws"
 	FASTHTTP   				= "fast"
+	HTTP   					= "http"
+	HTTP2   				= "http2"
 
 	RPC_CODEC_ME			= 0
 	RPC_CODEC_PROTOBUF		= 1

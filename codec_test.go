@@ -1,10 +1,10 @@
 package rpc
 
-import (
-	"testing"
-	// "hslam.com/mgit/Mort/rpc/pb"
-	//"github.com/golang/protobuf/proto"
-)
+//import (
+//	"testing"
+//	// "hslam.com/mgit/Mort/rpc/pb"
+//	//"github.com/golang/protobuf/proto"
+//)
 
 //func BenchmarkMe(t *testing.B) {
 //	msg = Msg{}

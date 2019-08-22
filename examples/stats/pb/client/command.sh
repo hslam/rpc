@@ -1,6 +1,6 @@
 #!/bin/sh
 
-net="fast"
+net="tcp"
 host="127.0.0.1"
 pbar="false"
 

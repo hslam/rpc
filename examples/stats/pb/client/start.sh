@@ -1,3 +1,3 @@
 #!/bin/sh
 
-nohup sh ./command.sh > fast.log.out 2>&1 &
+nohup sh ./command.sh > tcp.log.out 2>&1 &

@@ -24,6 +24,10 @@ func Listen(network,address string) (Listener, error) {
 		return ListenWS(address)
 	case FASTHTTP:
 		return ListenFASTHTTP(address)
+	case HTTP:
+		return ListenHTTP(address)
+	case HTTP2:
+		return ListenHTTP2(address)
 	}
 	return nil, errors.New("this network is not suported")
 }

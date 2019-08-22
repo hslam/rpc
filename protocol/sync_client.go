@@ -1,12 +1,14 @@
 package protocol
 
 import (
-	"github.com/valyala/fasthttp"
-	"net/url"
 	"math/rand"
 )
 
-func HandleFASTHTTP(fastclient *fasthttp.Client,address string,readChan chan []byte,writeChan chan []byte, stopChan chan bool){
+type SyncClient interface {
+	Do(reqBody []byte)([]byte,error)
+}
+
+func HandleSyncClient(syncClient SyncClient,readChan chan []byte,writeChan chan []byte, stopChan chan bool){
 	defer func() {
 		if err := recover(); err != nil {
 		}
@@ -58,20 +60,14 @@ func HandleFASTHTTP(fastclient *fasthttp.Client,address string,readChan chan []b
 		notice:=&Notice{Id:id,}
 		queueMsg.Push(notice)
 		msg:=&Message{OprationTypeData,id,send_data}
-		go func(fastclient *fasthttp.Client,address string,msg *Message) {
+		go func(syncClient SyncClient,msg *Message) {
 			for {
-				req := &fasthttp.Request{}
-				req.Header.SetMethod("POST")
-				req.SetBody(msg.message)
-				u := url.URL{Scheme: "http", Host: address, Path: "/"}
-				req.SetRequestURI(u.String())
-				resp := &fasthttp.Response{}
-				err := fastclient.Do(req, resp)
+				respBody,err := syncClient.Do(msg.message)
 				if err != nil {
 					continue
 				}
-				if len(resp.Body())>0{
-					readMessageChan<-&Message{OprationTypeData,msg.id,resp.Body()}
+				if len(respBody)>0{
+					readMessageChan<-&Message{OprationTypeData,msg.id,respBody}
 				}else {
 					readMessageChan<-&Message{OprationTypeAck,msg.id,nil}
 				}
@@ -79,10 +75,9 @@ func HandleFASTHTTP(fastclient *fasthttp.Client,address string,readChan chan []b
 			}
 			stopChan<-true
 			endfor:
-		}(fastclient,address,msg)
+		}(syncClient,msg)
 	}
 	close(readMessageChan)
 	close(idChan)
 	queueMsg.Close()
 }
-
