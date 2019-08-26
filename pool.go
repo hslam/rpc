@@ -87,11 +87,11 @@ func (p *Pool)SetMaxBatchRequest(maxBatchRequest int) error{
 	}
 	return nil
 }
-func (p *Pool)GetMaxConcurrentRequest()(int){
+func (p *Pool)GetMaxPipelineRequest()(int){
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	for _,c:= range p.conns{
-		return c.GetMaxConcurrentRequest()
+		return c.GetMaxPipelineRequest()
 	}
 	return -1
 }

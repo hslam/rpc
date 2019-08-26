@@ -21,9 +21,9 @@ func DialHTTP(address string)  (Conn, error)  {
 		conn:&http.Client{
 			Transport: &http.Transport{
 				DisableKeepAlives:false,
-				MaxConnsPerHost:DefaultMaxConcurrentRequest+1,
-				MaxIdleConns:DefaultMaxConcurrentRequest+1,
-				MaxIdleConnsPerHost:DefaultMaxConcurrentRequest+1,
+				MaxConnsPerHost:DefaultMaxPipelineRequest+1,
+				MaxIdleConns:DefaultMaxPipelineRequest+1,
+				MaxIdleConnsPerHost:DefaultMaxPipelineRequest+1,
 				IdleConnTimeout: time.Duration(DefaultClientTimeout) * time.Millisecond,
 			},
 		},

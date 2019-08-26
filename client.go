@@ -22,8 +22,8 @@ type Client struct {
 	hystrix			bool
 	batchEnabled	bool
 	batch			*Batch
-	concurrent 		*Concurrent
-	concurrentChan	chan bool
+	pipeline 		*Pipeline
+	pipelineChan	chan bool
 	readChan		chan []byte
 	writeChan		chan []byte
 	stopChan		chan bool
@@ -41,9 +41,9 @@ type Client struct {
 	errCntHeartbeat	int
 }
 func NewClient(conn	Conn,codec string)  (*Client, error) {
-	return NewClientnWithConcurrent(conn,codec,DefaultMaxConcurrentRequest+1)
+	return NewClientnWithConcurrent(conn,codec,DefaultMaxPipelineRequest+1)
 }
-func NewClientnWithConcurrent(conn	Conn,codec string,maxConcurrentRequest int)  (*Client, error)  {
+func NewClientnWithConcurrent(conn	Conn,codec string,maxPipeliningRequest int)  (*Client, error)  {
 	funcsCodecType,err:=FuncsCodecType(codec)
 	if err!=nil{
 		return nil,err
@@ -61,8 +61,8 @@ func NewClientnWithConcurrent(conn	Conn,codec string,maxConcurrentRequest int)  
 		compressLevel:NoCompression,
 		compressType:CompressTypeNocom,
 	}
-	client.readChan=make(chan []byte,maxConcurrentRequest)
-	client.writeChan= make(chan []byte,maxConcurrentRequest)
+	client.readChan=make(chan []byte,maxPipeliningRequest)
+	client.writeChan= make(chan []byte,maxPipeliningRequest)
 	client.idgenerator=idgenerator
 	client.errCntChan=errCntChan
 	client.timeout=DefaultClientTimeout
@@ -124,7 +124,7 @@ func NewClientnWithConcurrent(conn	Conn,codec string,maxConcurrentRequest int)  
 					}else {
 						client.closed=false
 						client.hystrix=false
-						client.concurrent.retry()
+						client.pipeline.retry()
 					}
 				}
 			case <-ticker.C:
@@ -138,8 +138,8 @@ func NewClientnWithConcurrent(conn	Conn,codec string,maxConcurrentRequest int)  
 			}
 		}
 	}()
-	client.concurrent=NewConcurrent(maxConcurrentRequest,client.readChan,client.writeChan)
-	client.concurrentChan = make(chan bool,maxConcurrentRequest)
+	client.pipeline=NewPipeline(maxPipeliningRequest,client.readChan,client.writeChan)
+	client.pipelineChan = make(chan bool,maxPipeliningRequest)
 	return client, nil
 }
 func (c *Client)EnabledBatch(){
@@ -240,8 +240,8 @@ func (c *Client)GetMaxBatchRequest()int {
 	defer c.mu.Unlock()
 	return c.batch.GetMaxBatchRequest()
 }
-func (c *Client)GetMaxConcurrentRequest()(int){
-	return c.concurrent.GetMaxConcurrentRequest()-1
+func (c *Client)GetMaxPipelineRequest()(int){
+	return c.pipeline.GetMaxPipelineRequest()-1
 }
 func (c *Client)SetMaxBatchRequest(maxBatchRequest int)error {
 	c.mu.Lock()
@@ -348,22 +348,22 @@ func (c *Client)OnlyCall(name string) ( err error) {
 	return
 }
 func (c *Client)RemoteCall(b []byte)([]byte,error){
-	c.concurrentChan<-true
+	c.pipelineChan<-true
 	cbChan := make(chan []byte,1)
-	c.concurrent.concurrentChan<-NewConcurrentRequest(b,false,cbChan)
+	c.pipeline.pipelineRequestChan<-NewPipelineRequest(b,false,cbChan)
 	data,ok := <-cbChan
-	<-c.concurrentChan
+	<-c.pipelineChan
 	if ok{
 		return data,nil
 	}
 	return nil,ErrRemoteCall
 }
 func (c *Client)RemoteCallNoResponse(b []byte)(error){
-	c.concurrentChan<-true
+	c.pipelineChan<-true
 	cbChan := make(chan []byte,1)
-	c.concurrent.concurrentChan<-NewConcurrentRequest(b,true,cbChan)
+	c.pipeline.pipelineRequestChan<-NewPipelineRequest(b,true,cbChan)
 	<-cbChan
-	<-c.concurrentChan
+	<-c.pipelineChan
 	return nil
 }
 func (c *Client)Close() ( err error) {

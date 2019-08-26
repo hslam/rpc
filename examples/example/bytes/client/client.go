@@ -29,7 +29,7 @@ var log_once bool
 var run_time_second int64
 var addr string
 var batch bool
-var concurrent bool
+var pipelining bool
 var noresponse bool
 var norequest bool
 var onlycall bool
@@ -47,7 +47,7 @@ func init()  {
 	flag.BoolVar(&log_once, "log_once", true, "log_once: -log_once=false")
 	flag.Int64Var(&run_time_second, "ts", 180, "run_time_second: -ts=60")
 	flag.BoolVar(&batch, "batch", false, "batch: -batch=false")
-	flag.BoolVar(&concurrent, "concurrent", false, "concurrent: -concurrent=false")
+	flag.BoolVar(&pipelining, "pipelining", false, "pipelining: -pipelining=false")
 	flag.BoolVar(&noresponse, "noresponse", false, "noresponse: -noresponse=false")
 	flag.BoolVar(&norequest, "norequest", false, "norequest: -norequest=false")
 	flag.BoolVar(&onlycall, "onlycall", false, "onlycall: -onlycall=false")
@@ -117,8 +117,8 @@ func run(conn *rpc.Client)  {
 	parallel:=1
 	if batch{
 		parallel=conn.GetMaxBatchRequest()
-	}else if concurrent{
-		parallel=conn.GetMaxConcurrentRequest()
+	}else if pipelining{
+		parallel=conn.GetMaxPipelineRequest()
 	}
 	if log_once{
 		fmt.Println("parallel - ",parallel)

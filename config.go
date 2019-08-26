@@ -41,7 +41,7 @@ const (
 	DefaultMaxCacheRequest	= 1024
 	DefaultMaxBatchRequest	= 8
 	DefaultMaxDelayNanoSecond= 1000
-	DefaultMaxConcurrentRequest=32
+	DefaultMaxPipelineRequest=32
 
 	DefaultServerTimeout	=-1
 

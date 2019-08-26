@@ -19,7 +19,7 @@ var host string
 var port int
 var addr string
 var batch bool
-var concurrent bool
+var pipelining bool
 var noresponse bool
 var clients int
 var total_calls int
@@ -34,7 +34,7 @@ func init()  {
 	flag.IntVar(&port, "p", 9999, "port: -p=9999")
 	flag.IntVar(&total_calls, "total", 1000000, "total_calls: -total=10000")
 	flag.BoolVar(&batch, "batch", true, "batch: -batch=false")
-	flag.BoolVar(&concurrent, "concurrent", false, "concurrent: -concurrent=false")
+	flag.BoolVar(&pipelining, "pipelining", false, "pipelining: -pipelining=false")
 	flag.BoolVar(&noresponse, "noresponse", false, "noresponse: -noresponse=false")
 	flag.IntVar(&clients, "clients", 1, "num: -clients=1")
 	flag.BoolVar(&bar, "bar", true, "bar: -bar=true")
@@ -45,7 +45,7 @@ func init()  {
 }
 
 func main()  {
-	fmt.Printf("./client -network=%s -codec=%s -h=%s -p=%d -total=%d -concurrent=%t -batch=%t -noresponse=%t -clients=%d\n",network,codec,host,port,total_calls,concurrent,batch,noresponse,clients)
+	fmt.Printf("./client -network=%s -codec=%s -h=%s -p=%d -total=%d -pipelining=%t -batch=%t -noresponse=%t -clients=%d\n",network,codec,host,port,total_calls,pipelining,batch,noresponse,clients)
 	var wrkClients []stats.Client
 	parallel:=1
 	if clients>1{
@@ -62,8 +62,8 @@ func main()  {
 		}
 		if batch{
 			parallel=pool.All()[0].GetMaxBatchRequest()
-		}else if concurrent{
-			parallel=pool.All()[0].GetMaxConcurrentRequest()
+		}else if pipelining{
+			parallel=pool.All()[0].GetMaxPipelineRequest()
 		}
 	}else if clients==1 {
 		conn, err:= rpc.Dial(network,addr,codec)
@@ -74,8 +74,8 @@ func main()  {
 		if batch {conn.EnabledBatch()}
 		if batch{
 			parallel=conn.GetMaxBatchRequest()
-		}else if concurrent{
-			parallel=conn.GetMaxConcurrentRequest()
+		}else if pipelining{
+			parallel=conn.GetMaxPipelineRequest()
 		}
 		wrkClients=make([]stats.Client,1)
 		wrkClients[0]= &WrkClient{conn}
