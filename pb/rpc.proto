@@ -27,6 +27,7 @@ enum CompressLevel{
      bestCompression = 2;
      defaultCompression=3;
 }
+
 message Msg {
     float version = 1;
     int64 id  = 2;
@@ -45,8 +46,10 @@ message Batch {
 message Request {
     uint64 id = 1;
     string method = 2;
-    bytes data = 3;
+    bool noRequest = 3;
     bool noResponse = 4;
+    bytes data = 5;
+
 }
 
 message Response {

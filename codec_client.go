@@ -10,17 +10,23 @@ type ClientCodec struct{
 	name string
 	args interface{}
 	funcsCodecType CodecType
+	noRequest bool
 	noResponse bool
 	reply interface{}
 	res	*Response
 }
 func(c *ClientCodec)Encode() ([]byte, error)  {
-	args_bytes,err:=ArgsEncode(c.args,c.funcsCodecType)
-	if err!=nil{
-		log.Errorln("ArgsEncode error: ", err)
-		return nil,err
+	var req *Request
+	if c.noRequest==false{
+		args_bytes,err:=ArgsEncode(c.args,c.funcsCodecType)
+		if err!=nil{
+			log.Errorln("ArgsEncode error: ", err)
+			return nil,err
+		}
+		req=&Request{c.req_id,c.name,c.noRequest,c.noResponse,args_bytes,}
+	}else {
+		req=&Request{c.req_id,c.name,c.noRequest,c.noResponse,nil,}
 	}
-	req:=&Request{c.req_id,c.name,args_bytes,c.noResponse}
 	req_bytes,err:=req.Encode()
 	if err!=nil{
 		log.Errorln("RequestEncode error: ", err)

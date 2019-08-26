@@ -280,6 +280,28 @@ func (c *Client)Call(name string, args interface{}, reply interface{}) ( err err
 	}
 	return
 }
+func (c *Client)CallNoRequest(name string, reply interface{}) ( err error) {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Errorln("Call failed:", err)
+		}
+	}()
+	if c.hystrix{
+		return ErrHystrix
+	}
+	if c.batchEnabled{
+		err=c.batchCall(name,nil,reply)
+		if err!=nil{
+			c.errCntChan<-1
+		}
+		return
+	}
+	err= c.call(name,nil,reply)
+	if err!=nil{
+		c.errCntChan<-1
+	}
+	return
+}
 func (c *Client)CallNoResponse(name string, args interface{}) ( err error) {
 	defer func() {
 		if err := recover(); err != nil {
@@ -290,13 +312,36 @@ func (c *Client)CallNoResponse(name string, args interface{}) ( err error) {
 		return ErrHystrix
 	}
 	if c.batchEnabled{
-		err= c.batchCallNoResponse(name,args)
+		err= c.batchCall(name,args,nil)
 		if err!=nil{
 			c.errCntChan<-1
 		}
 		return
 	}
-	err= c.callNoResponse(name,args)
+	err= c.call(name,args,nil)
+	if err!=nil{
+		c.errCntChan<-1
+	}
+	return
+}
+
+func (c *Client)OnlyCall(name string) ( err error) {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Errorln("OnlyCall failed:", err)
+		}
+	}()
+	if c.hystrix{
+		return ErrHystrix
+	}
+	if c.batchEnabled{
+		err= c.batchCall(name,nil,nil)
+		if err!=nil{
+			c.errCntChan<-1
+		}
+		return
+	}
+	err= c.call(name,nil,nil)
 	if err!=nil{
 		c.errCntChan<-1
 	}
@@ -331,35 +376,7 @@ func (c *Client)Close() ( err error) {
 func (c *Client)Closed()bool{
 	return c.closed
 }
-func (c *Client)call(name string, args interface{}, reply interface{}) ( err error) {
-	clientCodec:=&ClientCodec{}
-	clientCodec.client_id=c.client_id
-	clientCodec.req_id=uint64(c.idgenerator.GenUniqueIDInt64())
-	clientCodec.name=name
-	clientCodec.args=args
-	clientCodec.noResponse=false
-	clientCodec.funcsCodecType=c.funcsCodecType
-	rpc_req_bytes, _ :=clientCodec.Encode()
-	ch := make(chan int)
-	go func() {
-		var data []byte
-		data,err=c.RemoteCall(rpc_req_bytes)
-		if err != nil {
-			log.Errorln("Write error: ", err)
-			ch<-1
-			return
-		}
-		clientCodec.reply=reply
-		err=clientCodec.Decode(data)
-		ch<-1
-	}()
-	select {
-	case <-ch:
-	case <-time.After(time.Millisecond * time.Duration(c.timeout)):
-		err=ErrTimeOut
-	}
-	return err
-}
+
 func (c *Client)heartbeat() ( err error) {
 	uid:=c.idgenerator.GenUniqueIDInt64()
 	msg:=&Msg{}
@@ -390,68 +407,100 @@ func (c *Client)heartbeat() ( err error) {
 	}
 	return err
 }
-func (c *Client)batchCall(name string, args interface{}, reply interface{}) ( err error) {
-	reply_bytes := make(chan []byte, 1)
-	reply_error := make(chan error, 1)
-	args_bytes,err:=ArgsEncode(args,c.funcsCodecType)
-	if err!=nil{
-		log.Errorln("ArgsEncode error: ", err)
-	}
-	cr:=&BatchRequest{
-		id:uint64(c.idgenerator.GenUniqueIDInt64()),
-		name:name,
-		args_bytes:args_bytes,
-		reply_bytes:reply_bytes,
-		reply_error:reply_error,
-		noResponse:false,
-	}
-	c.batch.reqChan<-cr
-	select {
-	case bytes ,ok:= <- reply_bytes:
-		if ok{
-			return ReplyDecode(bytes,reply,c.funcsCodecType)
-		}
-	case err ,ok:= <- reply_error:
-		if ok{
-			return err
-		}
-	case <-time.After(time.Millisecond * time.Duration(c.timeout)):
-		close(reply_bytes)
-		close(reply_error)
-		return ErrTimeOut
-	}
-	return nil
-}
-func (c *Client)callNoResponse(name string, args interface{}) ( err error) {
+
+func (c *Client)call(name string, args interface{}, reply interface{}) ( err error) {
 	clientCodec:=&ClientCodec{}
 	clientCodec.client_id=c.client_id
 	clientCodec.req_id=uint64(c.idgenerator.GenUniqueIDInt64())
 	clientCodec.name=name
-	clientCodec.args=args
-	clientCodec.noResponse=true
+	if args!=nil{
+		clientCodec.args=args
+		clientCodec.noRequest=false
+	}else {
+		clientCodec.args=nil
+		clientCodec.noRequest=true
+	}
 	clientCodec.funcsCodecType=c.funcsCodecType
+	if reply!=nil{
+		clientCodec.noResponse=false
+	}else {
+		clientCodec.noResponse=true
+	}
 	rpc_req_bytes, _ :=clientCodec.Encode()
-	err=c.RemoteCallNoResponse(rpc_req_bytes)
-	if err != nil {
-		log.Errorln("Write error: ", err)
+	if clientCodec.noResponse{
+		err=c.RemoteCallNoResponse(rpc_req_bytes)
+		if err != nil {
+			log.Errorln("Write error: ", err)
+			return err
+		}
+		return nil
+	}else {
+		ch := make(chan int)
+		go func() {
+			var data []byte
+			data,err=c.RemoteCall(rpc_req_bytes)
+			if err != nil {
+				log.Errorln("Write error: ", err)
+				ch<-1
+				return
+			}
+			clientCodec.reply=reply
+			err=clientCodec.Decode(data)
+			ch<-1
+		}()
+		select {
+		case <-ch:
+		case <-time.After(time.Millisecond * time.Duration(c.timeout)):
+			err=ErrTimeOut
+		}
 		return err
 	}
-	return nil
+
 }
-func (c *Client)batchCallNoResponse(name string, args interface{}) ( err error) {
-	args_bytes,err:=ArgsEncode(args,c.funcsCodecType)
-	if err!=nil{
-		log.Errorln("ArgsEncode error: ", err)
-	}
+func (c *Client)batchCall(name string, args interface{}, reply interface{}) ( err error) {
 	cr:=&BatchRequest{
 		id:uint64(c.idgenerator.GenUniqueIDInt64()),
 		name:name,
-		args_bytes:args_bytes,
-		reply_bytes:nil,
-		reply_error:nil,
-		noResponse:true,
+
+		noResponse:false,
+	}
+	if args!=nil{
+		args_bytes,err:=ArgsEncode(args,c.funcsCodecType)
+		if err!=nil{
+			log.Errorln("ArgsEncode error: ", err)
+		}
+		cr.args_bytes=args_bytes
+		cr.noRequest=false
+	}else {
+		cr.args_bytes=nil
+		cr.noRequest=true
+	}
+	if reply!=nil{
+		cr.reply_bytes= make(chan []byte, 1)
+		cr.reply_error=make(chan error, 1)
+		cr.noResponse=false
+	}else {
+		cr.noResponse=true
 	}
 	c.batch.reqChan<-cr
-	return nil
-}
+	if cr.noResponse{
+		return nil
+	}else{
+		select {
+		case bytes ,ok:= <- cr.reply_bytes:
+			if ok{
+				return ReplyDecode(bytes,reply,c.funcsCodecType)
+			}
+		case err ,ok:= <- cr.reply_error:
+			if ok{
+				return err
+			}
+		case <-time.After(time.Millisecond * time.Duration(c.timeout)):
+			close(cr.reply_bytes)
+			close(cr.reply_error)
+			return ErrTimeOut
+		}
+		return nil
+	}
 
+}

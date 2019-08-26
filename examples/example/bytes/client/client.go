@@ -31,6 +31,8 @@ var addr string
 var batch bool
 var concurrent bool
 var noresponse bool
+var norequest bool
+var onlycall bool
 var clients int
 
 func init()  {
@@ -42,11 +44,13 @@ func init()  {
 	flag.IntVar(&debug_port, "dp", 6060, "debug_port: -dp=6060")
 	flag.StringVar(&host, "h", "localhost", "host: -h=localhost")
 	flag.IntVar(&port, "p", 9999, "port: -p=9999")
-	flag.BoolVar(&log_once, "log_once", false, "log_once: -log_once=false")
+	flag.BoolVar(&log_once, "log_once", true, "log_once: -log_once=false")
 	flag.Int64Var(&run_time_second, "ts", 180, "run_time_second: -ts=60")
 	flag.BoolVar(&batch, "batch", false, "batch: -batch=false")
 	flag.BoolVar(&concurrent, "concurrent", false, "concurrent: -concurrent=false")
 	flag.BoolVar(&noresponse, "noresponse", false, "noresponse: -noresponse=false")
+	flag.BoolVar(&norequest, "norequest", false, "norequest: -norequest=false")
+	flag.BoolVar(&onlycall, "onlycall", false, "onlycall: -onlycall=false")
 	flag.IntVar(&clients, "clients", 1, "num: -clients=1")
 	log.SetFlags(0)
 	flag.Parse()
@@ -95,6 +99,15 @@ func run(conn *rpc.Client)  {
 	var req =[]byte("Hello World")
 	var res []byte
 	if log_once{
+		err = conn.CallNoResponse("Echo.Set", &req)
+		fmt.Printf("Echo.Set : %s\n", string(req))
+		err = conn.CallNoRequest("Echo.Get", &res)
+		fmt.Printf("Echo.Get : %s\n", string(res))
+		err = conn.OnlyCall("Echo.Clear")
+		fmt.Printf("Echo.Clear\n")
+		err = conn.CallNoRequest("Echo.Get", &res)
+		fmt.Printf("Echo.Get : %s\n", string(res))
+		err = conn.CallNoResponse("Echo.Set", &req)
 		err = conn.Call("Echo.ToLower", &req, &res)
 		if err != nil {
 			log.Fatalln("Echo error: ", err)
@@ -127,8 +140,20 @@ func work(conn *rpc.Client, countchan chan int) {
 			req[i] = byte(b)
 		}
 		if noresponse{
-			err = conn.CallNoResponse("Echo.ToLower", &req)
+			err = conn.CallNoResponse("Echo.Set", &req)
 			countchan<-1
+		}else if onlycall{
+			err = conn.OnlyCall("Echo.Clear")
+			countchan<-1
+		}else if norequest{
+			var req =[]byte("Hello World")
+			var res []byte
+			err = conn.CallNoRequest("Echo.Get", &res)
+			if bytes.Equal(res,[]byte("Hello World")){
+				countchan<-1
+			}else {
+				fmt.Printf("Echo.Get is not equal: req-%s res-%s\n",string(req),string(res))
+			}
 		}else {
 			var res []byte
 			err = conn.Call("Echo.ToLower", &req, &res)

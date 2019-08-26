@@ -14,6 +14,7 @@ type BatchRequest struct {
 	args_bytes []byte
 	reply_bytes chan []byte
 	reply_error chan error
+	noRequest bool
 	noResponse bool
 }
 type Batch struct {
@@ -82,7 +83,7 @@ func (c *Batch)Ticker(crs []*BatchRequest){
 	NoResponseCnt:=0
 	var noResponse bool
 	for i,v :=range crs{
-		req:=&Request{v.id,v.name,v.args_bytes,v.noResponse}
+		req:=&Request{v.id,v.name,v.noRequest,v.noResponse,v.args_bytes}
 		req_bytes,_:=req.Encode()
 		req_bytes_s[i]=req_bytes
 		if v.noResponse==true{

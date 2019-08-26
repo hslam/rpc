@@ -1036,8 +1036,9 @@ proto.pb.Request.toObject = function(includeInstance, msg) {
   var f, obj = {
     id: jspb.Message.getFieldWithDefault(msg, 1, 0),
     method: jspb.Message.getFieldWithDefault(msg, 2, ""),
-    data: msg.getData_asB64(),
-    noresponse: jspb.Message.getFieldWithDefault(msg, 4, false)
+    norequest: jspb.Message.getFieldWithDefault(msg, 3, false),
+    noresponse: jspb.Message.getFieldWithDefault(msg, 4, false),
+    data: msg.getData_asB64()
   };
 
   if (includeInstance) {
@@ -1083,12 +1084,16 @@ proto.pb.Request.deserializeBinaryFromReader = function(msg, reader) {
       msg.setMethod(value);
       break;
     case 3:
-      var value = /** @type {!Uint8Array} */ (reader.readBytes());
-      msg.setData(value);
+      var value = /** @type {boolean} */ (reader.readBool());
+      msg.setNorequest(value);
       break;
     case 4:
       var value = /** @type {boolean} */ (reader.readBool());
       msg.setNoresponse(value);
+      break;
+    case 5:
+      var value = /** @type {!Uint8Array} */ (reader.readBytes());
+      msg.setData(value);
       break;
     default:
       reader.skipField();
@@ -1133,9 +1138,9 @@ proto.pb.Request.serializeBinaryToWriter = function(message, writer) {
       f
     );
   }
-  f = message.getData_asU8();
-  if (f.length > 0) {
-    writer.writeBytes(
+  f = message.getNorequest();
+  if (f) {
+    writer.writeBool(
       3,
       f
     );
@@ -1144,6 +1149,13 @@ proto.pb.Request.serializeBinaryToWriter = function(message, writer) {
   if (f) {
     writer.writeBool(
       4,
+      f
+    );
+  }
+  f = message.getData_asU8();
+  if (f.length > 0) {
+    writer.writeBytes(
+      5,
       f
     );
   }
@@ -1181,41 +1193,19 @@ proto.pb.Request.prototype.setMethod = function(value) {
 
 
 /**
- * optional bytes data = 3;
- * @return {!(string|Uint8Array)}
+ * optional bool noRequest = 3;
+ * Note that Boolean fields may be set to 0/1 when serialized from a Java server.
+ * You should avoid comparisons like {@code val === true/false} in those cases.
+ * @return {boolean}
  */
-proto.pb.Request.prototype.getData = function() {
-  return /** @type {!(string|Uint8Array)} */ (jspb.Message.getFieldWithDefault(this, 3, ""));
+proto.pb.Request.prototype.getNorequest = function() {
+  return /** @type {boolean} */ (jspb.Message.getFieldWithDefault(this, 3, false));
 };
 
 
-/**
- * optional bytes data = 3;
- * This is a type-conversion wrapper around `getData()`
- * @return {string}
- */
-proto.pb.Request.prototype.getData_asB64 = function() {
-  return /** @type {string} */ (jspb.Message.bytesAsB64(
-      this.getData()));
-};
-
-
-/**
- * optional bytes data = 3;
- * Note that Uint8Array is not supported on all browsers.
- * @see http://caniuse.com/Uint8Array
- * This is a type-conversion wrapper around `getData()`
- * @return {!Uint8Array}
- */
-proto.pb.Request.prototype.getData_asU8 = function() {
-  return /** @type {!Uint8Array} */ (jspb.Message.bytesAsU8(
-      this.getData()));
-};
-
-
-/** @param {!(string|Uint8Array)} value */
-proto.pb.Request.prototype.setData = function(value) {
-  jspb.Message.setProto3BytesField(this, 3, value);
+/** @param {boolean} value */
+proto.pb.Request.prototype.setNorequest = function(value) {
+  jspb.Message.setProto3BooleanField(this, 3, value);
 };
 
 
@@ -1233,6 +1223,45 @@ proto.pb.Request.prototype.getNoresponse = function() {
 /** @param {boolean} value */
 proto.pb.Request.prototype.setNoresponse = function(value) {
   jspb.Message.setProto3BooleanField(this, 4, value);
+};
+
+
+/**
+ * optional bytes data = 5;
+ * @return {!(string|Uint8Array)}
+ */
+proto.pb.Request.prototype.getData = function() {
+  return /** @type {!(string|Uint8Array)} */ (jspb.Message.getFieldWithDefault(this, 5, ""));
+};
+
+
+/**
+ * optional bytes data = 5;
+ * This is a type-conversion wrapper around `getData()`
+ * @return {string}
+ */
+proto.pb.Request.prototype.getData_asB64 = function() {
+  return /** @type {string} */ (jspb.Message.bytesAsB64(
+      this.getData()));
+};
+
+
+/**
+ * optional bytes data = 5;
+ * Note that Uint8Array is not supported on all browsers.
+ * @see http://caniuse.com/Uint8Array
+ * This is a type-conversion wrapper around `getData()`
+ * @return {!Uint8Array}
+ */
+proto.pb.Request.prototype.getData_asU8 = function() {
+  return /** @type {!Uint8Array} */ (jspb.Message.bytesAsU8(
+      this.getData()));
+};
+
+
+/** @param {!(string|Uint8Array)} value */
+proto.pb.Request.prototype.setData = function(value) {
+  jspb.Message.setProto3BytesField(this, 5, value);
 };
 
 

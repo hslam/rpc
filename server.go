@@ -112,7 +112,7 @@ func (s *Server)Handler(msg *Msg) ([]byte,bool) {
 		log.Warnln("id-%d  req-%d RequestDecode error: %s ",msg.id, req.id,err)
 		return s.ErrResponseEncode(req.id,err),false
 	}
-	data,ok:=s.Middleware(req.id,req.method,req.data,req.noResponse,msg.codecType)
+	data,ok:=s.Middleware(req,msg.codecType)
 	if ok{
 		log.AllInfof("id-%d  req-%d CallService %s success",msg.id, req.id,req.method)
 		if req.noResponse==true{
@@ -131,7 +131,7 @@ func (s *Server)Handler(msg *Msg) ([]byte,bool) {
 	return data,req.noResponse
 }
 
-func (s *Server)Middleware(id uint64,method string,args_bytes []byte, noResponse bool,funcsCodecType CodecType) ([]byte,bool){
+func (s *Server)Middleware(req *Request,funcsCodecType CodecType) ([]byte,bool){
 	if s.timeout>0{
 		ch := make(chan int)
 		var (
@@ -139,41 +139,72 @@ func (s *Server)Middleware(id uint64,method string,args_bytes []byte, noResponse
 			ok bool
 		)
 		go func() {
-			data,ok=s.CallService(id,method,args_bytes, noResponse,funcsCodecType)
+			data,ok=s.CallService(req,funcsCodecType)
 			ch<-1
 		}()
 		select {
 		case <-ch:
 			return data,ok
 		case <-time.After(time.Millisecond * time.Duration(s.timeout)):
-			return s.ErrResponseEncode(id,fmt.Errorf("method %s time out",method)),false
+			return s.ErrResponseEncode(req.id,fmt.Errorf("method %s time out",req.method)),false
 		}
 	}
-	return s.CallService(id,method,args_bytes, noResponse,funcsCodecType)
+	return s.CallService(req,funcsCodecType)
 }
-func (s *Server)CallService(id uint64,method string,args_bytes []byte, noResponse bool,funcsCodecType CodecType) ([]byte,bool) {
-	if s.Funcs.GetFunc(method)==nil{
-		log.AllInfof("CallService %s is not supposted",method)
-		return s.ErrResponseEncode(id,fmt.Errorf("method %s is not supposted",method)),false
+func (s *Server)CallService(req *Request,funcsCodecType CodecType) ([]byte,bool) {
+	if s.Funcs.GetFunc(req.method)==nil{
+		log.AllInfof("CallService %s is not supposted",req.method)
+		return s.ErrResponseEncode(req.id,fmt.Errorf("method %s is not supposted",req.method)),false
 	}
-	args := s.Funcs.GetFuncIn(method,0)
-	err:=ArgsDecode(args_bytes,args,funcsCodecType)
-	if err!=nil{
-		return s.ErrResponseEncode(id,err),false
-	}
-	reply :=s.Funcs.GetFuncIn(method,1)
-	if err := s.Funcs.Call(method, args, reply); err != nil {
-		return s.ErrResponseEncode(id,err),false
-	}
-	if !noResponse{
+	if req.noRequest && req.noResponse{
+		if err := s.Funcs.Call(req.method); err != nil {
+			return s.ErrResponseEncode(req.id,err),false
+		}
+		return nil,true
+	}else if req.noRequest && !req.noResponse{
+		reply :=s.Funcs.GetFuncIn(req.method,0)
+		if err := s.Funcs.Call(req.method, reply); err != nil {
+			return s.ErrResponseEncode(req.id,err),false
+		}
+		reply_bytes,err:=ReplyEncode(reply,funcsCodecType)
+		if err!=nil{
+			return s.ErrResponseEncode(req.id,err),false
+		}
+		return reply_bytes,true
+	}else if !req.noRequest && req.noResponse{
+		args := s.Funcs.GetFuncIn(req.method,0)
+		err:=ArgsDecode(req.data,args,funcsCodecType)
+		if err!=nil{
+			return s.ErrResponseEncode(req.id,err),false
+		}
+		reply :=s.Funcs.GetFuncIn(req.method,1)
+		if reply!=nil{
+			if err := s.Funcs.Call(req.method, args, reply); err != nil {
+				return s.ErrResponseEncode(req.id,err),false
+			}
+		}else {
+			if err := s.Funcs.Call(req.method, args); err != nil {
+				return s.ErrResponseEncode(req.id,err),false
+			}
+		}
+		return nil,true
+
+	}else {
+		args := s.Funcs.GetFuncIn(req.method,0)
+		err:=ArgsDecode(req.data,args,funcsCodecType)
+		if err!=nil{
+			return s.ErrResponseEncode(req.id,err),false
+		}
+		reply :=s.Funcs.GetFuncIn(req.method,1)
+		if err := s.Funcs.Call(req.method, args, reply); err != nil {
+			return s.ErrResponseEncode(req.id,err),false
+		}
 		var reply_bytes []byte
 		reply_bytes,err=ReplyEncode(reply,funcsCodecType)
 		if err!=nil{
-			return s.ErrResponseEncode(id,err),false
+			return s.ErrResponseEncode(req.id,err),false
 		}
 		return reply_bytes,true
-	}else {
-		return nil,true
 	}
 }
 

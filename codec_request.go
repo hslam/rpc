@@ -10,8 +10,9 @@ import (
 type Request struct {
 	id                  	uint64
 	method					string
-	data					[]byte
+	noRequest				bool
 	noResponse				bool
+	data					[]byte
 }
 func(r *Request)Encode() ([]byte, error)  {
 	switch rpc_codec {
@@ -19,7 +20,13 @@ func(r *Request)Encode() ([]byte, error)  {
 		var msg = Msg{}
 		return msg.Serialize(Version,r.method,r.data),nil
 	case RPC_CODEC_PROTOBUF:
-		req:=pb.Request{Id:r.id,Method:r.method,Data:r.data,NoResponse:r.noResponse}
+		req:=pb.Request{
+			Id:r.id,
+			Method:r.method,
+			NoRequest:r.noRequest,
+			NoResponse:r.noResponse,
+			Data:r.data,
+		}
 		if data,err:=proto.Marshal(&req);err!=nil{
 			log.Errorln("RequestEncode proto.Unmarshal error: ", err)
 			return nil,err
@@ -44,8 +51,9 @@ func(r *Request)Decode(b []byte) (error)  {
 		}
 		r.id=rpc_req_decode.Id
 		r.method=rpc_req_decode.Method
-		r.data=rpc_req_decode.Data
+		r.noRequest=rpc_req_decode.NoRequest
 		r.noResponse=rpc_req_decode.NoResponse
+		r.data=rpc_req_decode.Data
 	default:
 		return errors.New("this mrpc_serialize is not supported")
 	}
