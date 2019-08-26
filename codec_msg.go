@@ -43,16 +43,32 @@ type Msg struct {
 	msgType				MsgType
 	batch				bool
 	codecType			CodecType
+	compressType		CompressType
+	compressLevel 		CompressLevel
 	data				[]byte
+
 }
 func (m *Msg)Encode() ([]byte, error) {
+	compressor:=getCompressor(m.compressType,m.compressLevel)
+	if compressor!=nil{
+		m.data,_=compressor.Compress(m.data)
+	}
 	switch rpc_codec {
 	case RPC_CODEC_ME:
 		return m.data,nil
 	case RPC_CODEC_PROTOBUF:
 		var msg pb.Msg
 		if m.msgType==MsgType(pb.MsgType_req)||m.msgType==MsgType(pb.MsgType_res){
-			msg=pb.Msg{Version:Version,Id:m.id,MsgType:pb.MsgType(m.msgType),Batch:m.batch,Data:m.data,CodecType:pb.CodecType(m.codecType)}
+			msg=pb.Msg{
+				Version:Version,
+				Id:m.id,
+				MsgType:pb.MsgType(m.msgType),
+				Batch:m.batch,
+				Data:m.data,
+				CodecType:pb.CodecType(m.codecType),
+				CompressType:pb.CompressType(m.compressType),
+				CompressLevel:pb.CompressLevel(m.compressLevel),
+			}
 		}else if m.msgType==MsgType(pb.MsgType_hea) {
 			msg=pb.Msg{Version:Version,Id:m.id,MsgType:pb.MsgType(m.msgType)}
 		}
@@ -71,6 +87,8 @@ func (m *Msg)Decode(b []byte)(error) {
 	m.data=nil
 	m.batch=false
 	m.codecType=FUNCS_CODEC_INVALID
+	m.compressType=CompressTypeNocom
+	m.compressLevel=NoCompression
 	switch rpc_codec {
 	case RPC_CODEC_ME:
 		m.version=Version
@@ -89,9 +107,56 @@ func (m *Msg)Decode(b []byte)(error) {
 			m.data=msg.Data
 			m.batch=msg.Batch
 			m.codecType=CodecType(msg.CodecType)
+			m.compressType=CompressType(msg.CompressType)
+			m.compressLevel=CompressLevel(msg.CompressLevel)
+			compressor:=getCompressor(m.compressType,m.compressLevel)
+			if compressor!=nil{
+				m.data,_=compressor.Uncompress(m.data)
+			}
 		}
 		return nil
 	default:
 		return errors.New("this mrpc_serialize is not supported")
+	}
+}
+
+func getCompressor(compressType CompressType,level CompressLevel)  (Compressor)  {
+	if level==NoCompression{
+		return nil
+	}
+	switch compressType {
+	case CompressTypeFlate:
+		return &FlateCompressor{Level:level}
+	case CompressTypeZlib:
+		return &ZlibCompressor{Level:level}
+	case CompressTypeGzip:
+		return &GzipCompressor{Level:level}
+	default:
+		return nil
+	}
+}
+
+func getCompressType(name string)  (CompressType)  {
+	switch name {
+	case FLATE:
+		return CompressTypeFlate
+	case ZLIB:
+		return CompressTypeZlib
+	case GZIP:
+		return CompressTypeGzip
+	default:
+		return CompressTypeNocom
+	}
+}
+func getCompressLevel(name string)  (CompressLevel)  {
+	switch name {
+	case SPEED:
+		return BestSpeed
+	case COMPRESSION:
+		return BestCompression
+	case DC:
+		return DefaultCompression
+	default:
+		return NoCompression
 	}
 }

@@ -28,6 +28,8 @@ type Client struct {
 	writeChan		chan []byte
 	stopChan		chan bool
 	funcsCodecType 	CodecType
+	compressType 	CompressType
+	compressLevel 	CompressLevel
 	idgenerator		*idgenerator.IDGen
 	client_id		int64
 	timeout 		int64
@@ -51,7 +53,14 @@ func NewClientnWithConcurrent(conn	Conn,codec string,maxConcurrentRequest int)  
 	errCntChan:=make(chan int,1000000)
 	var client_id int64=0
 	idgenerator:=idgenerator.NewSnowFlake(client_id)
-	client :=  &Client{client_id:client_id,conn:conn,stopChan:stopChan,funcsCodecType:funcsCodecType}
+	client :=  &Client{
+		client_id:client_id,
+		conn:conn,
+		stopChan:stopChan,
+		funcsCodecType:funcsCodecType,
+		compressLevel:NoCompression,
+		compressType:CompressTypeNocom,
+	}
 	client.readChan=make(chan []byte,maxConcurrentRequest)
 	client.writeChan= make(chan []byte,maxConcurrentRequest)
 	client.idgenerator=idgenerator
@@ -87,7 +96,6 @@ func NewClientnWithConcurrent(conn	Conn,codec string,maxConcurrentRequest int)  
 		ticker:=time.NewTicker(time.Second)
 		heartbeatTicker:=time.NewTicker(time.Millisecond*DefaultClientHearbeatTicker)
 		retryTicker:=time.NewTicker(time.Millisecond*DefaultClientRetryTicker)
-
 		for{
 			select {
 			case <-heartbeatTicker.C:
@@ -140,7 +148,18 @@ func (c *Client)EnabledBatch(){
 	c.batchEnabled = true
 	c.batch=NewBatch(c,DefaultMaxDelayNanoSecond*c.conn.TickerFactor())
 	c.batch.SetMaxBatchRequest(DefaultMaxBatchRequest*c.conn.BatchFactor())
-
+}
+func (c *Client)SetCompressType(compress string){
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.compressType=getCompressType(compress)
+	c.compressLevel=DefaultCompression
+}
+func (c *Client)SetCompressLevel(compress,level string){
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.compressType=getCompressType(compress)
+	c.compressLevel=getCompressLevel(level)
 }
 func (c *Client)SetID(id int64)error{
 	c.mu.Lock()

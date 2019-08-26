@@ -15,14 +15,27 @@ enum CodecType{
      gob        = 4;
      bytes      = 5;
 }
-
+enum CompressType{
+     nocom = 0;
+     flate = 1;
+     zlib = 2;
+     gzip = 3;
+}
+enum CompressLevel{
+     noCompression = 0;
+     bestSpeed = 1;
+     bestCompression = 2;
+     defaultCompression=3;
+}
 message Msg {
     float version = 1;
     int64 id  = 2;
     MsgType msgType = 3;
     bool batch = 4;
     CodecType codecType = 5;
-    bytes data = 6;
+    CompressType compressType =6;
+    CompressLevel compressLevel =7;
+    bytes data = 8;
 }
 
 message Batch {

@@ -20,6 +20,7 @@ var count int
 
 var network string
 var codec string
+var compress string
 var debug bool
 var debug_port int
 var host string
@@ -36,6 +37,7 @@ func init()  {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	flag.StringVar(&network, "network", "tcp", "network: -network=tcp|ws|fast|http|http2|quic|udp")
 	flag.StringVar(&codec, "codec", "bytes", "codec: -codec=pb|json|xml|bytes")
+	flag.StringVar(&compress, "compress", "no", "compress: -compress=no|flate|zlib|gzip")
 	flag.BoolVar(&debug, "debug", false, "debug: -debug=false")
 	flag.IntVar(&debug_port, "dp", 6060, "debug_port: -dp=6060")
 	flag.StringVar(&host, "h", "localhost", "host: -h=localhost")
@@ -64,6 +66,7 @@ func main()  {
 		if err != nil {
 			log.Fatalln("dailing error: ", err)
 		}
+		pool.SetCompressType(compress)
 		if batch {pool.EnabledBatch()}
 		for i:=0;i<clients;i++{
 			go run(pool.Get())
@@ -74,6 +77,7 @@ func main()  {
 		if err != nil {
 			log.Fatalln("dailing error: ", err)
 		}
+		conn.SetCompressType(compress)
 		if batch {conn.EnabledBatch()}
 		go run(conn)
 	}else {

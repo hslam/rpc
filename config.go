@@ -6,8 +6,10 @@ import (
 )
 
 
-type	CodecType	int32
-type	MsgType		int32
+type CodecType int32
+type MsgType int32
+type CompressLevel int32
+type CompressType int32
 
 const (
 	Version			float32	= 1.0
@@ -56,8 +58,26 @@ const (
 	MsgTypeRes MsgType = 1
 	MsgTypeHea MsgType = 2
 
-)
+	NoCompression      CompressLevel= 0
+	BestSpeed          CompressLevel= 1
+	BestCompression    CompressLevel= 2
+	DefaultCompression CompressLevel= 3
 
+	NC			= "no"
+	SPEED		= "speed"
+	COMPRESSION	= "compression"
+	DC			= "default"
+
+	CompressTypeNocom CompressType = 0
+	CompressTypeFlate CompressType = 1
+	CompressTypeZlib  CompressType = 2
+	CompressTypeGzip  CompressType = 3
+
+	NOCOM  = "no"
+	FLATE  = "flate"
+	ZLIB   = "zlib"
+	GZIP   = "gzip"
+)
 
 var (
 	ErrConnExit=errors.New("exit")
@@ -72,7 +92,6 @@ var (
 	ErrTimeOut=errors.New("time out")
 	ErrReqId=errors.New("req_id err")
 	ErrClientId=errors.New("client_id err")
-
 )
 
 func SetLogLevel(level log.Level) {

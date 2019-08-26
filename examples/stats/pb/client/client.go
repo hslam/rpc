@@ -13,6 +13,7 @@ import (
 )
 var network string
 var codec string
+var compress string
 var host string
 var port int
 var addr string
@@ -27,6 +28,7 @@ func init()  {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	flag.StringVar(&network, "network", "tcp", "network: -network=tcp|ws|fast|http|http2|quic|udp")
 	flag.StringVar(&codec, "codec", "pb", "codec: -codec=pb|json|xml")
+	flag.StringVar(&compress, "compress", "no", "compress: -compress=no|flate|zlib|gzip")
 	flag.StringVar(&host, "h", "127.0.0.1", "host: -h=127.0.0.1")
 	flag.IntVar(&port, "p", 9999, "port: -p=9999")
 	flag.IntVar(&total_calls, "total", 1000000, "total_calls: -total=10000")
@@ -42,7 +44,7 @@ func init()  {
 }
 
 func main()  {
-	fmt.Printf("./client -network=%s -codec=%s -h=%s -p=%d -total=%d -concurrent=%t -batch=%t -noresponse=%t -clients=%d\n",network,codec,host,port,total_calls,concurrent,batch,noresponse,clients)
+	fmt.Printf("./client -network=%s -codec=%s -compress=%s -h=%s -p=%d -total=%d -concurrent=%t -batch=%t -noresponse=%t -clients=%d\n",network,codec,compress,host,port,total_calls,concurrent,batch,noresponse,clients)
 	var wrkClients []stats.Client
 	parallel:=1
 	if clients>1{
@@ -50,8 +52,8 @@ func main()  {
 		if err != nil {
 			log.Fatalln("dailing error: ", err)
 		}
+		pool.SetCompressType(compress)
 		if batch {pool.EnabledBatch()}
-
 		wrkClients=make([]stats.Client,len(pool.All()))
 		for i:=0; i<len(pool.All());i++  {
 			wrkClients[i]=&WrkClient{pool.All()[i]}
@@ -66,6 +68,7 @@ func main()  {
 		if err != nil {
 			log.Fatalln("dailing error: ", err)
 		}
+		conn.SetCompressType(compress)
 		if batch {conn.EnabledBatch()}
 		if batch{
 			parallel=conn.GetMaxBatchRequest()

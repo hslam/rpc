@@ -54,6 +54,20 @@ func (p *Pool)EnabledBatch(){
 		c.EnabledBatch()
 	}
 }
+func (p *Pool)SetCompressType(compress string){
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for _,c:= range p.conns{
+		c.SetCompressType(compress)
+	}
+}
+func (p *Pool)SetCompressLevel(compress,level string){
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for _,c:= range p.conns{
+		c.SetCompressLevel(compress,level)
+	}
+}
 func (p *Pool)GetMaxBatchRequest()int {
 	p.mu.Lock()
 	defer p.mu.Unlock()

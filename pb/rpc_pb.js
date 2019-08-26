@@ -13,6 +13,8 @@ var global = Function('return this')();
 
 goog.exportSymbol('proto.pb.Batch', null, global);
 goog.exportSymbol('proto.pb.CodecType', null, global);
+goog.exportSymbol('proto.pb.CompressLevel', null, global);
+goog.exportSymbol('proto.pb.CompressType', null, global);
 goog.exportSymbol('proto.pb.Msg', null, global);
 goog.exportSymbol('proto.pb.MsgType', null, global);
 goog.exportSymbol('proto.pb.Request', null, global);
@@ -136,6 +138,8 @@ proto.pb.Msg.toObject = function(includeInstance, msg) {
     msgtype: jspb.Message.getFieldWithDefault(msg, 3, 0),
     batch: jspb.Message.getFieldWithDefault(msg, 4, false),
     codectype: jspb.Message.getFieldWithDefault(msg, 5, 0),
+    compresstype: jspb.Message.getFieldWithDefault(msg, 6, 0),
+    compresslevel: jspb.Message.getFieldWithDefault(msg, 7, 0),
     data: msg.getData_asB64()
   };
 
@@ -194,6 +198,14 @@ proto.pb.Msg.deserializeBinaryFromReader = function(msg, reader) {
       msg.setCodectype(value);
       break;
     case 6:
+      var value = /** @type {!proto.pb.CompressType} */ (reader.readEnum());
+      msg.setCompresstype(value);
+      break;
+    case 7:
+      var value = /** @type {!proto.pb.CompressLevel} */ (reader.readEnum());
+      msg.setCompresslevel(value);
+      break;
+    case 8:
       var value = /** @type {!Uint8Array} */ (reader.readBytes());
       msg.setData(value);
       break;
@@ -261,10 +273,24 @@ proto.pb.Msg.serializeBinaryToWriter = function(message, writer) {
       f
     );
   }
+  f = message.getCompresstype();
+  if (f !== 0.0) {
+    writer.writeEnum(
+      6,
+      f
+    );
+  }
+  f = message.getCompresslevel();
+  if (f !== 0.0) {
+    writer.writeEnum(
+      7,
+      f
+    );
+  }
   f = message.getData_asU8();
   if (f.length > 0) {
     writer.writeBytes(
-      6,
+      8,
       f
     );
   }
@@ -349,16 +375,46 @@ proto.pb.Msg.prototype.setCodectype = function(value) {
 
 
 /**
- * optional bytes data = 6;
- * @return {!(string|Uint8Array)}
+ * optional CompressType compressType = 6;
+ * @return {!proto.pb.CompressType}
  */
-proto.pb.Msg.prototype.getData = function() {
-  return /** @type {!(string|Uint8Array)} */ (jspb.Message.getFieldWithDefault(this, 6, ""));
+proto.pb.Msg.prototype.getCompresstype = function() {
+  return /** @type {!proto.pb.CompressType} */ (jspb.Message.getFieldWithDefault(this, 6, 0));
+};
+
+
+/** @param {!proto.pb.CompressType} value */
+proto.pb.Msg.prototype.setCompresstype = function(value) {
+  jspb.Message.setProto3EnumField(this, 6, value);
 };
 
 
 /**
- * optional bytes data = 6;
+ * optional CompressLevel compressLevel = 7;
+ * @return {!proto.pb.CompressLevel}
+ */
+proto.pb.Msg.prototype.getCompresslevel = function() {
+  return /** @type {!proto.pb.CompressLevel} */ (jspb.Message.getFieldWithDefault(this, 7, 0));
+};
+
+
+/** @param {!proto.pb.CompressLevel} value */
+proto.pb.Msg.prototype.setCompresslevel = function(value) {
+  jspb.Message.setProto3EnumField(this, 7, value);
+};
+
+
+/**
+ * optional bytes data = 8;
+ * @return {!(string|Uint8Array)}
+ */
+proto.pb.Msg.prototype.getData = function() {
+  return /** @type {!(string|Uint8Array)} */ (jspb.Message.getFieldWithDefault(this, 8, ""));
+};
+
+
+/**
+ * optional bytes data = 8;
  * This is a type-conversion wrapper around `getData()`
  * @return {string}
  */
@@ -369,7 +425,7 @@ proto.pb.Msg.prototype.getData_asB64 = function() {
 
 
 /**
- * optional bytes data = 6;
+ * optional bytes data = 8;
  * Note that Uint8Array is not supported on all browsers.
  * @see http://caniuse.com/Uint8Array
  * This is a type-conversion wrapper around `getData()`
@@ -383,7 +439,7 @@ proto.pb.Msg.prototype.getData_asU8 = function() {
 
 /** @param {!(string|Uint8Array)} value */
 proto.pb.Msg.prototype.setData = function(value) {
-  jspb.Message.setProto3BytesField(this, 6, value);
+  jspb.Message.setProto3BytesField(this, 8, value);
 };
 
 
@@ -1014,6 +1070,26 @@ proto.pb.CodecType = {
   XML: 3,
   GOB: 4,
   BYTES: 5
+};
+
+/**
+ * @enum {number}
+ */
+proto.pb.CompressType = {
+  NOCOM: 0,
+  FLATE: 1,
+  ZLIB: 2,
+  GZIP: 3
+};
+
+/**
+ * @enum {number}
+ */
+proto.pb.CompressLevel = {
+  NOCOMPRESSION: 0,
+  BESTSPEED: 1,
+  BESTCOMPRESSION: 2,
+  DEFAULTCOMPRESSION: 3
 };
 
 goog.object.extend(exports, proto.pb);
