@@ -3,6 +3,7 @@ var rpc = require('./rpc_pb');
 module.exports = {
     DataProto: rpc
 }
+
 },{"./rpc_pb":3}],2:[function(require,module,exports){
 (function (global,Buffer){
 var $jscomp=$jscomp||{};$jscomp.scope={};$jscomp.findInternal=function(a,b,c){a instanceof String&&(a=String(a));for(var d=a.length,e=0;e<d;e++){var f=a[e];if(b.call(c,f,e,a))return{i:e,v:f}}return{i:-1,v:void 0}};$jscomp.ASSUME_ES5=!1;$jscomp.ASSUME_NO_NATIVE_MAP=!1;$jscomp.ASSUME_NO_NATIVE_SET=!1;$jscomp.SIMPLE_FROUND_POLYFILL=!1;
@@ -401,6 +402,7 @@ var global = Function('return this')();
 goog.exportSymbol('proto.pb.Batch', null, global);
 goog.exportSymbol('proto.pb.CodecType', null, global);
 goog.exportSymbol('proto.pb.CompressLevel', null, global);
+goog.exportSymbol('proto.pb.CompressType', null, global);
 goog.exportSymbol('proto.pb.Msg', null, global);
 goog.exportSymbol('proto.pb.MsgType', null, global);
 goog.exportSymbol('proto.pb.Request', null, global);
@@ -524,7 +526,8 @@ proto.pb.Msg.toObject = function(includeInstance, msg) {
     msgtype: jspb.Message.getFieldWithDefault(msg, 3, 0),
     batch: jspb.Message.getFieldWithDefault(msg, 4, false),
     codectype: jspb.Message.getFieldWithDefault(msg, 5, 0),
-    compresslevel: jspb.Message.getFieldWithDefault(msg, 6, 0),
+    compresstype: jspb.Message.getFieldWithDefault(msg, 6, 0),
+    compresslevel: jspb.Message.getFieldWithDefault(msg, 7, 0),
     data: msg.getData_asB64()
   };
 
@@ -583,10 +586,14 @@ proto.pb.Msg.deserializeBinaryFromReader = function(msg, reader) {
       msg.setCodectype(value);
       break;
     case 6:
+      var value = /** @type {!proto.pb.CompressType} */ (reader.readEnum());
+      msg.setCompresstype(value);
+      break;
+    case 7:
       var value = /** @type {!proto.pb.CompressLevel} */ (reader.readEnum());
       msg.setCompresslevel(value);
       break;
-    case 7:
+    case 8:
       var value = /** @type {!Uint8Array} */ (reader.readBytes());
       msg.setData(value);
       break;
@@ -654,17 +661,24 @@ proto.pb.Msg.serializeBinaryToWriter = function(message, writer) {
       f
     );
   }
-  f = message.getCompresslevel();
+  f = message.getCompresstype();
   if (f !== 0.0) {
     writer.writeEnum(
       6,
       f
     );
   }
+  f = message.getCompresslevel();
+  if (f !== 0.0) {
+    writer.writeEnum(
+      7,
+      f
+    );
+  }
   f = message.getData_asU8();
   if (f.length > 0) {
     writer.writeBytes(
-      7,
+      8,
       f
     );
   }
@@ -749,31 +763,46 @@ proto.pb.Msg.prototype.setCodectype = function(value) {
 
 
 /**
- * optional CompressLevel compressLevel = 6;
- * @return {!proto.pb.CompressLevel}
+ * optional CompressType compressType = 6;
+ * @return {!proto.pb.CompressType}
  */
-proto.pb.Msg.prototype.getCompresslevel = function() {
-  return /** @type {!proto.pb.CompressLevel} */ (jspb.Message.getFieldWithDefault(this, 6, 0));
+proto.pb.Msg.prototype.getCompresstype = function() {
+  return /** @type {!proto.pb.CompressType} */ (jspb.Message.getFieldWithDefault(this, 6, 0));
 };
 
 
-/** @param {!proto.pb.CompressLevel} value */
-proto.pb.Msg.prototype.setCompresslevel = function(value) {
+/** @param {!proto.pb.CompressType} value */
+proto.pb.Msg.prototype.setCompresstype = function(value) {
   jspb.Message.setProto3EnumField(this, 6, value);
 };
 
 
 /**
- * optional bytes data = 7;
- * @return {!(string|Uint8Array)}
+ * optional CompressLevel compressLevel = 7;
+ * @return {!proto.pb.CompressLevel}
  */
-proto.pb.Msg.prototype.getData = function() {
-  return /** @type {!(string|Uint8Array)} */ (jspb.Message.getFieldWithDefault(this, 7, ""));
+proto.pb.Msg.prototype.getCompresslevel = function() {
+  return /** @type {!proto.pb.CompressLevel} */ (jspb.Message.getFieldWithDefault(this, 7, 0));
+};
+
+
+/** @param {!proto.pb.CompressLevel} value */
+proto.pb.Msg.prototype.setCompresslevel = function(value) {
+  jspb.Message.setProto3EnumField(this, 7, value);
 };
 
 
 /**
- * optional bytes data = 7;
+ * optional bytes data = 8;
+ * @return {!(string|Uint8Array)}
+ */
+proto.pb.Msg.prototype.getData = function() {
+  return /** @type {!(string|Uint8Array)} */ (jspb.Message.getFieldWithDefault(this, 8, ""));
+};
+
+
+/**
+ * optional bytes data = 8;
  * This is a type-conversion wrapper around `getData()`
  * @return {string}
  */
@@ -784,7 +813,7 @@ proto.pb.Msg.prototype.getData_asB64 = function() {
 
 
 /**
- * optional bytes data = 7;
+ * optional bytes data = 8;
  * Note that Uint8Array is not supported on all browsers.
  * @see http://caniuse.com/Uint8Array
  * This is a type-conversion wrapper around `getData()`
@@ -798,7 +827,7 @@ proto.pb.Msg.prototype.getData_asU8 = function() {
 
 /** @param {!(string|Uint8Array)} value */
 proto.pb.Msg.prototype.setData = function(value) {
-  jspb.Message.setProto3BytesField(this, 7, value);
+  jspb.Message.setProto3BytesField(this, 8, value);
 };
 
 
@@ -1429,6 +1458,16 @@ proto.pb.CodecType = {
   XML: 3,
   GOB: 4,
   BYTES: 5
+};
+
+/**
+ * @enum {number}
+ */
+proto.pb.CompressType = {
+  NOCOM: 0,
+  FLATE: 1,
+  ZLIB: 2,
+  GZIP: 3
 };
 
 /**
