@@ -22,7 +22,7 @@ func DialFASTHTTP(address string)  (Conn, error)  {
 }
 
 func (t *FASTHTTPConn)Handle(readChan chan []byte,writeChan chan []byte, stopChan chan bool){
-	go protocol.HandleSyncClient(t, readChan,writeChan,stopChan)
+	go protocol.HandleSyncConn(t, readChan,writeChan,stopChan)
 }
 func (t *FASTHTTPConn)TickerFactor()(int){
 	return 100

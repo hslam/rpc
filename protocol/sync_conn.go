@@ -4,11 +4,11 @@ import (
 	"math/rand"
 )
 
-type SyncClient interface {
+type SyncConn interface {
 	Do(reqBody []byte)([]byte,error)
 }
 
-func HandleSyncClient(syncClient SyncClient,readChan chan []byte,writeChan chan []byte, stopChan chan bool){
+func HandleSyncConn(syncConn SyncConn,readChan chan []byte,writeChan chan []byte, stopChan chan bool){
 	defer func() {
 		if err := recover(); err != nil {
 		}
@@ -60,9 +60,9 @@ func HandleSyncClient(syncClient SyncClient,readChan chan []byte,writeChan chan 
 		notice:=&Notice{Id:id,}
 		queueMsg.Push(notice)
 		msg:=&Message{OprationTypeData,id,send_data}
-		go func(syncClient SyncClient,msg *Message) {
+		go func(syncConn SyncConn,msg *Message) {
 			for {
-				respBody,err := syncClient.Do(msg.message)
+				respBody,err := syncConn.Do(msg.message)
 				if err != nil {
 					continue
 				}
@@ -75,7 +75,7 @@ func HandleSyncClient(syncClient SyncClient,readChan chan []byte,writeChan chan 
 			}
 			stopChan<-true
 			endfor:
-		}(syncClient,msg)
+		}(syncConn,msg)
 	}
 	close(readMessageChan)
 	close(idChan)
