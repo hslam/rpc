@@ -34,7 +34,7 @@ func IndexHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method!="POST"{
 		return
 	}
-	//log.All(r.Proto)
+	log.Traceln(r.Proto)
 	if useWorkerPool{
 		workerPool.Process(func(obj interface{}, args ...interface{}) interface{} {
 			var w = obj.(http.ResponseWriter)

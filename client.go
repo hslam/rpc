@@ -6,9 +6,18 @@ import (
 	"math/rand"
 	"hslam.com/mgit/Mort/rpc/log"
 )
+
+func Dial(network,address,codec string) (*Client, error) {
+	transporter,err:=dial(network,address)
+	if err!=nil{
+		return nil,err
+	}
+	return NewClient(transporter,codec)
+}
+
 type Client struct {
 	mu 				sync.Mutex
-	transporter		Transporter
+	conn			Conn
 	closed			bool
 	hystrix			bool
 	batchEnabled	bool
@@ -29,10 +38,10 @@ type Client struct {
 	maxErrHeartbeat	int
 	errCntHeartbeat	int
 }
-func NewClient(transporter Transporter,codec string)  (*Client, error) {
-	return NewClientnWithConcurrent(transporter,codec,DefaultMaxConcurrentRequest+1)
+func NewClient(conn	Conn,codec string)  (*Client, error) {
+	return NewClientnWithConcurrent(conn,codec,DefaultMaxConcurrentRequest+1)
 }
-func NewClientnWithConcurrent(transporter	Transporter,codec string,maxConcurrentRequest int)  (*Client, error)  {
+func NewClientnWithConcurrent(conn	Conn,codec string,maxConcurrentRequest int)  (*Client, error)  {
 	funcsCodecType,err:=FuncsCodecType(codec)
 	if err!=nil{
 		return nil,err
@@ -42,35 +51,35 @@ func NewClientnWithConcurrent(transporter	Transporter,codec string,maxConcurrent
 	errCntChan:=make(chan int,1000000)
 	var client_id int64=0
 	idgenerator:=idgenerator.NewSnowFlake(client_id)
-	conn :=  &Client{client_id:client_id,transporter:transporter,stopChan:stopChan,funcsCodecType:funcsCodecType}
-	conn.readChan=make(chan []byte,maxConcurrentRequest)
-	conn.writeChan= make(chan []byte,maxConcurrentRequest)
-	conn.idgenerator=idgenerator
-	conn.errCntChan=errCntChan
-	conn.timeout=DefaultClientTimeout
-	conn.maxErrPerSecond=DefaultClientMaxErrPerSecond
-	conn.heartbeatTimeout=DefaultClientHearbeatTimeout
-	conn.maxErrHeartbeat=DefaultClientMaxErrHearbeat
-	conn.transporter.Handle(conn.readChan,conn.writeChan,conn.stopChan)
+	client :=  &Client{client_id:client_id,conn:conn,stopChan:stopChan,funcsCodecType:funcsCodecType}
+	client.readChan=make(chan []byte,maxConcurrentRequest)
+	client.writeChan= make(chan []byte,maxConcurrentRequest)
+	client.idgenerator=idgenerator
+	client.errCntChan=errCntChan
+	client.timeout=DefaultClientTimeout
+	client.maxErrPerSecond=DefaultClientMaxErrPerSecond
+	client.heartbeatTimeout=DefaultClientHearbeatTimeout
+	client.maxErrHeartbeat=DefaultClientMaxErrHearbeat
+	client.conn.Handle(client.readChan,client.writeChan,client.stopChan)
 	go func() {
 		defer func() {
-			defer conn.Close()
-			close(conn.writeChan)
-			close(conn.readChan)
+			defer client.Close()
+			close(client.writeChan)
+			close(client.readChan)
 			close(stopChan)
 			close(errCntChan)
 		}()
 		for{
 			select {
-			case <-conn.stopChan:
-				conn.Close()
+			case <-client.stopChan:
+				client.Close()
 			}
 		}
 
 	}()
 	go func() {
-		for c :=range conn.errCntChan{
-			conn.errCnt+=c
+		for c :=range client.errCntChan{
+			client.errCnt+=c
 		}
 	}()
 	go func() {
@@ -82,55 +91,55 @@ func NewClientnWithConcurrent(transporter	Transporter,codec string,maxConcurrent
 		for{
 			select {
 			case <-heartbeatTicker.C:
-				if conn.closed==false{
-					err:=conn.heartbeat()
+				if client.closed==false{
+					err:=client.heartbeat()
 					if err!=nil{
-						conn.errCntHeartbeat+=1
+						client.errCntHeartbeat+=1
 					}else {
-						conn.errCntHeartbeat-=1
-						if conn.errCntHeartbeat<0{
-							conn.errCntHeartbeat=0
+						client.errCntHeartbeat-=1
+						if client.errCntHeartbeat<0{
+							client.errCntHeartbeat=0
 						}
 					}
-					if conn.errCntHeartbeat>=conn.maxErrHeartbeat{
-						conn.Close()
-						conn.errCntHeartbeat=0
+					if client.errCntHeartbeat>=client.maxErrHeartbeat{
+						client.Close()
+						client.errCntHeartbeat=0
 					}
 				}
 			case <-retryTicker.C:
-				if conn.closed==true{
-					conn.Close()
-					err:=conn.transporter.Retry()
+				if client.closed==true{
+					client.Close()
+					err:=client.conn.Retry()
 					if err!=nil{
-						conn.hystrix=true
-						log.Errorln(conn.client_id,"retry connection err ",err)
+						client.hystrix=true
+						log.Errorln(client.client_id,"retry connection err ",err)
 					}else {
-						conn.closed=false
-						conn.hystrix=false
-						conn.concurrent.retry()
+						client.closed=false
+						client.hystrix=false
+						client.concurrent.retry()
 					}
 				}
 			case <-ticker.C:
-				if conn.errCnt>=DefaultClientMaxErrPerSecond{
-					conn.hystrix=true
-					conn.Close()
+				if client.errCnt>=DefaultClientMaxErrPerSecond{
+					client.hystrix=true
+					client.Close()
 				}else {
-					conn.hystrix=false
+					client.hystrix=false
 				}
-				conn.errCnt-=conn.errCnt
+				client.errCnt-=client.errCnt
 			}
 		}
 	}()
-	conn.concurrent=NewConcurrent(maxConcurrentRequest,conn.readChan,conn.writeChan,conn)
-	conn.concurrentChan = make(chan bool,maxConcurrentRequest)
-	return conn, nil
+	client.concurrent=NewConcurrent(maxConcurrentRequest,client.readChan,client.writeChan)
+	client.concurrentChan = make(chan bool,maxConcurrentRequest)
+	return client, nil
 }
 func (c *Client)EnabledBatch(){
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.batchEnabled = true
-	c.batch=NewBatch(c,DefaultMaxDelayNanoSecond*c.transporter.TickerFactor())
-	c.batch.SetMaxBatchRequest(DefaultMaxBatchRequest*c.transporter.BatchFactor())
+	c.batch=NewBatch(c,DefaultMaxDelayNanoSecond*c.conn.TickerFactor())
+	c.batch.SetMaxBatchRequest(DefaultMaxBatchRequest*c.conn.BatchFactor())
 
 }
 func (c *Client)SetID(id int64)error{
@@ -298,7 +307,7 @@ func (c *Client)Close() ( err error) {
 		return nil
 	}
 	c.closed = true
-	return c.transporter.Close()
+	return c.conn.Close()
 }
 func (c *Client)Closed()bool{
 	return c.closed

@@ -6,27 +6,43 @@ import (
 	"hslam.com/mgit/Mort/rpc/log"
 )
 
-type ConnPool chan Conn
+func Dials(total int,network,address,codec string)(*Pool,error){
+	p :=  &Pool{
+		connPool:make(ClientPool,total),
+		conns:make([]*Client,total),
+	}
+	for i := 0;i<total;i++{
+		conn,err:=Dial(network,address,codec)
+		if err != nil {
+			return nil,err
+		}
+		p.connPool <- conn
+		p.conns[i]=conn
+	}
+	return p,nil
+}
+
+type ClientPool chan *Client
 
 type Pool struct {
 	mu 				sync.Mutex
-	connPool 		ConnPool
-	conns   		[]Conn
+	connPool 		ClientPool
+	conns   		[]*Client
 	pool_id			int64
 }
 
-func (p *Pool)Get()Conn{
+func (p *Pool)Get()*Client{
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	c:=<-p.connPool
 	return c
 }
-func (p *Pool)Put(c Conn){
+func (p *Pool)Put(c *Client){
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.connPool<-c
 }
-func (p *Pool)All()[]Conn{
+func (p *Pool)All()[]*Client{
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.conns
@@ -188,7 +204,7 @@ func (p *Pool)Call(name string, args interface{}, reply interface{}) ( err error
 		}
 	}()
 	c:=<-p.connPool
-	defer func(c Conn) {
+	defer func(c *Client) {
 		p.connPool<-c
 	}(c)
 	return c.Call(name,args,reply)
@@ -200,7 +216,7 @@ func (p *Pool)CallNoResponse(name string, args interface{}) ( err error) {
 		}
 	}()
 	c:=<-p.connPool
-	defer func(c Conn) {
+	defer func(c *Client) {
 		p.connPool<-c
 	}(c)
 	return c.CallNoResponse(name,args)

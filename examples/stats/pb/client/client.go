@@ -81,7 +81,7 @@ func main()  {
 }
 
 type WrkClient struct {
-	rpc.Conn
+	Conn *rpc.Client
 }
 
 func (c *WrkClient)Call()(int64,bool){

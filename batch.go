@@ -19,16 +19,16 @@ type BatchRequest struct {
 type Batch struct {
 	mut sync.Mutex
 	reqChan RequestChan
-	conn Conn
+	client *Client
 	readyRequests []*BatchRequest
 	sendRequests chan []*BatchRequest
 	maxBatchRequest	int
 	maxDelayNanoSecond	int
 }
-func NewBatch(conn Conn,maxDelayNanoSecond int) *Batch {
+func NewBatch(client *Client,maxDelayNanoSecond int) *Batch {
 	c:= &Batch{
 		reqChan:make(chan *BatchRequest,DefaultMaxCacheRequest),
-		conn:conn,
+		client:client,
 		readyRequests:make([]*BatchRequest,0),
 		sendRequests:make(chan []*BatchRequest,1),
 		maxBatchRequest:DefaultMaxBatchRequest,
@@ -97,15 +97,15 @@ func (c *Batch)Ticker(crs []*BatchRequest){
 	batch:=&BatchCodec{req_bytes_s}
 	batch_bytes,err:=batch.Encode()
 	msg:=&Msg{}
-	msg.id=c.conn.GetID()
+	msg.id=c.client.GetID()
 	msg.data=batch_bytes
 	msg.batch=true
 	msg.msgType=MsgType(pb.MsgType_req)
-	msg.codecType=c.conn.CodecType()
+	msg.codecType=c.client.CodecType()
 	msg_bytes,err:=msg.Encode()
 	if err==nil{
 		if noResponse==false{
-			data,err:=c.conn.RemoteCall(msg_bytes)
+			data,err:=c.client.RemoteCall(msg_bytes)
 			if err == nil {
 				msg:=&Msg{}
 				err=msg.Decode(data)
@@ -143,7 +143,7 @@ func (c *Batch)Ticker(crs []*BatchRequest){
 				}
 			}
 		}else {
-			_=c.conn.RemoteCallNoResponse(msg_bytes)
+			_=c.client.RemoteCallNoResponse(msg_bytes)
 		}
 
 	}

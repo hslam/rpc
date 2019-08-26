@@ -16,22 +16,19 @@ type Concurrent struct {
 	concurrentChan chan *ConcurrentRequest
 	actionConcurrentChan chan *ConcurrentRequest
 	noResponseConcurrentChan chan *ConcurrentRequest
-
 	readChan chan []byte
 	writeChan chan []byte
-	conn Conn
 	maxConcurrentRequest	int
 	returnid		int64
 	stop			bool
 }
-func NewConcurrent(maxConcurrentRequest int,readChan  chan []byte,writeChan  chan []byte,conn Conn) *Concurrent {
+func NewConcurrent(maxConcurrentRequest int,readChan  chan []byte,writeChan  chan []byte) *Concurrent {
 	c:= &Concurrent{
 		concurrentChan:make(chan *ConcurrentRequest,maxConcurrentRequest),
 		actionConcurrentChan:make(chan *ConcurrentRequest,maxConcurrentRequest*2),
 		noResponseConcurrentChan:make(chan *ConcurrentRequest,maxConcurrentRequest*2),
 		readChan :readChan,
 		writeChan :writeChan,
-		conn:conn,
 		maxConcurrentRequest:maxConcurrentRequest,
 	}
 	go c.run()

@@ -86,7 +86,7 @@ func main()  {
 	time.Sleep(time.Second*3)
 	fmt.Println(count/int(run_time_second),int(run_time_second*1000000000)/count)
 }
-func run(conn rpc.Conn)  {
+func run(conn *rpc.Client)  {
 	var err error
 	var req =[]byte("Hello World")
 	var res []byte
@@ -112,7 +112,7 @@ func run(conn rpc.Conn)  {
 	defer conn.Close()
 	select {}
 }
-func work(conn rpc.Conn, countchan chan int) {
+func work(conn *rpc.Client, countchan chan int) {
 	start_time:=time.Now().UnixNano()
 	var err error
 	len:=10
