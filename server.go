@@ -3,20 +3,47 @@ package rpc
 import (
 	"hslam.com/mgit/Mort/funcs"
 	"hslam.com/mgit/Mort/rpc/log"
+	"hslam.com/mgit/Mort/workerpool"
 	"fmt"
 	"time"
 )
 
-var DefaultServer = NewServer()
+var (
+	workerPoolSize			=1024
+	workerMax				=64
+	DefaultServer = NewServer()
+)
 
 type Server struct {
-	network string
-	listener Listener
-	Funcs 	*funcs.Funcs
-	timeout int64
+	network 			string
+	listener 			Listener
+	Funcs 				*funcs.Funcs
+	timeout 			int64
+	workerPoolSize		int
+	workerMax			int
+	useWorkerPool		bool
+	workerPool 			*workerpool.Pool
 }
 func NewServer() *Server {
 	return &Server{Funcs:funcs.New(),timeout:DefaultServerTimeout}
+}
+
+func EnabledWorkerPool() {
+	DefaultServer.EnabledWorkerPool()
+}
+func (s *Server) EnabledWorkerPool() {
+	s.useWorkerPool=true
+	DefaultServer.workerPool=workerpool.New(workerPoolSize,workerMax)
+}
+func EnabledWorkerPoolWithSize(size ,max int) {
+	DefaultServer.EnabledWorkerPoolWithSize(size ,max)
+}
+
+func (s *Server) EnabledWorkerPoolWithSize(size ,max int) {
+	s.useWorkerPool=true
+	s.workerPoolSize=size
+	s.workerMax=max
+	s.workerPool= workerpool.New(workerPoolSize,workerMax)
 }
 
 func Register(obj interface{}) error {
@@ -40,7 +67,7 @@ func ListenAndServe(network,address string) error {
 
 func (s *Server)ListenAndServe(network,address string) error {
 	s.network=network
-	listener,err:=Listen(network,address)
+	listener,err:=Listen(network,address,s)
 	if err != nil {
 		log.Errorln(err)
 		return err

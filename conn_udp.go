@@ -17,7 +17,8 @@ type UDPConn struct {
 func DialUDP(address string)  (Conn, error)  {
 	conn, err := net.Dial(UDP, address)
 	if err != nil {
-		log.Fatalf("fatal error: %s", err)
+		log.Errorf("fatal error: %s", err)
+		return nil,err
 	}
 	t:=&UDPConn{
 		conn:conn,

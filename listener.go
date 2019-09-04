@@ -10,24 +10,24 @@ type Listener interface {
 	Addr() string
 }
 
-func Listen(network,address string) (Listener, error) {
+func Listen(network,address string,server *Server) (Listener, error) {
 	log.Allf( "network - %s", network)
 	log.Allf( "listening on %s", address)
 	switch network {
 	case TCP:
-		return ListenTCP(address)
+		return ListenTCP(address,server)
 	case UDP:
-		return ListenUDP(address)
+		return ListenUDP(address,server)
 	case QUIC:
-		return ListenQUIC(address)
+		return ListenQUIC(address,server)
 	case WS:
-		return ListenWS(address)
+		return ListenWS(address,server)
 	case FASTHTTP:
-		return ListenFASTHTTP(address)
+		return ListenFASTHTTP(address,server)
 	case HTTP:
-		return ListenHTTP(address)
+		return ListenHTTP(address,server)
 	case HTTP2:
-		return ListenHTTP2(address)
+		return ListenHTTP2(address,server)
 	}
 	return nil, errors.New("this network is not suported")
 }

@@ -18,11 +18,13 @@ type QUICConn struct {
 func DialQUIC(address string)  (Conn, error)  {
 	session, err := quic.DialAddr(address, &tls.Config{InsecureSkipVerify: true}, nil)
 	if err != nil {
-		log.Fatalf("fatal error: %s", err)
+		log.Errorf("fatal error: %s", err)
+		return nil,err
 	}
 	stream, err := session.OpenStreamSync()
 	if err != nil {
-		log.Fatalf("fatal error: %s", err)
+		log.Errorf("fatal error: %s", err)
+		return nil,err
 	}
 	t:=&QUICConn{
 		conn:stream,

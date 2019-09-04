@@ -7,15 +7,17 @@ import (
 )
 
 type QUICListener struct {
+	server			*Server
 	address			string
 	quicListener	quic.Listener
 }
-func ListenQUIC(address string) (Listener, error) {
+func ListenQUIC(address string,server *Server) (Listener, error) {
 	quic_listener, err := quic.ListenAddr(address, generateTLSConfig(), nil)
 	if err!=nil{
-		log.Fatalf("fatal error: %s", err)
+		log.Errorf("fatal error: %s", err)
+		return nil,err
 	}
-	listener:= &QUICListener{address:address,quicListener:quic_listener}
+	listener:= &QUICListener{address:address,quicListener:quic_listener,server:server}
 	return listener,nil
 }
 func (l *QUICListener)Serve() (error) {
@@ -27,13 +29,14 @@ func (l *QUICListener)Serve() (error) {
 			continue
 		}else{
 			log.Infof("new client %s comming",sess.RemoteAddr())
-			if useWorkerPool{
-				workerPool.ProcessAsyn( func(obj interface{}, args ...interface{}) interface{} {
+			if l.server.useWorkerPool{
+				l.server.workerPool.ProcessAsyn( func(obj interface{}, args ...interface{}) interface{} {
 					var s = obj.(quic.Session)
-					return ServeQUICConn(s)
-				},sess)
+					var server = args[0].(*Server)
+					return ServeQUICConn(server,s)
+				},sess,l.server)
 			}else {
-				go ServeQUICConn(sess)
+				go ServeQUICConn(l.server,sess)
 			}
 		}
 	}
@@ -42,7 +45,7 @@ func (l *QUICListener)Serve() (error) {
 func (l *QUICListener)Addr() (string) {
 	return l.address
 }
-func ServeQUICConn(sess quic.Session)error {
+func ServeQUICConn(server *Server,sess quic.Session)error {
 	var RemoteAddr=sess.RemoteAddr().String()
 	stream, err := sess.AcceptStream()
 	if err != nil {
@@ -58,7 +61,7 @@ func ServeQUICConn(sess quic.Session)error {
 	for {
 		select {
 		case data := <-readChan:
-			_,res_bytes, _ := ServeRPC(data)
+			_,res_bytes, _ := server.ServeRPC(data)
 			if res_bytes!=nil{
 				writeChan <- res_bytes
 			}

@@ -22,7 +22,7 @@ type Batch struct {
 	reqChan RequestChan
 	client *Client
 	readyRequests []*BatchRequest
-	sendRequests chan []*BatchRequest
+	//sendRequests chan []*BatchRequest
 	maxBatchRequest	int
 	maxDelayNanoSecond	int
 }
@@ -31,7 +31,7 @@ func NewBatch(client *Client,maxDelayNanoSecond int) *Batch {
 		reqChan:make(chan *BatchRequest,DefaultMaxCacheRequest),
 		client:client,
 		readyRequests:make([]*BatchRequest,0),
-		sendRequests:make(chan []*BatchRequest,1),
+		//sendRequests:make(chan []*BatchRequest,1),
 		maxBatchRequest:DefaultMaxBatchRequest,
 		maxDelayNanoSecond:maxDelayNanoSecond,
 	}

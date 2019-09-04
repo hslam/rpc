@@ -1,7 +1,6 @@
 package rpc
 
 import (
-	"fmt"
 	"hslam.com/mgit/Mort/rpc/log"
 )
 type ClientCodec struct{
@@ -59,7 +58,6 @@ func (c *ClientCodec)Decode(b []byte) error  {
 			}
 			return ReplyDecode(res.data,c.reply,msg.codecType)
 		}else {
-			fmt.Println(ErrReqId,req_id,c.res.id)
 			return ErrReqId
 		}
 

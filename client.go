@@ -347,6 +347,19 @@ func (c *Client)OnlyCall(name string) ( err error) {
 	}
 	return
 }
+
+func (c *Client)Ping() bool {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Errorln("Client.Ping failed:", err)
+		}
+	}()
+	err:=c.heartbeat()
+	if err!=nil{
+		return false
+	}
+	return true
+}
 func (c *Client)RemoteCall(b []byte)([]byte,error){
 	c.pipelineChan<-true
 	cbChan := make(chan []byte,1)

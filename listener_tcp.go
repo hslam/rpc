@@ -7,15 +7,17 @@ import (
 )
 
 type TCPListener struct {
+	server			*Server
 	address			string
 	netListener		net.Listener
 }
-func ListenTCP(address string) (Listener, error) {
+func ListenTCP(address string,server *Server) (Listener, error) {
 	lis, err := net.Listen("tcp", address)
 	if err!=nil{
-		log.Fatalf("fatal error: %s", err)
+		log.Errorf("fatal error: %s", err)
+		return nil,err
 	}
-	listener:= &TCPListener{address:address,netListener:lis}
+	listener:= &TCPListener{address:address,netListener:lis,server:server}
 	return listener,nil
 }
 func (l *TCPListener)Serve() (error) {
@@ -27,13 +29,14 @@ func (l *TCPListener)Serve() (error) {
 			continue
 		}
 		log.Infof("new client %s comming",conn.RemoteAddr())
-		if useWorkerPool{
-			workerPool.ProcessAsyn( func(obj interface{}, args ...interface{}) interface{} {
+		if l.server.useWorkerPool{
+			l.server.workerPool.ProcessAsyn( func(obj interface{}, args ...interface{}) interface{} {
 				var c = obj.(net.Conn )
-				return ServeTCPConn(c)
-			},conn)
+				var server = args[0].(*Server)
+				return ServeTCPConn(server,c)
+			},conn,l.server)
 		}else {
-			go ServeTCPConn(conn)
+			go ServeTCPConn(l.server,conn)
 		}
 	}
 	return nil
@@ -41,7 +44,7 @@ func (l *TCPListener)Serve() (error) {
 func (l *TCPListener)Addr() (string) {
 	return l.address
 }
-func ServeTCPConn(conn net.Conn)error {
+func ServeTCPConn(server *Server,conn net.Conn)error {
 	var RemoteAddr=conn.RemoteAddr().String()
 	readChan := make(chan []byte)
 	writeChan := make(chan []byte)
@@ -51,7 +54,7 @@ func ServeTCPConn(conn net.Conn)error {
 	for {
 		select {
 		case data := <-readChan:
-			_,res_bytes, _ := ServeRPC(data)
+			_,res_bytes, _ := server.ServeRPC(data)
 			if res_bytes!=nil{
 				writeChan <- res_bytes
 			}

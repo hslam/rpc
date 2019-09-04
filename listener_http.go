@@ -8,50 +8,60 @@ import (
 )
 
 type HTTPListener struct {
+	server			*Server
 	address			string
 }
-func ListenHTTP(address string) (Listener, error) {
-	http.HandleFunc("/", IndexHandler)
-	listener:=  &HTTPListener{address:address}
+func ListenHTTP(address string,server *Server) (Listener, error) {
+	listener:=  &HTTPListener{address:address,server:server}
 	return listener,nil
 }
 
+
 func (l *HTTPListener)Serve() (error) {
 	log.Allf( "%s", "Waiting for clients")
-	err:=http.ListenAndServe(l.address, nil)
+	handler:=new(Handler)
+	handler.server=l.server
+	err:=http.ListenAndServe(l.address, handler)
 	if err!=nil{
-		log.Fatalf("fatal error: %s", err)
+		log.Errorf("fatal error: %s", err)
+		return err
 	}
 	return nil
 }
+
+
 func (l *HTTPListener)Addr() (string) {
 	return l.address
 }
-func IndexHandler(w http.ResponseWriter, r *http.Request) {
+
+
+type Handler struct {
+	server			*Server
+}
+func (h *Handler)ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	var RemoteAddr=r.RemoteAddr
 	log.AllInfof("new client %s comming",RemoteAddr)
 	if r.Method!="POST"{
 		return
 	}
-	log.Traceln(r.Proto)
-	if useWorkerPool{
-		workerPool.Process(func(obj interface{}, args ...interface{}) interface{} {
+	if h.server.useWorkerPool{
+		h.server.workerPool.Process(func(obj interface{}, args ...interface{}) interface{} {
 			var w = obj.(http.ResponseWriter)
 			var r = args[0].(*http.Request)
+			var server = args[1].(*Server)
 			data, _ := ioutil.ReadAll(r.Body)
-			return ServeHTTP(w,data)
-		},w,r)
+			return ServeHTTP(server,w,data)
+		},w,r,h.server)
 	}else {
 		data, _ := ioutil.ReadAll(r.Body)
-		ServeHTTP(w,data)
+		ServeHTTP(h.server,w,data)
 	}
 }
 
-func ServeHTTP(w io.Writer,data []byte)error {
-	_,res_bytes, _ := ServeRPC(data)
+func ServeHTTP(server *Server,w io.Writer,data []byte)error {
+	_,res_bytes, _ := server.ServeRPC(data)
 	if res_bytes!=nil{
-		log.Tracef("res_bytes %s len %d",res_bytes,len(res_bytes))
 		_,err:=w.Write(res_bytes)
 		return err
 	}else {

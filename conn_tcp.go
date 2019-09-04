@@ -17,11 +17,13 @@ type TCPConn struct {
 func DialTCP(address string)  (Conn, error)  {
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", address)
 	if err != nil {
-		log.Fatalf("fatal error: %s", err)
+		log.Errorf("fatal error: %s", err)
+		return nil,err
 	}
 	conn, err := net.DialTCP("tcp", nil, tcpAddr)
 	if err != nil {
-		log.Fatalf("fatal error: %s", err)
+		log.Errorf("fatal error: %s", err)
+		return nil,err
 	}
 	if err != nil {
 		return nil, err

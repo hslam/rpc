@@ -7,19 +7,22 @@ import (
 )
 
 type UDPListener struct {
+	server			*Server
 	address			string
 	netUDPConn		*net.UDPConn
 }
-func ListenUDP(address string) (Listener, error) {
+func ListenUDP(address string,server *Server) (Listener, error) {
 	addr, err := net.ResolveUDPAddr("udp", address)
 	if err!=nil{
-		log.Fatalf("fatal error: %s", err)
+		log.Errorf("fatal error: %s", err)
+		return nil,err
 	}
 	conn, err := net.ListenUDP("udp", addr)
 	if err != nil {
-		log.Fatalf("fatal error: %s", err)
+		log.Errorf("fatal error: %s", err)
+		return nil,err
 	}
-	listener:=  &UDPListener{address:address,netUDPConn:conn}
+	listener:=  &UDPListener{address:address,netUDPConn:conn,server:server}
 	return listener,nil
 }
 
@@ -35,14 +38,15 @@ func (l *UDPListener)Serve() (error) {
 		case udp_msg := <-readChan:
 			var RemoteAddr=udp_msg.RemoteAddr.String()
 			log.AllInfof("new client %s comming",RemoteAddr)
-			if useWorkerPool{
-				workerPool.ProcessAsyn( func(obj interface{}, args ...interface{}) interface{} {
+			if l.server.useWorkerPool{
+				l.server.workerPool.ProcessAsyn( func(obj interface{}, args ...interface{}) interface{} {
 					var udp_msg = obj.(*protocol.UDPMsg)
 					var writeChan=args[0].(chan *protocol.UDPMsg)
-					return ServeUDPConn(udp_msg,writeChan)
-				},udp_msg,writeChan)
+					var server = args[1].(*Server)
+					return ServeUDPConn(server,udp_msg,writeChan)
+				},udp_msg,writeChan,l.server)
 			}else {
-				go ServeUDPConn(udp_msg,writeChan)
+				go ServeUDPConn(l.server,udp_msg,writeChan)
 			}
 		case stop := <-stopChan:
 			if stop {
@@ -60,8 +64,8 @@ func (l *UDPListener)Serve() (error) {
 func (l *UDPListener)Addr() (string) {
 	return l.address
 }
-func ServeUDPConn(udp_msg *protocol.UDPMsg,writeChan chan *protocol.UDPMsg)error {
-	ok,res_bytes, _ := ServeRPC(udp_msg.Data)
+func ServeUDPConn(server *Server,udp_msg *protocol.UDPMsg,writeChan chan *protocol.UDPMsg)error {
+	ok,res_bytes, _ := server.ServeRPC(udp_msg.Data)
 	if res_bytes!=nil{
 		writeChan <- &protocol.UDPMsg{udp_msg.ID,res_bytes,udp_msg.RemoteAddr}
 	}else if ok{

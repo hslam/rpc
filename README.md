@@ -6,6 +6,9 @@ p   Pipeline
 b   Batch
 n   Noresponse
 ```
+
+Batch is only useful when there are multiple goroutines calling it.
+
 ### Mac 4 CPU 8 GiB Localhost  qps
 ```
 package     transport   codec       1t      mt      1t_pipe 2t_pipe 1t_bat  2t_bat  1t_no   2t_no   1t_pb   2t_pb   1t_bn   2t_bn   1t_pn   2t_pn   1t_pbn  2t_pbn

@@ -15,14 +15,16 @@ var (
 )
 
 type WSListener struct {
+	server			*Server
 	address			string
 	httpServer		http.Server
 	listener		net.Listener
 }
-func ListenWS(address string) (Listener, error) {
+func ListenWS(address string,server *Server) (Listener, error) {
 	lis, err := net.Listen("tcp", address)
 	if err!=nil{
-		log.Fatalf("fatal error: %s", err)
+		log.Errorf("fatal error: %s", err)
+		return nil,err
 	}
 	var httpServer http.Server
 	httpServer.Addr = address
@@ -34,16 +36,17 @@ func ListenWS(address string) (Listener, error) {
 			return
 		}
 		log.Infof("new client %s comming",conn.RemoteAddr())
-		if useWorkerPool{
-			workerPool.Process(func(obj interface{}, args ...interface{}) interface{} {
+		if server.useWorkerPool{
+			server.workerPool.Process(func(obj interface{}, args ...interface{}) interface{} {
 				var w = obj.( *websocket.Conn)
-				return ServeWSConn(w)
-			},conn)
+				var server = args[0].(*Server)
+				return ServeWSConn(server,w)
+			},conn,server)
 		}else {
-			ServeWSConn(conn)
+			ServeWSConn(server,conn)
 		}
 	})
-	l:= &WSListener{address:address,httpServer:httpServer,listener:lis}
+	l:= &WSListener{address:address,httpServer:httpServer,listener:lis,server:server}
 
 	return l,nil
 }
@@ -51,14 +54,15 @@ func (l *WSListener)Serve() (error) {
 	log.Allf( "%s", "Waiting for clients")
 	err:=l.httpServer.Serve(l.listener)
 	if err != nil {
-		log.Fatalf("fatal error: %s", err)
+		log.Errorf("fatal error: %s", err)
+		return err
 	}
 	return nil
 }
  func (l *WSListener)Addr() (string) {
 	 return l.address
  }
-func ServeWSConn(conn *websocket.Conn)error {
+func ServeWSConn(server *Server,conn *websocket.Conn)error {
 	var RemoteAddr=conn.RemoteAddr().String()
 	readChan := make(chan []byte)
 	writeChan := make(chan []byte)
@@ -69,7 +73,7 @@ func ServeWSConn(conn *websocket.Conn)error {
 	for {
 		select {
 		case data := <-readChan:
-			_,res_bytes, _ := ServeRPC(data)
+			_,res_bytes, _ := server.ServeRPC(data)
 			if res_bytes!=nil{
 				writeChan <- res_bytes
 			}

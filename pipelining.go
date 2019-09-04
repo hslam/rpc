@@ -1,7 +1,5 @@
 package rpc
-import (
-	"sync"
-)
+
 
 type PipelineRequestChan chan *PipelineRequest
 
@@ -12,14 +10,12 @@ type PipelineRequest struct {
 }
 
 type Pipeline struct {
-	mut sync.Mutex
 	pipelineRequestChan PipelineRequestChan
 	actionPipelineRequestChan PipelineRequestChan
 	noResponsePipelineRequestChan PipelineRequestChan
 	readChan chan []byte
 	writeChan chan []byte
 	maxPipelineRequest	int
-	returnid		int64
 	stop			bool
 }
 func NewPipeline(maxPipelineRequest int,readChan  chan []byte,writeChan  chan []byte) *Pipeline {
