@@ -90,6 +90,7 @@ func ServeTCPConn(server *Server,conn net.Conn)error {
 	close(finishChan)
 	close(stopReadStreamChan)
 	close(stopWriteStreamChan)
+	close(stopChan)
 	log.Infof("client %s exiting",RemoteAddr)
 	return ErrConnExit
 }
