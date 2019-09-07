@@ -48,27 +48,48 @@ func ServeTCPConn(server *Server,conn net.Conn)error {
 	var RemoteAddr=conn.RemoteAddr().String()
 	readChan := make(chan []byte)
 	writeChan := make(chan []byte)
-	stopChan := make(chan bool)
-	go protocol.ReadStream(conn, readChan, stopChan)
-	go protocol.WriteStream(conn, writeChan, stopChan)
-	for {
+	finishChan:= make(chan bool)
+	stopReadStreamChan := make(chan bool,1)
+	stopWriteStreamChan := make(chan bool,1)
+	stopChan := make(chan bool,1)
+	go protocol.ReadStream(conn, readChan, stopReadStreamChan,finishChan)
+	go protocol.WriteStream(conn, writeChan, stopWriteStreamChan,finishChan)
+	if server.async{
+		syncConn:=newSyncConn(server)
+		go protocol.HandleSyncConn(syncConn, writeChan,readChan,stopChan,server.asyncMax)
 		select {
-		case data := <-readChan:
-			_,res_bytes, _ := server.ServeRPC(data)
-			if res_bytes!=nil{
-				writeChan <- res_bytes
-			}
-		case stop := <-stopChan:
+		case stop := <-finishChan:
 			if stop {
+				stopReadStreamChan<-true
+				stopWriteStreamChan<-true
+				stopChan<-true
 				goto endfor
+			}
+		}
+	}else {
+		for {
+			select {
+			case data := <-readChan:
+				_,res_bytes, _ := server.ServeRPC(data)
+				if res_bytes!=nil{
+					writeChan <- res_bytes
+				}
+			case stop := <-finishChan:
+				if stop {
+					stopReadStreamChan<-true
+					stopWriteStreamChan<-true
+					goto endfor
+				}
 			}
 		}
 	}
 	endfor:
 		defer conn.Close()
-		close(writeChan)
-		close(readChan)
-		close(stopChan)
+	close(readChan)
+	close(writeChan)
+	close(finishChan)
+	close(stopReadStreamChan)
+	close(stopWriteStreamChan)
 	log.Infof("client %s exiting",RemoteAddr)
 	return ErrConnExit
 }

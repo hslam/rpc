@@ -26,6 +26,7 @@ type Client struct {
 	pipelineChan	chan bool
 	readChan		chan []byte
 	writeChan		chan []byte
+	finishChan		chan bool
 	stopChan		chan bool
 	funcsCodecType 	CodecType
 	compressType 	CompressType
@@ -48,7 +49,7 @@ func NewClientnWithConcurrent(conn	Conn,codec string,maxPipeliningRequest int)  
 	if err!=nil{
 		return nil,err
 	}
-
+	finishChan := make(chan bool)
 	stopChan := make(chan bool)
 	errCntChan:=make(chan int,1000000)
 	var client_id int64=0
@@ -56,6 +57,7 @@ func NewClientnWithConcurrent(conn	Conn,codec string,maxPipeliningRequest int)  
 	client :=  &Client{
 		client_id:client_id,
 		conn:conn,
+		finishChan:finishChan,
 		stopChan:stopChan,
 		funcsCodecType:funcsCodecType,
 		compressLevel:NoCompression,
@@ -69,7 +71,7 @@ func NewClientnWithConcurrent(conn	Conn,codec string,maxPipeliningRequest int)  
 	client.maxErrPerSecond=DefaultClientMaxErrPerSecond
 	client.heartbeatTimeout=DefaultClientHearbeatTimeout
 	client.maxErrHeartbeat=DefaultClientMaxErrHearbeat
-	client.conn.Handle(client.readChan,client.writeChan,client.stopChan)
+	client.conn.Handle(client.readChan,client.writeChan,client.stopChan,client.finishChan)
 	go func() {
 		defer func() {
 			defer client.Close()

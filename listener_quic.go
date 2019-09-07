@@ -55,9 +55,11 @@ func ServeQUICConn(server *Server,sess quic.Session)error {
 	}
 	readChan := make(chan []byte)
 	writeChan := make(chan []byte)
-	stopChan := make(chan bool)
-	go protocol.ReadStream(stream, readChan, stopChan)
-	go protocol.WriteStream(stream, writeChan, stopChan)
+	finishChan:= make(chan bool)
+	stopReadStreamChan := make(chan bool,1)
+	stopWriteStreamChan := make(chan bool,1)
+	go protocol.ReadStream(stream, readChan, stopReadStreamChan,finishChan)
+	go protocol.WriteStream(stream, writeChan, stopWriteStreamChan,finishChan)
 	for {
 		select {
 		case data := <-readChan:
@@ -65,17 +67,21 @@ func ServeQUICConn(server *Server,sess quic.Session)error {
 			if res_bytes!=nil{
 				writeChan <- res_bytes
 			}
-		case stop := <-stopChan:
+		case stop := <-finishChan:
 			if stop {
+				stopReadStreamChan<-true
+				stopWriteStreamChan<-true
 				goto endfor
 			}
 		}
 	}
 	endfor:
 	defer stream.Close()
-	close(writeChan)
 	close(readChan)
-	close(stopChan)
+	close(writeChan)
+	close(finishChan)
+	close(stopReadStreamChan)
+	close(stopWriteStreamChan)
 	log.Infof("client %s exiting",RemoteAddr)
 	return ErrConnExit
 }

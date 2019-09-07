@@ -13,6 +13,7 @@ type QUICConn struct {
 	readChan 		chan []byte
 	writeChan 		chan []byte
 	stopChan 		chan bool
+	finishChan		chan bool
 }
 
 func DialQUIC(address string)  (Conn, error)  {
@@ -33,18 +34,21 @@ func DialQUIC(address string)  (Conn, error)  {
 	return t, nil
 }
 
-func (t *QUICConn)Handle(readChan chan []byte,writeChan chan []byte, stopChan chan bool){
+func (t *QUICConn)Handle(readChan chan []byte,writeChan chan []byte, stopChan chan bool,finishChan chan bool){
 	t.readChan=readChan
 	t.writeChan=writeChan
 	t.stopChan=stopChan
+	t.finishChan=finishChan
 	t.handle()
 }
 func (t *QUICConn)handle(){
 	readChan:=make(chan []byte)
 	writeChan:=make(chan []byte)
-	stopChan:=make(chan bool)
-	go protocol.ReadStream(t.conn, readChan, stopChan)
-	go protocol.WriteStream(t.conn, writeChan, stopChan)
+	finishChan:= make(chan bool)
+	stopReadStreamChan := make(chan bool)
+	stopWriteStreamChan := make(chan bool)
+	go protocol.ReadStream(t.conn, readChan, stopReadStreamChan,finishChan)
+	go protocol.WriteStream(t.conn, writeChan, stopWriteStreamChan,finishChan)
 	go func() {
 		for {
 			select {
@@ -52,15 +56,25 @@ func (t *QUICConn)handle(){
 				t.readChan<-v
 			case v:=<-t.writeChan:
 				writeChan<-v
-			case <-stopChan:
-				t.stopChan<-true
-				close(readChan)
-				close(writeChan)
-				close(stopChan)
+			case stop := <-finishChan:
+				if stop {
+					stopReadStreamChan<-true
+					stopWriteStreamChan<-true
+					t.finishChan<-true
+					goto endfor
+				}
+			case <-t.stopChan:
+				stopReadStreamChan<-true
+				stopWriteStreamChan<-true
 				goto endfor
 			}
 		}
 	endfor:
+		close(readChan)
+		close(writeChan)
+		close(finishChan)
+		close(stopReadStreamChan)
+		close(stopWriteStreamChan)
 	}()
 }
 func (t *QUICConn)TickerFactor()(int){

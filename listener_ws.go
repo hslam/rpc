@@ -66,10 +66,12 @@ func ServeWSConn(server *Server,conn *websocket.Conn)error {
 	var RemoteAddr=conn.RemoteAddr().String()
 	readChan := make(chan []byte)
 	writeChan := make(chan []byte)
-	stopChan := make(chan bool)
+	finishChan:= make(chan bool)
+	stopReadConnChan := make(chan bool,1)
+	stopWriteConnChan := make(chan bool,1)
 	var wsConn =&protocol.WSConn{conn}
-	go protocol.ReadConn(wsConn, readChan, stopChan)
-	go protocol.WriteConn(wsConn, writeChan, stopChan)
+	go protocol.ReadConn(wsConn, readChan, stopReadConnChan,finishChan)
+	go protocol.WriteConn(wsConn, writeChan, stopWriteConnChan,finishChan)
 	for {
 		select {
 		case data := <-readChan:
@@ -77,8 +79,10 @@ func ServeWSConn(server *Server,conn *websocket.Conn)error {
 			if res_bytes!=nil{
 				writeChan <- res_bytes
 			}
-		case stop := <-stopChan:
+		case stop := <-finishChan:
 			if stop {
+				stopReadConnChan<-true
+				stopWriteConnChan<-true
 				goto endfor
 			}
 		}
@@ -87,7 +91,6 @@ endfor:
 	defer conn.Close()
 	close(writeChan)
 	close(readChan)
-	close(stopChan)
 	log.Infof("client %s exiting",RemoteAddr)
 	return ErrConnExit
 }

@@ -4,7 +4,7 @@ import (
 	"io"
 )
 
-func ReadConn(reader io.Reader, readChan chan []byte, stopChan chan bool) {
+func ReadConn(reader io.Reader, readChan chan []byte, stopChan chan bool,finishChan chan bool) {
 	defer func() {
 		if err := recover(); err != nil {
 		}
@@ -13,17 +13,23 @@ func ReadConn(reader io.Reader, readChan chan []byte, stopChan chan bool) {
 	for {
 		n, err := reader.Read(buffer)
 		if err != nil {
-			goto endfor
+			goto finish
 		}
 		var data =make([]byte,n)
 		copy(data,buffer[:n])
 		readChan<-data
+		select {
+		case <-stopChan:
+			goto endfor
+		default:
+		}
 	}
+finish:
+	finishChan<-true
 endfor:
-	stopChan <- true
 }
 
-func WriteConn(writer io.Writer, writeChan chan []byte, stopChan chan bool) {
+func WriteConn(writer io.Writer, writeChan chan []byte, stopChan chan bool,finishChan chan bool) {
 	defer func() {
 		if err := recover(); err != nil {
 		}
@@ -31,9 +37,16 @@ func WriteConn(writer io.Writer, writeChan chan []byte, stopChan chan bool) {
 	for send_data:= range writeChan{
 		_, err := writer.Write(send_data)
 		if err != nil {
-			stopChan <- true
+			goto finish
+		}
+		select {
+		case <-stopChan:
 			goto endfor
+		default:
 		}
 	}
+finish:
+	finishChan<-true
 endfor:
+
 }

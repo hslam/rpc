@@ -33,7 +33,7 @@ func UnpackStream(buffer []byte, readerChannel chan []byte) []byte {
 	return buffer[i:]
 }
 
-func ReadStream(reader io.Reader, readChan chan []byte, stopChan chan bool) {
+func ReadStream(reader io.Reader, readChan chan []byte, stopChan chan bool,finishChan chan bool) {
 	defer func() {
 		if err := recover(); err != nil {
 		}
@@ -43,17 +43,23 @@ func ReadStream(reader io.Reader, readChan chan []byte, stopChan chan bool) {
 	for {
 		n, err := reader.Read(buffer)
 		if err != nil {
-			goto endfor
+			goto finish
 		}
 		if n>0{
 			tmpBuffer = UnpackStream(append(tmpBuffer, buffer[:n]...), readChan)
 		}
+		select {
+		case <-stopChan:
+			goto endfor
+		default:
+		}
 	}
+finish:
+	finishChan<-true
 endfor:
-	stopChan <- true
 }
 
-func WriteStream(writer io.Writer, writeChan chan []byte, stopChan chan bool) {
+func WriteStream(writer io.Writer, writeChan chan []byte, stopChan chan bool,finishChan chan bool) {
 	defer func() {
 		if err := recover(); err != nil {
 		}
@@ -62,9 +68,15 @@ func WriteStream(writer io.Writer, writeChan chan []byte, stopChan chan bool) {
 		dataPacket:=PacketStream(send_data)
 		_, err := writer.Write(dataPacket)
 		if err != nil {
-			stopChan <- true
+			goto finish
+		}
+		select {
+		case <-stopChan:
 			goto endfor
+		default:
 		}
 	}
+finish:
+	finishChan<-true
 endfor:
 }

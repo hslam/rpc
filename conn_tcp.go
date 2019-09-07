@@ -12,6 +12,7 @@ type TCPConn struct {
 	readChan 		chan []byte
 	writeChan 		chan []byte
 	stopChan 		chan bool
+	finishChan		chan bool
 }
 
 func DialTCP(address string)  (Conn, error)  {
@@ -35,18 +36,21 @@ func DialTCP(address string)  (Conn, error)  {
 	return t, nil
 }
 
-func (t *TCPConn)Handle(readChan chan []byte,writeChan chan []byte, stopChan chan bool){
+func (t *TCPConn)Handle(readChan chan []byte,writeChan chan []byte, stopChan chan bool,finishChan chan bool){
 	t.readChan=readChan
 	t.writeChan=writeChan
 	t.stopChan=stopChan
+	t.finishChan=finishChan
 	t.handle()
 }
 func (t *TCPConn)handle(){
 	readChan:=make(chan []byte)
 	writeChan:=make(chan []byte)
-	stopChan:=make(chan bool)
-	go protocol.ReadStream(t.conn, readChan, stopChan)
-	go protocol.WriteStream(t.conn, writeChan, stopChan)
+	finishChan:= make(chan bool)
+	stopReadStreamChan := make(chan bool,1)
+	stopWriteStreamChan := make(chan bool,1)
+	go protocol.ReadStream(t.conn, readChan, stopReadStreamChan,finishChan)
+	go protocol.WriteStream(t.conn, writeChan, stopWriteStreamChan,finishChan)
 	go func() {
 		for {
 			select {
@@ -54,15 +58,26 @@ func (t *TCPConn)handle(){
 				t.readChan<-v
 			case v:=<-t.writeChan:
 				writeChan<-v
-			case <-stopChan:
-				t.stopChan<-true
-				close(readChan)
-				close(writeChan)
-				close(stopChan)
+			case stop := <-finishChan:
+				if stop {
+					stopReadStreamChan<-true
+					stopWriteStreamChan<-true
+					t.finishChan<-true
+					goto endfor
+				}
+			case <-t.stopChan:
+				stopReadStreamChan<-true
+				stopWriteStreamChan<-true
 				goto endfor
+
 			}
 		}
 		endfor:
+			close(readChan)
+			close(writeChan)
+			close(finishChan)
+			close(stopReadStreamChan)
+			close(stopWriteStreamChan)
 	}()
 }
 func (t *TCPConn)TickerFactor()(int){

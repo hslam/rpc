@@ -13,6 +13,7 @@ type WSConn struct {
 	readChan 		chan []byte
 	writeChan 		chan []byte
 	stopChan 		chan bool
+	finishChan 		chan bool
 }
 
 func DialWS(address string)  (Conn, error)  {
@@ -31,18 +32,21 @@ func DialWS(address string)  (Conn, error)  {
 	return t, nil
 }
 
-func (t *WSConn)Handle(readChan chan []byte,writeChan chan []byte, stopChan chan bool){
+func (t *WSConn)Handle(readChan chan []byte,writeChan chan []byte, stopChan chan bool,finishChan chan bool){
 	t.readChan=readChan
 	t.writeChan=writeChan
 	t.stopChan=stopChan
+	t.finishChan=make(chan bool)
 	t.handle()
 }
 func (t *WSConn)handle(){
 	readChan:=make(chan []byte)
 	writeChan:=make(chan []byte)
-	stopChan:=make(chan bool)
-	go protocol.ReadConn(t.conn, readChan, stopChan)
-	go protocol.WriteConn(t.conn, writeChan, stopChan)
+	finishChan:= make(chan bool)
+	stopReadConnChan := make(chan bool,1)
+	stopWriteConnChan := make(chan bool,1)
+	go protocol.ReadConn(t.conn, readChan, stopReadConnChan,finishChan)
+	go protocol.WriteConn(t.conn, writeChan, stopWriteConnChan,finishChan)
 	go func() {
 		for {
 			select {
@@ -50,15 +54,25 @@ func (t *WSConn)handle(){
 				t.readChan<-v
 			case v:=<-t.writeChan:
 				writeChan<-v
-			case <-stopChan:
-				t.stopChan<-true
-				close(readChan)
-				close(writeChan)
-				close(stopChan)
+			case stop := <-finishChan:
+				if stop {
+					stopReadConnChan<-true
+					stopWriteConnChan<-true
+					t.finishChan<-true
+					goto endfor
+				}
+			case <-t.stopChan:
+				stopReadConnChan<-true
+				stopWriteConnChan<-true
 				goto endfor
 			}
 		}
 	endfor:
+		close(readChan)
+		close(writeChan)
+		close(finishChan)
+		close(stopReadConnChan)
+		close(stopWriteConnChan)
 	}()
 }
 func (t *WSConn)TickerFactor()(int){

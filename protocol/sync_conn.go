@@ -2,22 +2,23 @@ package protocol
 
 import (
 	"math/rand"
+	"fmt"
 )
 
 type SyncConn interface {
 	Do(reqBody []byte)([]byte,error)
 }
 
-func HandleSyncConn(syncConn SyncConn,readChan chan []byte,writeChan chan []byte, stopChan chan bool){
+func HandleSyncConn(syncConn SyncConn,recvChan chan []byte,sendChan chan []byte, stopChan chan bool,windowSize int){
 	defer func() {
 		if err := recover(); err != nil {
 		}
 	}()
-	WindowSize:=64
-	readMessageChan := make(chan *Message,WindowSize)
-	idChan := make(chan uint16,WindowSize)
-	queueMsg:=NewQueueMsg(WindowSize)
-	var startbit =uint(rand.Intn(13))
+	pipelineChan := make(chan bool,windowSize)
+	readMessageChan := make(chan *Message,windowSize)
+	idChan := make(chan uint16,windowSize)
+	queueMsg:=NewQueueMsg(windowSize)
+	var startbit =uint(rand.Intn(5))
 	var id =uint16(rand.Int31n(int32(1<<startbit)))
 	var max_id=uint16(1<<16-1)
 	go func(readMessageChan chan *Message, queueMsg *QueueMsg) {
@@ -33,7 +34,7 @@ func HandleSyncConn(syncConn SyncConn,readChan chan []byte,writeChan chan []byte
 				}
 			}
 		}
-		endfor:
+	endfor:
 	}(readMessageChan,queueMsg)
 	go func(idChan chan uint16,queueMsg *QueueMsg,readChan chan []byte) {
 		for{
@@ -41,7 +42,14 @@ func HandleSyncConn(syncConn SyncConn,readChan chan []byte,writeChan chan []byte
 			case old_notice,ok := <-queueMsg.Pop():
 				if ok{
 					if old_notice.Recvmsg.oprationType==OprationTypeData{
-						readChan<-old_notice.Recvmsg.message
+						func(){
+							defer func() {
+								if err := recover(); err != nil {
+									fmt.Println(err)
+								}
+							}()
+							readChan<-old_notice.Recvmsg.message
+						}()
 						<-idChan
 					}else if old_notice.Recvmsg.oprationType==OprationTypeAck{
 						<-idChan
@@ -52,31 +60,52 @@ func HandleSyncConn(syncConn SyncConn,readChan chan []byte,writeChan chan []byte
 				}
 			}
 		}
-		endfor:
-	}(idChan,queueMsg,readChan)
-	for send_data:= range writeChan{
+	endfor:
+	}(idChan,queueMsg,recvChan)
+	for send_data:= range sendChan{
+		pipelineChan<-true
 		id=(id+1)%max_id
 		idChan<-id
 		notice:=&Notice{Id:id,}
 		queueMsg.Push(notice)
 		msg:=&Message{OprationTypeData,id,send_data}
-		go func(syncConn SyncConn,msg *Message) {
+		go func(syncConn SyncConn,msg *Message,readMessageChan chan *Message) {
 			for {
 				respBody,err := syncConn.Do(msg.message)
 				if err != nil {
 					continue
 				}
 				if len(respBody)>0{
-					readMessageChan<-&Message{OprationTypeData,msg.id,respBody}
+
+					func(){
+						defer func() {
+							if err := recover(); err != nil {
+							}
+						}()
+						readMessageChan<-&Message{OprationTypeData,msg.id,respBody}
+					}()
 				}else {
-					readMessageChan<-&Message{OprationTypeAck,msg.id,nil}
+					func(){
+						defer func() {
+							if err := recover(); err != nil {
+
+							}
+						}()
+						readMessageChan<-&Message{OprationTypeAck,msg.id,nil}
+					}()
 				}
 				goto endfor
 			}
-			stopChan<-true
-			endfor:
-		}(syncConn,msg)
+		endfor:
+			<-pipelineChan
+		}(syncConn,msg,readMessageChan)
+		select {
+		case <-stopChan:
+			goto finish
+		default:
+		}
 	}
+finish:
 	close(readMessageChan)
 	close(idChan)
 	queueMsg.Close()

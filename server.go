@@ -6,9 +6,11 @@ import (
 	"hslam.com/mgit/Mort/workerpool"
 	"fmt"
 	"time"
+	"sync"
 )
 
 var (
+	asyncMax				=64
 	workerPoolSize			=1024
 	workerMax				=64
 	DefaultServer = NewServer()
@@ -19,6 +21,8 @@ type Server struct {
 	listener 			Listener
 	Funcs 				*funcs.Funcs
 	timeout 			int64
+	async				bool
+	asyncMax			int
 	workerPoolSize		int
 	workerMax			int
 	useWorkerPool		bool
@@ -80,7 +84,27 @@ func (s *Server)ListenAndServe(network,address string) error {
 	}
 	return nil
 }
+func Async() bool {
+	return DefaultServer.Async()
+}
+func (s *Server) Async() bool {
+	return s.async
+}
+func EnableAsyncHandle()  {
+	DefaultServer.EnableAsyncHandle()
+}
+func (s *Server) EnableAsyncHandle() {
+	s.EnableAsyncHandleWithSize(asyncMax)
+}
 
+func EnableAsyncHandleWithSize(size  int) {
+	DefaultServer.EnableAsyncHandleWithSize(size )
+}
+
+func (s *Server) EnableAsyncHandleWithSize(size int) {
+	s.async=true
+	s.asyncMax=size
+}
 func ServeRPC(b []byte) (bool,[]byte,error) {
 	return DefaultServer.ServeRPC(b)
 }
@@ -104,14 +128,33 @@ func (s *Server)ServeRPC(b []byte) (bool,[]byte,error) {
 		batchCodec.Decode(msg.data)
 		res_bytes_s:=make([][]byte,len(batchCodec.data))
 		NoResponseCnt:=0
-		for i,v:=range batchCodec.data{
-			msg.data=v
-			res_bytes,nr:=s.Handler(msg)
-			if nr==true{
-				NoResponseCnt++
-				res_bytes_s[i]=[]byte("")
-			}else {
-				res_bytes_s[i]=res_bytes
+		if s.async{
+			waitGroup :=sync.WaitGroup{}
+			for i,v:=range batchCodec.data{
+				waitGroup.Add(1)
+				go func(i int,v []byte,msg Msg,waitGroup *sync.WaitGroup) {
+					msg.data=v
+					res_bytes,nr:=s.Handler(&msg)
+					if nr==true{
+						NoResponseCnt++
+						res_bytes_s[i]=[]byte("")
+					}else {
+						res_bytes_s[i]=res_bytes
+					}
+					waitGroup.Done()
+				}(i,v,*msg,&waitGroup)
+			}
+			waitGroup.Wait()
+		}else {
+			for i,v:=range batchCodec.data{
+				msg.data=v
+				res_bytes,nr:=s.Handler(msg)
+				if nr==true{
+					NoResponseCnt++
+					res_bytes_s[i]=[]byte("")
+				}else {
+					res_bytes_s[i]=res_bytes
+				}
 			}
 		}
 		if NoResponseCnt==len(batchCodec.data){

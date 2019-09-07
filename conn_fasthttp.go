@@ -21,8 +21,8 @@ func DialFASTHTTP(address string)  (Conn, error)  {
 	return t, nil
 }
 
-func (t *FASTHTTPConn)Handle(readChan chan []byte,writeChan chan []byte, stopChan chan bool){
-	go protocol.HandleSyncConn(t, readChan,writeChan,stopChan)
+func (t *FASTHTTPConn)Handle(readChan chan []byte,writeChan chan []byte, stopChan chan bool,finishChan chan bool){
+	go protocol.HandleSyncConn(t, readChan,writeChan,stopChan,64)
 }
 func (t *FASTHTTPConn)TickerFactor()(int){
 	return 100

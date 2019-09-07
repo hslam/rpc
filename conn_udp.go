@@ -12,6 +12,7 @@ type UDPConn struct {
 	readChan 		chan []byte
 	writeChan 		chan []byte
 	stopChan 		chan bool
+	finishChan chan bool
 }
 
 func DialUDP(address string)  (Conn, error)  {
@@ -27,17 +28,19 @@ func DialUDP(address string)  (Conn, error)  {
 	return t, nil
 }
 
-func (t *UDPConn)Handle(readChan chan []byte,writeChan chan []byte, stopChan chan bool){
+func (t *UDPConn)Handle(readChan chan []byte,writeChan chan []byte, stopChan chan bool,finishChan chan bool){
 	t.readChan=readChan
 	t.writeChan=writeChan
 	t.stopChan=stopChan
+	t.finishChan=finishChan
 	t.handle()
 }
 func (t *UDPConn)handle(){
 	readChan:=make(chan []byte)
 	writeChan:=make(chan []byte)
-	stopChan:=make(chan bool)
-	go protocol.HandleMessage(t.conn,readChan,writeChan,stopChan)
+	finishChan:=make(chan bool)
+	stopChan:=make(chan bool,1)
+	go protocol.HandleMessage(t.conn,readChan,writeChan,stopChan,finishChan)
 	go func() {
 		for {
 			select {
@@ -45,15 +48,19 @@ func (t *UDPConn)handle(){
 				t.readChan<-v
 			case v:=<-t.writeChan:
 				writeChan<-v
-			case <-stopChan:
-				t.stopChan<-true
-				close(readChan)
-				close(writeChan)
-				close(stopChan)
+			case <-t.stopChan:
+				stopChan<-true
+				goto endfor
+			case <-finishChan:
+				t.finishChan<-true
 				goto endfor
 			}
 		}
 	endfor:
+		close(readChan)
+		close(writeChan)
+		close(finishChan)
+		close(stopChan)
 	}()
 }
 func (t *UDPConn)TickerFactor()(int){

@@ -109,7 +109,7 @@ type Message struct {
 	message []byte
 }
 
-func ReadMessage(reader io.Reader, readMessageChan chan *Message, stopChan chan bool) {
+func ReadMessage(reader io.Reader, readMessageChan chan *Message, stopChan chan bool,finishChan chan bool) {
 	defer func() {
 		if err := recover(); err != nil {
 		}
@@ -119,7 +119,7 @@ func ReadMessage(reader io.Reader, readMessageChan chan *Message, stopChan chan 
 
 		n, err := reader.Read(buffer[:])
 		if err != nil {
-			goto endfor
+			goto finish
 		}
 		var data =make([]byte,n)
 		copy(data,buffer[:n])
@@ -132,12 +132,18 @@ func ReadMessage(reader io.Reader, readMessageChan chan *Message, stopChan chan 
 			readMessageChan<-msg
 			continue
 		}
+		select {
+		case <-stopChan:
+			goto endfor
+		default:
+		}
 	}
-	endfor:
-	stopChan <- true
+finish:
+	finishChan<-true
+endfor:
 }
 
-func WriteMessage(writer io.Writer, writeMessageChan chan *Message, stopChan chan bool) {
+func WriteMessage(writer io.Writer, writeMessageChan chan *Message, stopChan chan bool,finishChan chan bool) {
 	defer func() {
 		if err := recover(); err != nil {
 		}
@@ -145,19 +151,25 @@ func WriteMessage(writer io.Writer, writeMessageChan chan *Message, stopChan cha
 	for msg:= range writeMessageChan{
 		_, err := writer.Write(PacketMessage(msg.oprationType,msg.id,msg.message))
 		if err != nil {
-			stopChan <- true
+			goto finish
+		}
+		select {
+		case <-stopChan:
+			goto endfor
+		default:
 		}
 	}
+finish:
+	finishChan<-true
+endfor:
 }
 
-func HandleMessage(readWriter io.ReadWriter,readChan chan []byte,writeChan chan []byte, stopChan chan bool){
+func HandleMessage(readWriter io.ReadWriter,readChan chan []byte,writeChan chan []byte, stopChan chan bool,finishChan chan bool){
 	defer func() {
 		if err := recover(); err != nil {
 		}
 	}()
 	WindowSize:=1024
-	readMessageChan := make(chan *Message,WindowSize)
-	writeMessageChan := make(chan *Message,WindowSize)
 	idChan := make(chan uint16,WindowSize)
 	queueMsg:=NewQueueMsg(WindowSize)
 	var startbit =uint(rand.Intn(13))
@@ -166,8 +178,13 @@ func HandleMessage(readWriter io.ReadWriter,readChan chan []byte,writeChan chan 
 	var SmoothedRTT int64=1000000
 	rto := &RTO{}
 	lastRTO:=rto.updateRTT(SmoothedRTT)
-	go ReadMessage(readWriter, readMessageChan, stopChan)
-	go WriteMessage(readWriter,writeMessageChan, stopChan)
+	readMessageChan := make(chan *Message,WindowSize)
+	writeMessageChan := make(chan *Message,WindowSize)
+	finishMessageChan:=make(chan bool)
+	stopReadMessageChan := make(chan bool,1)
+	stopWriteMessageChan := make(chan bool,1)
+	go ReadMessage(readWriter, readMessageChan, stopReadMessageChan,finishMessageChan)
+	go WriteMessage(readWriter,writeMessageChan, stopWriteMessageChan,finishMessageChan)
 	go func(readMessageChan chan *Message, queueMsg *QueueMsg) {
 		for{
 			select {
@@ -182,7 +199,7 @@ func HandleMessage(readWriter io.ReadWriter,readChan chan []byte,writeChan chan 
 				}
 			}
 		}
-		endfor:
+	endfor:
 	}(readMessageChan,queueMsg)
 	go func(idChan chan uint16,queueMsg *QueueMsg,readChan chan []byte) {
 		for{
@@ -201,7 +218,7 @@ func HandleMessage(readWriter io.ReadWriter,readChan chan []byte,writeChan chan 
 				}
 			}
 		}
-		endfor:
+	endfor:
 	}(idChan,queueMsg,readChan)
 	for send_data:= range writeChan{
 		id=(id+1)%max_id
@@ -231,9 +248,25 @@ func HandleMessage(readWriter io.ReadWriter,readChan chan []byte,writeChan chan 
 			RTT:=(time.Now().UnixNano()-start_time)/1000
 			lastRTO = rto.updateRTT(RTT)
 		}(msg,rto,recvChan)
+		select {
+		case <-stopChan:
+			stopReadMessageChan<-true
+			stopWriteMessageChan<-true
+			goto finish
+		case <-finishMessageChan:
+			finishChan<-true
+			stopReadMessageChan<-true
+			stopWriteMessageChan<-true
+			goto finish
+		default:
+		}
 	}
+finish:
 	close(readMessageChan)
 	close(writeMessageChan)
+	close(finishMessageChan)
+	close(stopWriteMessageChan)
+	close(stopReadMessageChan)
 	close(idChan)
 	queueMsg.Close()
 	rto=nil

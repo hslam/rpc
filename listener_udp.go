@@ -30,9 +30,8 @@ func (l *UDPListener)Serve() (error) {
 	log.Allf( "%s", "Waiting for clients")
 	readChan := make(chan *protocol.UDPMsg,10240)
 	writeChan := make(chan  *protocol.UDPMsg,10240)
-	stopChan := make(chan bool)
-	go protocol.ReadUDPConn(l.netUDPConn, readChan, stopChan)
-	go protocol.WriteUDPConn(l.netUDPConn, writeChan,stopChan)
+	go protocol.ReadUDPConn(l.netUDPConn, readChan)
+	go protocol.WriteUDPConn(l.netUDPConn, writeChan)
 	for {
 		select {
 		case udp_msg := <-readChan:
@@ -48,17 +47,11 @@ func (l *UDPListener)Serve() (error) {
 			}else {
 				go ServeUDPConn(l.server,udp_msg,writeChan)
 			}
-		case stop := <-stopChan:
-			if stop {
-				goto endfor
-			}
 		}
 	}
-	endfor:
-		l.netUDPConn.Close()
-		close(writeChan)
-		close(readChan)
-		close(stopChan)
+	l.netUDPConn.Close()
+	close(writeChan)
+	close(readChan)
 	return nil
 }
 func (l *UDPListener)Addr() (string) {

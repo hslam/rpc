@@ -33,8 +33,8 @@ func DialHTTP(address string)  (Conn, error)  {
 	return t, nil
 }
 
-func (t *HTTPConn)Handle(readChan chan []byte,writeChan chan []byte, stopChan chan bool){
-	go protocol.HandleSyncConn(t, readChan,writeChan,stopChan)
+func (t *HTTPConn)Handle(readChan chan []byte,writeChan chan []byte, stopChan chan bool,finishChan chan bool){
+	go protocol.HandleSyncConn(t, readChan,writeChan,stopChan,64)
 }
 func (t *HTTPConn)TickerFactor()(int){
 	return 100
