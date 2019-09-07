@@ -22,7 +22,7 @@ var async bool
 var saddr string
 func init()  {
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	flag.StringVar(&network, "network", "quic", "network: -network=tcp|ws|fast|http|http2|quic|udp")
+	flag.StringVar(&network, "network", "tcp", "network: -network=tcp|ws|fast|http|http2|quic|udp")
 	flag.BoolVar(&debug, "debug", true, "debug: -debug=false")
 	flag.IntVar(&debug_port, "dp", 6060, "debug_port: -dp=6060")
 	flag.IntVar(&port, "p", 9999, "port: -p=9999")
