@@ -21,6 +21,21 @@ func Dials(total int,network,address,codec string)(*Pool,error){
 	}
 	return p,nil
 }
+func DialsWithPipeline(total int,network,address,codec string,MaxPipelineRequest int)(*Pool,error){
+	p :=  &Pool{
+		connPool:make(ClientPool,total),
+		conns:make([]*Client,total),
+	}
+	for i := 0;i<total;i++{
+		conn,err:=DialWithPipeline(network,address,codec,MaxPipelineRequest)
+		if err != nil {
+			return nil,err
+		}
+		p.connPool <- conn
+		p.conns[i]=conn
+	}
+	return p,nil
+}
 
 type ClientPool chan *Client
 

@@ -14,7 +14,13 @@ func Dial(network,address,codec string) (*Client, error) {
 	}
 	return NewClient(transporter,codec)
 }
-
+func DialWithPipeline(network,address,codec string,MaxPipelineRequest int) (*Client, error) {
+	transporter,err:=dial(network,address)
+	if err!=nil{
+		return nil,err
+	}
+	return NewClientnWithConcurrent(transporter,codec,MaxPipelineRequest+1)
+}
 type Client struct {
 	mu 				sync.Mutex
 	conn			Conn
