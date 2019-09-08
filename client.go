@@ -6,22 +6,51 @@ import (
 	"math/rand"
 	"hslam.com/mgit/Mort/rpc/log"
 )
-
-func Dial(network,address,codec string) (*Client, error) {
+type Client interface {
+	EnableBatch()
+	EnableBatchAsync()
+	SetMaxBatchRequest(maxBatchRequest int)error
+	GetMaxBatchRequest()int
+	GetMaxPipelineRequest()(int)
+	SetCompressType(compress string)
+	SetCompressLevel(compress,level string)
+	SetID(id int64)error
+	GetID()int64
+	SetTimeout(timeout int64)error
+	GetTimeout()int64
+	SetHeartbeatTimeout(timeout int64)error
+	GetHeartbeatTimeout()int64
+	SetMaxErrPerSecond(maxErrPerSecond int)error
+	GetMaxErrPerSecond()int
+	SetMaxErrHeartbeat(maxErrHeartbeat int)error
+	GetMaxErrHeartbeat()int
+	CodecName()string
+	CodecType()CodecType
+	Call(name string, args interface{}, reply interface{}) ( err error)
+	CallNoRequest(name string, reply interface{}) ( err error)
+	CallNoResponse(name string, args interface{}) ( err error)
+	OnlyCall(name string) ( err error)
+	Ping() bool
+	Close() ( err error)
+	Closed()bool
+}
+func Dial(network,address,codec string) (Client, error) {
 	transporter,err:=dial(network,address)
 	if err!=nil{
 		return nil,err
 	}
 	return NewClient(transporter,codec)
 }
-func DialWithPipeline(network,address,codec string,MaxPipelineRequest int) (*Client, error) {
+func DialWithPipeline(network,address,codec string,MaxPipelineRequest int) (Client, error) {
 	transporter,err:=dial(network,address)
 	if err!=nil{
 		return nil,err
 	}
 	return NewClientnWithConcurrent(transporter,codec,MaxPipelineRequest+1)
 }
-type Client struct {
+
+
+type client struct {
 	mu 					sync.Mutex
 	conn				Conn
 	closed				bool
@@ -48,10 +77,10 @@ type Client struct {
 	maxErrHeartbeat		int
 	errCntHeartbeat		int
 }
-func NewClient(conn	Conn,codec string)  (*Client, error) {
+func NewClient(conn	Conn,codec string)  (*client, error) {
 	return NewClientnWithConcurrent(conn,codec,DefaultMaxPipelineRequest+1)
 }
-func NewClientnWithConcurrent(conn	Conn,codec string,maxPipeliningRequest int)  (*Client, error)  {
+func NewClientnWithConcurrent(conn	Conn,codec string,maxPipeliningRequest int)  (*client, error)  {
 	funcsCodecType,err:=FuncsCodecType(codec)
 	if err!=nil{
 		return nil,err
@@ -61,7 +90,7 @@ func NewClientnWithConcurrent(conn	Conn,codec string,maxPipeliningRequest int)  
 	errCntChan:=make(chan int,1000000)
 	var client_id int64=0
 	idgenerator:=idgenerator.NewSnowFlake(client_id)
-	client :=  &Client{
+	c :=  &client{
 		client_id:client_id,
 		conn:conn,
 		finishChan:finishChan,
@@ -70,34 +99,34 @@ func NewClientnWithConcurrent(conn	Conn,codec string,maxPipeliningRequest int)  
 		compressLevel:NoCompression,
 		compressType:CompressTypeNocom,
 	}
-	client.readChan=make(chan []byte,maxPipeliningRequest)
-	client.writeChan= make(chan []byte,maxPipeliningRequest)
-	client.idgenerator=idgenerator
-	client.errCntChan=errCntChan
-	client.timeout=DefaultClientTimeout
-	client.maxErrPerSecond=DefaultClientMaxErrPerSecond
-	client.heartbeatTimeout=DefaultClientHearbeatTimeout
-	client.maxErrHeartbeat=DefaultClientMaxErrHearbeat
-	client.conn.Handle(client.readChan,client.writeChan,client.stopChan,client.finishChan)
+	c.readChan=make(chan []byte,maxPipeliningRequest)
+	c.writeChan= make(chan []byte,maxPipeliningRequest)
+	c.idgenerator=idgenerator
+	c.errCntChan=errCntChan
+	c.timeout=DefaultClientTimeout
+	c.maxErrPerSecond=DefaultClientMaxErrPerSecond
+	c.heartbeatTimeout=DefaultClientHearbeatTimeout
+	c.maxErrHeartbeat=DefaultClientMaxErrHearbeat
+	c.conn.Handle(c.readChan,c.writeChan,c.stopChan,c.finishChan)
 	go func() {
 		defer func() {
-			defer client.Close()
-			close(client.writeChan)
-			close(client.readChan)
+			defer c.Close()
+			close(c.writeChan)
+			close(c.readChan)
 			close(stopChan)
 			close(errCntChan)
 		}()
 		for{
 			select {
-			case <-client.stopChan:
-				client.Close()
+			case <-c.stopChan:
+				c.Close()
 			}
 		}
 
 	}()
 	go func() {
-		for c :=range client.errCntChan{
-			client.errCnt+=c
+		for i :=range c.errCntChan{
+			c.errCnt+=i
 		}
 	}()
 	go func() {
@@ -108,62 +137,62 @@ func NewClientnWithConcurrent(conn	Conn,codec string,maxPipeliningRequest int)  
 		for{
 			select {
 			case <-heartbeatTicker.C:
-				if client.closed==false{
-					err:=client.heartbeat()
+				if c.closed==false{
+					err:=c.heartbeat()
 					if err!=nil{
-						client.errCntHeartbeat+=1
+						c.errCntHeartbeat+=1
 					}else {
-						client.errCntHeartbeat-=1
-						if client.errCntHeartbeat<0{
-							client.errCntHeartbeat=0
+						c.errCntHeartbeat-=1
+						if c.errCntHeartbeat<0{
+							c.errCntHeartbeat=0
 						}
 					}
-					if client.errCntHeartbeat>=client.maxErrHeartbeat{
-						client.Close()
-						client.errCntHeartbeat=0
+					if c.errCntHeartbeat>=c.maxErrHeartbeat{
+						c.Close()
+						c.errCntHeartbeat=0
 					}
 				}
 			case <-retryTicker.C:
-				if client.closed==true{
-					client.Close()
-					err:=client.conn.Retry()
+				if c.closed==true{
+					c.Close()
+					err:=c.conn.Retry()
 					if err!=nil{
-						client.hystrix=true
-						log.Errorln(client.client_id,"retry connection err ",err)
+						c.hystrix=true
+						log.Errorln(c.client_id,"retry connection err ",err)
 					}else {
-						client.closed=false
-						client.hystrix=false
-						client.pipeline.retry()
+						c.closed=false
+						c.hystrix=false
+						c.pipeline.retry()
 					}
 				}
 			case <-ticker.C:
-				if client.errCnt>=DefaultClientMaxErrPerSecond{
-					client.hystrix=true
-					client.Close()
+				if c.errCnt>=DefaultClientMaxErrPerSecond{
+					c.hystrix=true
+					c.Close()
 				}else {
-					client.hystrix=false
+					c.hystrix=false
 				}
-				client.errCnt-=client.errCnt
+				c.errCnt-=c.errCnt
 			}
 		}
 	}()
-	client.pipeline=NewPipeline(maxPipeliningRequest,client.readChan,client.writeChan)
-	client.pipelineChan = make(chan bool,maxPipeliningRequest)
-	return client, nil
+	c.pipeline=NewPipeline(maxPipeliningRequest,c.readChan,c.writeChan)
+	c.pipelineChan = make(chan bool,maxPipeliningRequest)
+	return c, nil
 }
-func (c *Client)EnableBatch(){
+func (c *client)EnableBatch(){
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.batchEnabled = true
 	c.batch=NewBatch(c,DefaultMaxDelayNanoSecond*c.conn.TickerFactor())
 	c.batch.SetMaxBatchRequest(DefaultMaxBatchRequest*c.conn.BatchFactor())
 }
-func (c *Client)EnableBatchAsync(){
+func (c *client)EnableBatchAsync(){
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.batchAsync = true
 }
-func (c *Client)SetMaxBatchRequest(maxBatchRequest int)error {
+func (c *client)SetMaxBatchRequest(maxBatchRequest int)error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if maxBatchRequest<=0{
@@ -172,27 +201,27 @@ func (c *Client)SetMaxBatchRequest(maxBatchRequest int)error {
 	c.batch.SetMaxBatchRequest(maxBatchRequest)
 	return nil
 }
-func (c *Client)GetMaxBatchRequest()int {
+func (c *client)GetMaxBatchRequest()int {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.batch.GetMaxBatchRequest()
 }
-func (c *Client)GetMaxPipelineRequest()(int){
+func (c *client)GetMaxPipelineRequest()(int){
 	return c.pipeline.GetMaxPipelineRequest()-1
 }
-func (c *Client)SetCompressType(compress string){
+func (c *client)SetCompressType(compress string){
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.compressType=getCompressType(compress)
 	c.compressLevel=DefaultCompression
 }
-func (c *Client)SetCompressLevel(compress,level string){
+func (c *client)SetCompressLevel(compress,level string){
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.compressType=getCompressType(compress)
 	c.compressLevel=getCompressLevel(level)
 }
-func (c *Client)SetID(id int64)error{
+func (c *client)SetID(id int64)error{
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if id<0{
@@ -204,12 +233,12 @@ func (c *Client)SetID(id int64)error{
 	c.idgenerator=idgenerator.NewSnowFlake(id)
 	return nil
 }
-func (c *Client)GetID()int64{
+func (c *client)GetID()int64{
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.client_id
 }
-func (c *Client)SetTimeout(timeout int64)error{
+func (c *client)SetTimeout(timeout int64)error{
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if timeout<=0{
@@ -218,13 +247,13 @@ func (c *Client)SetTimeout(timeout int64)error{
 	c.timeout=timeout
 	return nil
 }
-func (c *Client)GetTimeout()int64{
+func (c *client)GetTimeout()int64{
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.timeout
 }
 
-func (c *Client)SetHeartbeatTimeout(timeout int64)error{
+func (c *client)SetHeartbeatTimeout(timeout int64)error{
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if timeout<=0{
@@ -233,12 +262,12 @@ func (c *Client)SetHeartbeatTimeout(timeout int64)error{
 	c.heartbeatTimeout=timeout
 	return nil
 }
-func (c *Client)GetHeartbeatTimeout()int64{
+func (c *client)GetHeartbeatTimeout()int64{
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.heartbeatTimeout
 }
-func (c *Client)SetMaxErrPerSecond(maxErrPerSecond int)error{
+func (c *client)SetMaxErrPerSecond(maxErrPerSecond int)error{
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if maxErrPerSecond<=0{
@@ -247,12 +276,12 @@ func (c *Client)SetMaxErrPerSecond(maxErrPerSecond int)error{
 	c.maxErrPerSecond=maxErrPerSecond
 	return nil
 }
-func (c *Client)GetMaxErrPerSecond()int{
+func (c *client)GetMaxErrPerSecond()int{
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.maxErrPerSecond
 }
-func (c *Client)SetMaxErrHeartbeat(maxErrHeartbeat int)error{
+func (c *client)SetMaxErrHeartbeat(maxErrHeartbeat int)error{
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if maxErrHeartbeat<=0{
@@ -261,18 +290,18 @@ func (c *Client)SetMaxErrHeartbeat(maxErrHeartbeat int)error{
 	c.maxErrHeartbeat=maxErrHeartbeat
 	return nil
 }
-func (c *Client)GetMaxErrHeartbeat()int{
+func (c *client)GetMaxErrHeartbeat()int{
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.maxErrHeartbeat
 }
-func (c *Client)CodecName()string {
+func (c *client)CodecName()string {
 	return FuncsCodecName(c.funcsCodecType)
 }
-func (c *Client)CodecType()CodecType {
+func (c *client)CodecType()CodecType {
 	return c.funcsCodecType
 }
-func (c *Client)Call(name string, args interface{}, reply interface{}) ( err error) {
+func (c *client)Call(name string, args interface{}, reply interface{}) ( err error) {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Errorln("Call failed:", err)
@@ -294,7 +323,7 @@ func (c *Client)Call(name string, args interface{}, reply interface{}) ( err err
 	}
 	return
 }
-func (c *Client)CallNoRequest(name string, reply interface{}) ( err error) {
+func (c *client)CallNoRequest(name string, reply interface{}) ( err error) {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Errorln("Call failed:", err)
@@ -316,7 +345,7 @@ func (c *Client)CallNoRequest(name string, reply interface{}) ( err error) {
 	}
 	return
 }
-func (c *Client)CallNoResponse(name string, args interface{}) ( err error) {
+func (c *client)CallNoResponse(name string, args interface{}) ( err error) {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Errorln("CallNoResponse failed:", err)
@@ -339,7 +368,7 @@ func (c *Client)CallNoResponse(name string, args interface{}) ( err error) {
 	return
 }
 
-func (c *Client)OnlyCall(name string) ( err error) {
+func (c *client)OnlyCall(name string) ( err error) {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Errorln("OnlyCall failed:", err)
@@ -362,10 +391,10 @@ func (c *Client)OnlyCall(name string) ( err error) {
 	return
 }
 
-func (c *Client)Ping() bool {
+func (c *client)Ping() bool {
 	defer func() {
 		if err := recover(); err != nil {
-			log.Errorln("Client.Ping failed:", err)
+			log.Errorln("*client.Ping failed:", err)
 		}
 	}()
 	err:=c.heartbeat()
@@ -374,7 +403,7 @@ func (c *Client)Ping() bool {
 	}
 	return true
 }
-func (c *Client)RemoteCall(b []byte)([]byte,error){
+func (c *client)RemoteCall(b []byte)([]byte,error){
 	c.pipelineChan<-true
 	cbChan := make(chan []byte,1)
 	c.pipeline.pipelineRequestChan<-NewPipelineRequest(b,false,cbChan)
@@ -385,7 +414,7 @@ func (c *Client)RemoteCall(b []byte)([]byte,error){
 	}
 	return nil,ErrRemoteCall
 }
-func (c *Client)RemoteCallNoResponse(b []byte)(error){
+func (c *client)RemoteCallNoResponse(b []byte)(error){
 	c.pipelineChan<-true
 	cbChan := make(chan []byte,1)
 	c.pipeline.pipelineRequestChan<-NewPipelineRequest(b,true,cbChan)
@@ -393,18 +422,18 @@ func (c *Client)RemoteCallNoResponse(b []byte)(error){
 	<-c.pipelineChan
 	return nil
 }
-func (c *Client)Close() ( err error) {
+func (c *client)Close() ( err error) {
 	if c.closed {
 		return nil
 	}
 	c.closed = true
 	return c.conn.Close()
 }
-func (c *Client)Closed()bool{
+func (c *client)Closed()bool{
 	return c.closed
 }
 
-func (c *Client)heartbeat() ( err error) {
+func (c *client)heartbeat() ( err error) {
 	uid:=c.idgenerator.GenUniqueIDInt64()
 	msg:=&Msg{}
 	msg.id=uid
@@ -435,7 +464,7 @@ func (c *Client)heartbeat() ( err error) {
 	return err
 }
 
-func (c *Client)call(name string, args interface{}, reply interface{}) ( err error) {
+func (c *client)call(name string, args interface{}, reply interface{}) ( err error) {
 	clientCodec:=&ClientCodec{}
 	clientCodec.client_id=c.client_id
 	clientCodec.req_id=uint64(c.idgenerator.GenUniqueIDInt64())
@@ -484,7 +513,7 @@ func (c *Client)call(name string, args interface{}, reply interface{}) ( err err
 	}
 
 }
-func (c *Client)batchCall(name string, args interface{}, reply interface{}) ( err error) {
+func (c *client)batchCall(name string, args interface{}, reply interface{}) ( err error) {
 	cr:=&BatchRequest{
 		id:uint64(c.idgenerator.GenUniqueIDInt64()),
 		name:name,

@@ -89,7 +89,7 @@ func main()  {
 	time.Sleep(time.Second*3)
 	fmt.Println(count/int(run_time_second),int(run_time_second*1000000000)/count)
 }
-func run(conn *rpc.Client)  {
+func run(conn rpc.Client)  {
 	var err error
 	req := &service.ArithRequest{A:9,B:2}
 	var res service.ArithResponse
@@ -121,7 +121,7 @@ func run(conn *rpc.Client)  {
 	defer conn.Close()
 	select {}
 }
-func work(conn *rpc.Client, countchan chan int) {
+func work(conn rpc.Client, countchan chan int) {
 	start_time:=time.Now().UnixNano()
 	var err error
 	for{

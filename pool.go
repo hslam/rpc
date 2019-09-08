@@ -9,7 +9,7 @@ import (
 func Dials(total int,network,address,codec string)(*Pool,error){
 	p :=  &Pool{
 		connPool:make(ClientPool,total),
-		conns:make([]*Client,total),
+		conns:make([]Client,total),
 	}
 	for i := 0;i<total;i++{
 		conn,err:=Dial(network,address,codec)
@@ -24,7 +24,7 @@ func Dials(total int,network,address,codec string)(*Pool,error){
 func DialsWithPipeline(total int,network,address,codec string,MaxPipelineRequest int)(*Pool,error){
 	p :=  &Pool{
 		connPool:make(ClientPool,total),
-		conns:make([]*Client,total),
+		conns:make([]Client,total),
 	}
 	for i := 0;i<total;i++{
 		conn,err:=DialWithPipeline(network,address,codec,MaxPipelineRequest)
@@ -37,27 +37,27 @@ func DialsWithPipeline(total int,network,address,codec string,MaxPipelineRequest
 	return p,nil
 }
 
-type ClientPool chan *Client
+type ClientPool chan Client
 
 type Pool struct {
 	mu 				sync.Mutex
 	connPool 		ClientPool
-	conns   		[]*Client
+	conns   		[]Client
 	pool_id			int64
 }
 
-func (p *Pool)Get()*Client{
+func (p *Pool)Get()Client{
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	c:=<-p.connPool
 	return c
 }
-func (p *Pool)Put(c *Client){
+func (p *Pool)Put(c Client){
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.connPool<-c
 }
-func (p *Pool)All()[]*Client{
+func (p *Pool)All()[]Client{
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.conns
@@ -241,7 +241,7 @@ func (p *Pool)Call(name string, args interface{}, reply interface{}) ( err error
 		}
 	}()
 	c:=<-p.connPool
-	defer func(c *Client) {
+	defer func(c Client) {
 		p.connPool<-c
 	}(c)
 	return c.Call(name,args,reply)
@@ -253,7 +253,7 @@ func (p *Pool)CallNoRequest(name string, reply interface{}) ( err error) {
 		}
 	}()
 	c:=<-p.connPool
-	defer func(c *Client) {
+	defer func(c Client) {
 		p.connPool<-c
 	}(c)
 	return c.CallNoRequest(name,reply)
@@ -265,7 +265,7 @@ func (p *Pool)CallNoResponse(name string, args interface{}) ( err error) {
 		}
 	}()
 	c:=<-p.connPool
-	defer func(c *Client) {
+	defer func(c Client) {
 		p.connPool<-c
 	}(c)
 	return c.CallNoResponse(name,args)
@@ -277,7 +277,7 @@ func (p *Pool)OnlyCall(name string) ( err error) {
 		}
 	}()
 	c:=<-p.connPool
-	defer func(c *Client) {
+	defer func(c Client) {
 		p.connPool<-c
 	}(c)
 	return c.OnlyCall(name)
@@ -289,7 +289,7 @@ func (p *Pool)Ping() bool {
 		}
 	}()
 	c:=<-p.connPool
-	defer func(c *Client) {
+	defer func(c Client) {
 		p.connPool<-c
 	}(c)
 	return c.Ping()
