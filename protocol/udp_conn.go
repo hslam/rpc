@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"net"
+	"fmt"
 )
 
 type UDPMsg struct {
@@ -51,6 +52,7 @@ func WriteUDPConn(writer *net.UDPConn, writeChan chan *UDPMsg) {
 				}
 			}()
 			if udp_msg.Data!=nil{
+				fmt.Println()
 				_, err := writer.WriteToUDP(PacketMessage(OprationTypeData,udp_msg.ID,udp_msg.Data),udp_msg.RemoteAddr)
 				if err != nil {
 					return

@@ -5,7 +5,7 @@ import (
 	"net/url"
 )
 type FASTHTTPConn struct {
-	conn 		*fasthttp.Client
+	conn 			*fasthttp.Client
 	address			string
 	url 			string
 	CanWork			bool

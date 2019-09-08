@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 	"math/rand"
+	"hslam.com/mgit/Mort/rpc/log"
 )
 
 type  OprationType byte
@@ -123,6 +124,7 @@ func ReadMessage(reader io.Reader, readMessageChan chan *Message, stopChan chan 
 		}
 		var data =make([]byte,n)
 		copy(data,buffer[:n])
+		log.Debugf("recv data size %d",n)
 		oprationType,id,msg,err:=UnpackMessage(data)
 		if err != nil {
 			continue
@@ -149,7 +151,9 @@ func WriteMessage(writer io.Writer, writeMessageChan chan *Message, stopChan cha
 		}
 	}()
 	for msg:= range writeMessageChan{
-		_, err := writer.Write(PacketMessage(msg.oprationType,msg.id,msg.message))
+		data:=PacketMessage(msg.oprationType,msg.id,msg.message)
+		log.Debugf("send data size %d",len(data))
+		_, err := writer.Write(data)
 		if err != nil {
 			goto finish
 		}
