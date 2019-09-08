@@ -1,5 +1,6 @@
 
 ## server
+### handle
 ```
 async
 sync
@@ -35,6 +36,7 @@ no
 ### pipeline
 
 ### batch
+### batch handle
 ```
 async
 sync
