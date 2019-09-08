@@ -38,7 +38,7 @@ func main()  {
 	rpc.Register(new(service.Arith))
 	rpc.SetLogLevel(4)
 	if useWorkerPool{
-		rpc.EnabledWorkerPoolWithSize(num,max)
+		rpc.EnableWorkerPoolWithSize(num,max)
 	}
 	if async{
 		rpc.EnableAsyncHandle()

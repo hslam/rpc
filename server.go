@@ -32,18 +32,18 @@ func NewServer() *Server {
 	return &Server{Funcs:funcs.New(),timeout:DefaultServerTimeout}
 }
 
-func EnabledWorkerPool() {
-	DefaultServer.EnabledWorkerPool()
+func EnableWorkerPool() {
+	DefaultServer.EnableWorkerPool()
 }
-func (s *Server) EnabledWorkerPool() {
+func (s *Server) EnableWorkerPool() {
 	s.useWorkerPool=true
 	DefaultServer.workerPool=workerpool.New(workerPoolSize,workerMax)
 }
-func EnabledWorkerPoolWithSize(size ,max int) {
-	DefaultServer.EnabledWorkerPoolWithSize(size ,max)
+func EnableWorkerPoolWithSize(size ,max int) {
+	DefaultServer.EnableWorkerPoolWithSize(size ,max)
 }
 
-func (s *Server) EnabledWorkerPoolWithSize(size ,max int) {
+func (s *Server) EnableWorkerPoolWithSize(size ,max int) {
 	s.useWorkerPool=true
 	s.workerPoolSize=size
 	s.workerMax=max
@@ -128,21 +128,21 @@ func (s *Server)ServeRPC(b []byte) (bool,[]byte,error) {
 		batchCodec.Decode(msg.data)
 		res_bytes_s:=make([][]byte,len(batchCodec.data))
 		NoResponseCnt:=0
-		if s.async{
+		if s.async&&batchCodec.async{
 			waitGroup :=sync.WaitGroup{}
 			for i,v:=range batchCodec.data{
 				waitGroup.Add(1)
-				go func(i int,v []byte,msg Msg,waitGroup *sync.WaitGroup) {
+				go func(i int,v []byte,msg Msg,res_bytes_s[][]byte,NoResponseCnt *int,waitGroup *sync.WaitGroup) {
 					msg.data=v
 					res_bytes,nr:=s.Handler(&msg)
 					if nr==true{
-						NoResponseCnt++
+						*NoResponseCnt++
 						res_bytes_s[i]=[]byte("")
 					}else {
 						res_bytes_s[i]=res_bytes
 					}
 					waitGroup.Done()
-				}(i,v,*msg,&waitGroup)
+				}(i,v,*msg,res_bytes_s,&NoResponseCnt,&waitGroup)
 			}
 			waitGroup.Wait()
 		}else {

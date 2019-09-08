@@ -48,8 +48,8 @@ func init()  {
 	flag.Int64Var(&run_time_second, "ts", 180, "run_time_second: -ts=60")
 	flag.BoolVar(&batch, "batch", false, "batch: -batch=false")
 	flag.BoolVar(&pipelining, "pipelining", false, "pipelining: -pipelining=false")
-	flag.BoolVar(&noresponse, "noresponse", false, "noresponse: -noresponse=false")
 	flag.BoolVar(&norequest, "norequest", false, "norequest: -norequest=false")
+	flag.BoolVar(&noresponse, "noresponse", false, "noresponse: -noresponse=false")
 	flag.BoolVar(&onlycall, "onlycall", false, "onlycall: -onlycall=false")
 	flag.IntVar(&clients, "clients", 1, "num: -clients=1")
 	log.SetFlags(0)
@@ -71,7 +71,7 @@ func main()  {
 			log.Fatalln("dailing error: ", err)
 		}
 		pool.SetCompressType(compress)
-		if batch {pool.EnabledBatch()}
+		if batch {pool.EnableBatch()}
 		for i:=0;i<clients;i++{
 			go run(pool.Get())
 		}
@@ -82,7 +82,7 @@ func main()  {
 			log.Fatalln("dailing error: ", err)
 		}
 		conn.SetCompressType(compress)
-		if batch {conn.EnabledBatch()}
+		if batch {conn.EnableBatch()}
 		go run(conn)
 	}else {
 		return

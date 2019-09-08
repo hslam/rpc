@@ -40,7 +40,8 @@ message Msg {
 }
 
 message Batch {
-    repeated bytes data = 1;
+    bool async = 1;
+    repeated bytes data = 2;
 }
 
 message Request {

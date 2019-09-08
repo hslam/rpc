@@ -18,6 +18,7 @@ var host string
 var port int
 var addr string
 var batch bool
+var batch_async bool
 var pipelining bool
 var noresponse bool
 var clients int
@@ -33,6 +34,7 @@ func init()  {
 	flag.IntVar(&port, "p", 9999, "port: -p=9999")
 	flag.IntVar(&total_calls, "total", 100000, "total_calls: -total=10000")
 	flag.BoolVar(&batch, "batch", true, "batch: -batch=false")
+	flag.BoolVar(&batch_async, "batch_async", false, "batch_async: -batch_async=false")
 	flag.BoolVar(&pipelining, "pipelining", true, "pipelining: -pipelining=false")
 	flag.BoolVar(&noresponse, "noresponse", false, "noresponse: -noresponse=false")
 	flag.IntVar(&clients, "clients", 1, "num: -clients=1")
@@ -44,7 +46,7 @@ func init()  {
 }
 
 func main()  {
-	fmt.Printf("./client -network=%s -codec=%s -compress=%s -h=%s -p=%d -total=%d -pipelining=%t -batch=%t -noresponse=%t -clients=%d\n",network,codec,compress,host,port,total_calls,pipelining,batch,noresponse,clients)
+	fmt.Printf("./client -network=%s -codec=%s -compress=%s -h=%s -p=%d -total=%d -pipelining=%t -batch=%t -batch_async=%t -noresponse=%t -clients=%d\n",network,codec,compress,host,port,total_calls,pipelining,batch,batch_async,noresponse,clients)
 	var wrkClients []stats.Client
 	parallel:=1
 	if clients>1{
@@ -53,7 +55,8 @@ func main()  {
 			log.Fatalln("dailing error: ", err)
 		}
 		pool.SetCompressType(compress)
-		if batch {pool.EnabledBatch()}
+		if batch {pool.EnableBatch()}
+		if batch_async{pool.EnableBatchAsync()}
 		wrkClients=make([]stats.Client,len(pool.All()))
 		for i:=0; i<len(pool.All());i++  {
 			wrkClients[i]=&WrkClient{pool.All()[i]}
@@ -69,7 +72,8 @@ func main()  {
 			log.Fatalln("dailing error: ", err)
 		}
 		conn.SetCompressType(compress)
-		if batch {conn.EnabledBatch()}
+		if batch {conn.EnableBatch()}
+		if batch_async{conn.EnableBatchAsync()}
 		if batch{
 			parallel=conn.GetMaxBatchRequest()
 		}else if pipelining{

@@ -22,30 +22,31 @@ func DialWithPipeline(network,address,codec string,MaxPipelineRequest int) (*Cli
 	return NewClientnWithConcurrent(transporter,codec,MaxPipelineRequest+1)
 }
 type Client struct {
-	mu 				sync.Mutex
-	conn			Conn
-	closed			bool
-	hystrix			bool
-	batchEnabled	bool
-	batch			*Batch
-	pipeline 		*Pipeline
-	pipelineChan	chan bool
-	readChan		chan []byte
-	writeChan		chan []byte
-	finishChan		chan bool
-	stopChan		chan bool
-	funcsCodecType 	CodecType
-	compressType 	CompressType
-	compressLevel 	CompressLevel
-	idgenerator		*idgenerator.IDGen
-	client_id		int64
-	timeout 		int64
-	heartbeatTimeout 		int64
-	errCntChan 		chan int
-	errCnt 			int
-	maxErrPerSecond	int
-	maxErrHeartbeat	int
-	errCntHeartbeat	int
+	mu 					sync.Mutex
+	conn				Conn
+	closed				bool
+	hystrix				bool
+	batchEnabled		bool
+	batchAsync			bool
+	batch				*Batch
+	pipeline 			*Pipeline
+	pipelineChan		chan bool
+	readChan			chan []byte
+	writeChan			chan []byte
+	finishChan			chan bool
+	stopChan			chan bool
+	funcsCodecType 		CodecType
+	compressType 		CompressType
+	compressLevel 		CompressLevel
+	idgenerator			*idgenerator.IDGen
+	client_id			int64
+	timeout 			int64
+	heartbeatTimeout	int64
+	errCntChan 			chan int
+	errCnt 				int
+	maxErrPerSecond		int
+	maxErrHeartbeat		int
+	errCntHeartbeat		int
 }
 func NewClient(conn	Conn,codec string)  (*Client, error) {
 	return NewClientnWithConcurrent(conn,codec,DefaultMaxPipelineRequest+1)
@@ -150,12 +151,34 @@ func NewClientnWithConcurrent(conn	Conn,codec string,maxPipeliningRequest int)  
 	client.pipelineChan = make(chan bool,maxPipeliningRequest)
 	return client, nil
 }
-func (c *Client)EnabledBatch(){
+func (c *Client)EnableBatch(){
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.batchEnabled = true
 	c.batch=NewBatch(c,DefaultMaxDelayNanoSecond*c.conn.TickerFactor())
 	c.batch.SetMaxBatchRequest(DefaultMaxBatchRequest*c.conn.BatchFactor())
+}
+func (c *Client)EnableBatchAsync(){
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.batchAsync = true
+}
+func (c *Client)SetMaxBatchRequest(maxBatchRequest int)error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if maxBatchRequest<=0{
+		return ErrSetMaxBatchRequest
+	}
+	c.batch.SetMaxBatchRequest(maxBatchRequest)
+	return nil
+}
+func (c *Client)GetMaxBatchRequest()int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.batch.GetMaxBatchRequest()
+}
+func (c *Client)GetMaxPipelineRequest()(int){
+	return c.pipeline.GetMaxPipelineRequest()-1
 }
 func (c *Client)SetCompressType(compress string){
 	c.mu.Lock()
@@ -242,23 +265,6 @@ func (c *Client)GetMaxErrHeartbeat()int{
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.maxErrHeartbeat
-}
-func (c *Client)GetMaxBatchRequest()int {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.batch.GetMaxBatchRequest()
-}
-func (c *Client)GetMaxPipelineRequest()(int){
-	return c.pipeline.GetMaxPipelineRequest()-1
-}
-func (c *Client)SetMaxBatchRequest(maxBatchRequest int)error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if maxBatchRequest<=0{
-		return ErrSetMaxBatchRequest
-	}
-	c.batch.SetMaxBatchRequest(maxBatchRequest)
-	return nil
 }
 func (c *Client)CodecName()string {
 	return FuncsCodecName(c.funcsCodecType)
@@ -482,7 +488,6 @@ func (c *Client)batchCall(name string, args interface{}, reply interface{}) ( er
 	cr:=&BatchRequest{
 		id:uint64(c.idgenerator.GenUniqueIDInt64()),
 		name:name,
-
 		noResponse:false,
 	}
 	if args!=nil{

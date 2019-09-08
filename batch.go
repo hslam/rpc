@@ -22,7 +22,6 @@ type Batch struct {
 	reqChan RequestChan
 	client *Client
 	readyRequests []*BatchRequest
-	//sendRequests chan []*BatchRequest
 	maxBatchRequest	int
 	maxDelayNanoSecond	int
 }
@@ -31,7 +30,6 @@ func NewBatch(client *Client,maxDelayNanoSecond int) *Batch {
 		reqChan:make(chan *BatchRequest,DefaultMaxCacheRequest),
 		client:client,
 		readyRequests:make([]*BatchRequest,0),
-		//sendRequests:make(chan []*BatchRequest,1),
 		maxBatchRequest:DefaultMaxBatchRequest,
 		maxDelayNanoSecond:maxDelayNanoSecond,
 	}
@@ -95,7 +93,7 @@ func (c *Batch)Ticker(crs []*BatchRequest){
 	}else {
 		noResponse=false
 	}
-	batch:=&BatchCodec{req_bytes_s}
+	batch:=&BatchCodec{async:c.client.batchAsync,data:req_bytes_s}
 	batch_bytes,err:=batch.Encode()
 	msg:=&Msg{}
 	msg.id=c.client.GetID()

@@ -6,11 +6,12 @@ import (
 	"hslam.com/mgit/Mort/rpc/log"
 )
 type BatchCodec struct{
+	async bool
 	data [][]byte
 }
 
 func(c *BatchCodec)Encode()([]byte,error)  {
-	batch:=pb.Batch{Data:c.data}
+	batch:=pb.Batch{Async:c.async,Data:c.data}
 	batch_bytes,err:= proto.Marshal(&batch)
 	if err != nil {
 		log.Errorln("BatchEncode proto.Marshal error: ", err)
@@ -24,6 +25,7 @@ func(c *BatchCodec)Decode(b []byte)(error)  {
 		log.Errorln("BatchDecode proto.Unmarshal error: ", err)
 		return  err
 	}
+	c.async=batch.Async
 	c.data=batch.Data
 	return nil
 }

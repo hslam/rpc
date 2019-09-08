@@ -18,6 +18,7 @@ var port int
 var num int
 var max int
 var useWorkerPool bool
+var async bool
 var saddr string
 func init()  {
 	runtime.GOMAXPROCS(runtime.NumCPU())
@@ -28,15 +29,19 @@ func init()  {
 	flag.IntVar(&num, "n", 65536, "num: -n=1024")
 	flag.IntVar(&max, "m", runtime.NumCPU()*64, "max: -m=64")
 	flag.BoolVar(&useWorkerPool, "pool", false, "useWorkerPool: -pool=false")
+	flag.BoolVar(&async, "async", true, "async: -async=false")
 	flag.Parse()
 	saddr = ":"+strconv.Itoa(port)
 }
 func main()  {
 	go func() {if debug{log.Println(http.ListenAndServe(":"+strconv.Itoa(debug_port), nil))}}()
 	rpc.Register(new(service.Echo))
-	rpc.SetLogLevel(6)
+	rpc.SetLogLevel(4)
 	if useWorkerPool{
-		rpc.EnabledWorkerPoolWithSize(num,max)
+		rpc.EnableWorkerPoolWithSize(num,max)
+	}
+	if async{
+		rpc.EnableAsyncHandle()
 	}
 	rpc.ListenAndServe(network,saddr)
 }

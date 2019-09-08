@@ -837,7 +837,7 @@ proto.pb.Msg.prototype.setData = function(value) {
  * @private {!Array<number>}
  * @const
  */
-proto.pb.Batch.repeatedFields_ = [1];
+proto.pb.Batch.repeatedFields_ = [2];
 
 
 
@@ -868,6 +868,7 @@ proto.pb.Batch.prototype.toObject = function(opt_includeInstance) {
  */
 proto.pb.Batch.toObject = function(includeInstance, msg) {
   var f, obj = {
+    async: jspb.Message.getFieldWithDefault(msg, 1, false),
     dataList: msg.getDataList_asB64()
   };
 
@@ -906,6 +907,10 @@ proto.pb.Batch.deserializeBinaryFromReader = function(msg, reader) {
     var field = reader.getFieldNumber();
     switch (field) {
     case 1:
+      var value = /** @type {boolean} */ (reader.readBool());
+      msg.setAsync(value);
+      break;
+    case 2:
       var value = /** @type {!Uint8Array} */ (reader.readBytes());
       msg.addData(value);
       break;
@@ -938,10 +943,17 @@ proto.pb.Batch.prototype.serializeBinary = function() {
  */
 proto.pb.Batch.serializeBinaryToWriter = function(message, writer) {
   var f = undefined;
+  f = message.getAsync();
+  if (f) {
+    writer.writeBool(
+      1,
+      f
+    );
+  }
   f = message.getDataList_asU8();
   if (f.length > 0) {
     writer.writeRepeatedBytes(
-      1,
+      2,
       f
     );
   }
@@ -949,16 +961,33 @@ proto.pb.Batch.serializeBinaryToWriter = function(message, writer) {
 
 
 /**
- * repeated bytes data = 1;
- * @return {!(Array<!Uint8Array>|Array<string>)}
+ * optional bool async = 1;
+ * Note that Boolean fields may be set to 0/1 when serialized from a Java server.
+ * You should avoid comparisons like {@code val === true/false} in those cases.
+ * @return {boolean}
  */
-proto.pb.Batch.prototype.getDataList = function() {
-  return /** @type {!(Array<!Uint8Array>|Array<string>)} */ (jspb.Message.getRepeatedField(this, 1));
+proto.pb.Batch.prototype.getAsync = function() {
+  return /** @type {boolean} */ (jspb.Message.getFieldWithDefault(this, 1, false));
+};
+
+
+/** @param {boolean} value */
+proto.pb.Batch.prototype.setAsync = function(value) {
+  jspb.Message.setProto3BooleanField(this, 1, value);
 };
 
 
 /**
- * repeated bytes data = 1;
+ * repeated bytes data = 2;
+ * @return {!(Array<!Uint8Array>|Array<string>)}
+ */
+proto.pb.Batch.prototype.getDataList = function() {
+  return /** @type {!(Array<!Uint8Array>|Array<string>)} */ (jspb.Message.getRepeatedField(this, 2));
+};
+
+
+/**
+ * repeated bytes data = 2;
  * This is a type-conversion wrapper around `getDataList()`
  * @return {!Array<string>}
  */
@@ -969,7 +998,7 @@ proto.pb.Batch.prototype.getDataList_asB64 = function() {
 
 
 /**
- * repeated bytes data = 1;
+ * repeated bytes data = 2;
  * Note that Uint8Array is not supported on all browsers.
  * @see http://caniuse.com/Uint8Array
  * This is a type-conversion wrapper around `getDataList()`
@@ -983,7 +1012,7 @@ proto.pb.Batch.prototype.getDataList_asU8 = function() {
 
 /** @param {!(Array<!Uint8Array>|Array<string>)} value */
 proto.pb.Batch.prototype.setDataList = function(value) {
-  jspb.Message.setField(this, 1, value || []);
+  jspb.Message.setField(this, 2, value || []);
 };
 
 
@@ -992,7 +1021,7 @@ proto.pb.Batch.prototype.setDataList = function(value) {
  * @param {number=} opt_index
  */
 proto.pb.Batch.prototype.addData = function(value, opt_index) {
-  jspb.Message.addToRepeatedField(this, 1, value, opt_index);
+  jspb.Message.addToRepeatedField(this, 2, value, opt_index);
 };
 
 

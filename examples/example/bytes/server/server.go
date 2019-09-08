@@ -36,7 +36,7 @@ func main()  {
 	rpc.Register(new(service.Echo))
 	rpc.SetLogLevel(6)
 	if useWorkerPool{
-		rpc.EnabledWorkerPoolWithSize(num,max)
+		rpc.EnableWorkerPoolWithSize(num,max)
 	}
 	rpc.ListenAndServe(network,saddr)
 }

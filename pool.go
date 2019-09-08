@@ -62,12 +62,46 @@ func (p *Pool)All()[]*Client{
 	defer p.mu.Unlock()
 	return p.conns
 }
-func (p *Pool)EnabledBatch(){
+func (p *Pool)EnableBatch(){
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	for _,c:= range p.conns{
-		c.EnabledBatch()
+		c.EnableBatch()
 	}
+}
+func (p *Pool)EnableBatchAsync(){
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for _,c:= range p.conns{
+		c.EnableBatchAsync()
+	}
+}
+func (p *Pool)SetMaxBatchRequest(maxBatchRequest int) error{
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for _,c:= range p.conns{
+		err:=c.SetMaxBatchRequest(maxBatchRequest)
+		if err!=nil{
+			return err
+		}
+	}
+	return nil
+}
+func (p *Pool)GetMaxBatchRequest()int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for _,c:= range p.conns{
+		return c.GetMaxBatchRequest()
+	}
+	return -1
+}
+func (p *Pool)GetMaxPipelineRequest()(int){
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for _,c:= range p.conns{
+		return c.GetMaxPipelineRequest()
+	}
+	return -1
 }
 func (p *Pool)SetCompressType(compress string){
 	p.mu.Lock()
@@ -83,33 +117,7 @@ func (p *Pool)SetCompressLevel(compress,level string){
 		c.SetCompressLevel(compress,level)
 	}
 }
-func (p *Pool)GetMaxBatchRequest()int {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	for _,c:= range p.conns{
-		return c.GetMaxBatchRequest()
-	}
-	return -1
-}
-func (p *Pool)SetMaxBatchRequest(maxBatchRequest int) error{
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	for _,c:= range p.conns{
-		err:=c.SetMaxBatchRequest(maxBatchRequest)
-		if err!=nil{
-			return err
-		}
-	}
-	return nil
-}
-func (p *Pool)GetMaxPipelineRequest()(int){
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	for _,c:= range p.conns{
-		return c.GetMaxPipelineRequest()
-	}
-	return -1
-}
+
 func (p *Pool)SetID(id int64)error{
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -238,10 +246,22 @@ func (p *Pool)Call(name string, args interface{}, reply interface{}) ( err error
 	}(c)
 	return c.Call(name,args,reply)
 }
+func (p *Pool)CallNoRequest(name string, reply interface{}) ( err error) {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Errorln("CallNoRequest failed:", err)
+		}
+	}()
+	c:=<-p.connPool
+	defer func(c *Client) {
+		p.connPool<-c
+	}(c)
+	return c.CallNoRequest(name,reply)
+}
 func (p *Pool)CallNoResponse(name string, args interface{}) ( err error) {
 	defer func() {
 		if err := recover(); err != nil {
-			log.Errorln("Call failed:", err)
+			log.Errorln("CallNoResponse failed:", err)
 		}
 	}()
 	c:=<-p.connPool
@@ -249,6 +269,30 @@ func (p *Pool)CallNoResponse(name string, args interface{}) ( err error) {
 		p.connPool<-c
 	}(c)
 	return c.CallNoResponse(name,args)
+}
+func (p *Pool)OnlyCall(name string) ( err error) {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Errorln("OnlyCall failed:", err)
+		}
+	}()
+	c:=<-p.connPool
+	defer func(c *Client) {
+		p.connPool<-c
+	}(c)
+	return c.OnlyCall(name)
+}
+func (p *Pool)Ping() bool {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Errorln("Ping failed:", err)
+		}
+	}()
+	c:=<-p.connPool
+	defer func(c *Client) {
+		p.connPool<-c
+	}(c)
+	return c.Ping()
 }
 func (p *Pool)RemoteCall(b []byte)([]byte,error){
 	return nil, errors.New("not suportted")

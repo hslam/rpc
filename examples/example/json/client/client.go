@@ -66,7 +66,7 @@ func main()  {
 			log.Fatalln("dailing error: ", err)
 		}
 		pool.SetCompressType(compress)
-		if batch {pool.EnabledBatch()}
+		if batch {pool.EnableBatch()}
 		for i:=0;i<clients;i++{
 			go run(pool.Get())
 		}
@@ -77,7 +77,7 @@ func main()  {
 			log.Fatalln("dailing error: ", err)
 		}
 		conn.SetCompressType(compress)
-		if batch {conn.EnabledBatch()}
+		if batch {conn.EnableBatch()}
 		go run(conn)
 	}else {
 		return

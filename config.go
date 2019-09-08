@@ -50,7 +50,7 @@ const (
 	DefaultClientHearbeatTicker=10000
 	DefaultClientRetryTicker=10000
 
-	DefaultClientMaxErrPerSecond=1000
+	DefaultClientMaxErrPerSecond=10000
 	DefaultClientMaxErrHearbeat=3
 
 	MsgTypeReq MsgType = 0
