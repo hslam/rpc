@@ -126,6 +126,8 @@ JSONRPC     TCP         json        7915    239660
 GRPC        HTTP2       protobuf    6325    163704
 ```
 
+
+## Example
 ### arith.proto
 ```
 syntax = "proto3";
