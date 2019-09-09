@@ -48,11 +48,29 @@ func (t *UDPConn)handle(){
 		for {
 			select {
 			case v:=<-readChan:
-				t.readChan<-v
+				func() {
+					defer func() {
+						if err := recover(); err != nil {
+						}
+					}()
+					t.readChan<-v
+				}()
 			case v:=<-t.writeChan:
-				writeChan<-v
+				func() {
+					defer func() {
+						if err := recover(); err != nil {
+						}
+					}()
+					writeChan<-v
+				}()
 			case <-t.stopChan:
-				stopChan<-true
+				func() {
+					defer func() {
+						if err := recover(); err != nil {
+						}
+					}()
+					stopChan<-true
+				}()
 				goto endfor
 			case <-finishChan:
 				t.finishChan<-true

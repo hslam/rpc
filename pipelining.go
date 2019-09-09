@@ -1,5 +1,7 @@
 package rpc
 
+import "hslam.com/mgit/Mort/rpc/log"
+
 type PipelineRequestChan chan *PipelineRequest
 
 type PipelineRequest struct {
@@ -97,10 +99,18 @@ func (c *Pipeline)retry() {
 	if len(c.actionPipelineRequestChan)>0{
 		for i:=0;i<len(c.actionPipelineRequestChan);i++{
 			cr:=<-c.actionPipelineRequestChan
-			c.writeChan<-cr.data
-			if cr.noResponse==false{
-				c.actionPipelineRequestChan<-cr
-			}
+			func() {
+				defer func() {
+					if err := recover(); err != nil {
+						log.Errorln("Pipeline.retry", err)
+					}
+				}()
+				c.writeChan<-cr.data
+				if cr.noResponse==false{
+					c.actionPipelineRequestChan<-cr
+				}
+			}()
+
 		}
 	}
 	c.stop=false

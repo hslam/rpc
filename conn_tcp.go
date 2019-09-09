@@ -55,9 +55,21 @@ func (t *TCPConn)handle(){
 		for {
 			select {
 			case v:=<-readChan:
-				t.readChan<-v
+				func() {
+					defer func() {
+						if err := recover(); err != nil {
+						}
+					}()
+					t.readChan<-v
+				}()
 			case v:=<-t.writeChan:
-				writeChan<-v
+				func() {
+					defer func() {
+						if err := recover(); err != nil {
+						}
+					}()
+					writeChan<-v
+				}()
 			case stop := <-finishChan:
 				if stop {
 					stopReadStreamChan<-true

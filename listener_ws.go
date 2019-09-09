@@ -66,7 +66,7 @@ func ServeWSConn(server *Server,conn *websocket.Conn)error {
 	var RemoteAddr=conn.RemoteAddr().String()
 	readChan := make(chan []byte)
 	writeChan := make(chan []byte)
-	finishChan:= make(chan bool)
+	finishChan:= make(chan bool,1)
 	stopReadConnChan := make(chan bool,1)
 	stopWriteConnChan := make(chan bool,1)
 	stopChan := make(chan bool,1)

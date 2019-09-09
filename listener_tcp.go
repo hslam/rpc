@@ -48,7 +48,7 @@ func ServeTCPConn(server *Server,conn net.Conn)error {
 	var RemoteAddr=conn.RemoteAddr().String()
 	readChan := make(chan []byte)
 	writeChan := make(chan []byte)
-	finishChan:= make(chan bool)
+	finishChan:= make(chan bool,1)
 	stopReadStreamChan := make(chan bool,1)
 	stopWriteStreamChan := make(chan bool,1)
 	stopChan := make(chan bool,1)

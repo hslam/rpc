@@ -468,7 +468,8 @@ func (c *client)heartbeat() ( err error) {
 	msg_bytes, _ :=msg.Encode()
 	ch := make(chan int)
 	go func() {
-		data,err:=c.RemoteCall(msg_bytes)
+		var data []byte
+		data,err=c.RemoteCall(msg_bytes)
 		if err != nil {
 			log.Errorln("Write error: ", err)
 			ch<-1
