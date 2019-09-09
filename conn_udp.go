@@ -13,6 +13,7 @@ type UDPConn struct {
 	writeChan 		chan []byte
 	stopChan 		chan bool
 	finishChan chan bool
+	closed			bool
 }
 
 func DialUDP(address string)  (Conn, error)  {
@@ -38,10 +39,12 @@ func (t *UDPConn)Handle(readChan chan []byte,writeChan chan []byte, stopChan cha
 func (t *UDPConn)handle(){
 	readChan:=make(chan []byte)
 	writeChan:=make(chan []byte)
-	finishChan:=make(chan bool)
+	finishChan:=make(chan bool,1)
 	stopChan:=make(chan bool,1)
 	go protocol.HandleMessage(t.conn,readChan,writeChan,stopChan,finishChan)
 	go func() {
+		t.closed=false
+		log.Traceln("UDPConn.handle start")
 		for {
 			select {
 			case v:=<-readChan:
@@ -61,6 +64,8 @@ func (t *UDPConn)handle(){
 		close(writeChan)
 		close(finishChan)
 		close(stopChan)
+		t.closed=true
+		log.Traceln("UDPConn.handle end")
 	}()
 }
 func (t *UDPConn)TickerFactor()(int){
@@ -81,4 +86,8 @@ func (t *UDPConn)Retry()(error){
 }
 func (t *UDPConn)Close()(error){
 	return t.conn.Close()
+}
+
+func (t *UDPConn)Closed()(bool){
+	return t.closed
 }

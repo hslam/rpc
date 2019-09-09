@@ -24,6 +24,7 @@ type Batch struct {
 	readyRequests []*BatchRequest
 	maxBatchRequest	int
 	maxDelayNanoSecond	int
+	closed  bool
 }
 func NewBatch(c *client,maxDelayNanoSecond int) *Batch {
 	b:= &Batch{
@@ -46,6 +47,9 @@ func (b *Batch)SetMaxBatchRequest(maxBatchRequest int) {
 func (b *Batch)run() {
 	go func() {
 		for cr := range b.reqChan {
+			if b.closed{
+				goto endfor
+			}
 			b.mut.Lock()
 			b.readyRequests=append(b.readyRequests, cr)
 			if len(b.readyRequests)>=b.maxBatchRequest{
@@ -56,11 +60,15 @@ func (b *Batch)run() {
 			}
 			b.mut.Unlock()
 		}
+		endfor:
 	}()
 	tick := time.NewTicker(1 * time.Nanosecond*time.Duration(b.maxDelayNanoSecond))
 	for {
 		select {
 		case <-tick.C:
+			if b.closed{
+				goto endfor
+			}
 			b.mut.Lock()
 			if len(b.readyRequests)>b.maxBatchRequest{
 				crs:=b.readyRequests[:b.maxBatchRequest]
@@ -75,6 +83,7 @@ func (b *Batch)run() {
 			b.mut.Unlock()
 		}
 	}
+endfor:
 }
 func (b *Batch)Ticker(crs []*BatchRequest){
 	req_bytes_s:=make([][]byte,len(crs))
@@ -146,4 +155,8 @@ func (b *Batch)Ticker(crs []*BatchRequest){
 		}
 
 	}
+}
+
+func (b *Batch)Close() {
+	b.closed=true
 }

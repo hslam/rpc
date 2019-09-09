@@ -1,6 +1,5 @@
 package rpc
 
-
 type PipelineRequestChan chan *PipelineRequest
 
 type PipelineRequest struct {
@@ -17,6 +16,7 @@ type Pipeline struct {
 	writeChan chan []byte
 	maxPipelineRequest	int
 	stop			bool
+	closeChan chan bool
 }
 func NewPipeline(maxPipelineRequest int,readChan  chan []byte,writeChan  chan []byte) *Pipeline {
 	c:= &Pipeline{
@@ -26,6 +26,7 @@ func NewPipeline(maxPipelineRequest int,readChan  chan []byte,writeChan  chan []
 		readChan :readChan,
 		writeChan :writeChan,
 		maxPipelineRequest:maxPipelineRequest,
+		closeChan:make(chan bool,1),
 	}
 	go c.run()
 	return c
@@ -44,6 +45,8 @@ func (c *Pipeline)GetMaxPipelineRequest()int {
 func (c *Pipeline)run() {
 	for{
 		select {
+		case <-c.closeChan:
+			goto endfor
 		case cr:=<-c.pipelineRequestChan:
 			for {
 				if !c.stop{
@@ -68,7 +71,9 @@ func (c *Pipeline)run() {
 				cr.cbChan<-b
 			}
 		}
+
 	}
+	endfor:
 }
 func (c *Pipeline)retry() {
 	c.stop=true
@@ -99,4 +104,7 @@ func (c *Pipeline)retry() {
 		}
 	}
 	c.stop=false
+}
+func (c *Pipeline)Close() {
+	c.closeChan<-true
 }

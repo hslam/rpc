@@ -10,6 +10,7 @@ type Conn interface {
 	BatchFactor()(int)
 	Retry()(error)
 	Close()(error)
+	Closed()(bool)
 }
 
 

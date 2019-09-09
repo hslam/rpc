@@ -13,6 +13,7 @@ type TCPConn struct {
 	writeChan 		chan []byte
 	stopChan 		chan bool
 	finishChan		chan bool
+	closed			bool
 }
 
 func DialTCP(address string)  (Conn, error)  {
@@ -25,9 +26,6 @@ func DialTCP(address string)  (Conn, error)  {
 	if err != nil {
 		log.Errorf("fatal error: %s", err)
 		return nil,err
-	}
-	if err != nil {
-		return nil, err
 	}
 	t:=&TCPConn{
 		conn:conn,
@@ -52,6 +50,8 @@ func (t *TCPConn)handle(){
 	go protocol.ReadStream(t.conn, readChan, stopReadStreamChan,finishChan)
 	go protocol.WriteStream(t.conn, writeChan, stopWriteStreamChan,finishChan)
 	go func() {
+		t.closed=false
+		//log.Traceln("TCPConn.handle start")
 		for {
 			select {
 			case v:=<-readChan:
@@ -78,6 +78,8 @@ func (t *TCPConn)handle(){
 			close(finishChan)
 			close(stopReadStreamChan)
 			close(stopWriteStreamChan)
+			//log.Traceln("TCPConn.handle end")
+		t.closed=true
 	}()
 }
 func (t *TCPConn)TickerFactor()(int){
@@ -99,8 +101,12 @@ func (t *TCPConn)Retry()(error){
 	}
 	t.conn=conn
 	t.handle()
+	//log.Traceln("TCPConn.Retry")
 	return nil
 }
 func (t *TCPConn)Close()(error){
 	return t.conn.Close()
+}
+func (t *TCPConn)Closed()(bool){
+	return t.closed
 }

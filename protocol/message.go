@@ -256,16 +256,16 @@ func HandleMessage(readWriter io.ReadWriter,readChan chan []byte,writeChan chan 
 		case <-stopChan:
 			stopReadMessageChan<-true
 			stopWriteMessageChan<-true
-			goto finish
+			goto endfor
 		case <-finishMessageChan:
 			finishChan<-true
 			stopReadMessageChan<-true
 			stopWriteMessageChan<-true
-			goto finish
+			goto endfor
 		default:
 		}
 	}
-finish:
+endfor:
 	close(readMessageChan)
 	close(writeMessageChan)
 	close(finishMessageChan)
@@ -274,4 +274,6 @@ finish:
 	close(idChan)
 	queueMsg.Close()
 	rto=nil
+	log.Traceln("HandleMessage end")
+
 }

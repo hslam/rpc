@@ -15,6 +15,7 @@ type HTTP2Conn struct {
 	address			string
 	url				string
 	CanWork			bool
+	closed			bool
 }
 
 func DialHTTP2(address string)  (Conn, error)  {
@@ -66,4 +67,7 @@ func (c *HTTP2Conn)Do(requestBody []byte)([]byte,error) {
 	}
 	defer resp.Body.Close()
 	return ioutil.ReadAll(resp.Body)
+}
+func (t *HTTP2Conn)Closed()(bool){
+	return t.closed
 }

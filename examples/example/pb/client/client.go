@@ -34,7 +34,7 @@ var clients int
 
 func init()  {
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	flag.StringVar(&network, "network", "tcp", "network: -network=tcp|ws|fast|http|http2|quic|udp")
+	flag.StringVar(&network, "network", "http", "network: -network=tcp|ws|fast|http|http2|quic|udp")
 	flag.StringVar(&codec, "codec", "pb", "codec: -codec=pb|json|xml")
 	flag.StringVar(&compress, "compress", "no", "compress: -compress=no|flate|zlib|gzip")
 	flag.BoolVar(&debug, "debug", false, "debug: -debug=false")

@@ -9,6 +9,7 @@ type FASTHTTPConn struct {
 	address			string
 	url 			string
 	CanWork			bool
+	closed			bool
 }
 
 func DialFASTHTTP(address string)  (Conn, error)  {
@@ -45,4 +46,7 @@ func (c *FASTHTTPConn)Do(requestBody []byte)([]byte,error) {
 	resp := &fasthttp.Response{}
 	err := c.conn.Do(req, resp)
 	return resp.Body(),err
+}
+func (t *FASTHTTPConn)Closed()(bool){
+	return t.closed
 }

@@ -14,6 +14,7 @@ type WSConn struct {
 	writeChan 		chan []byte
 	stopChan 		chan bool
 	finishChan 		chan bool
+	closed			bool
 }
 
 func DialWS(address string)  (Conn, error)  {
@@ -36,18 +37,19 @@ func (t *WSConn)Handle(readChan chan []byte,writeChan chan []byte, stopChan chan
 	t.readChan=readChan
 	t.writeChan=writeChan
 	t.stopChan=stopChan
-	t.finishChan=make(chan bool)
+	t.finishChan=finishChan
 	t.handle()
 }
 func (t *WSConn)handle(){
 	readChan:=make(chan []byte)
 	writeChan:=make(chan []byte)
-	finishChan:= make(chan bool)
+	finishChan:= make(chan bool,1)
 	stopReadConnChan := make(chan bool,1)
 	stopWriteConnChan := make(chan bool,1)
 	go protocol.ReadConn(t.conn, readChan, stopReadConnChan,finishChan)
 	go protocol.WriteConn(t.conn, writeChan, stopWriteConnChan,finishChan)
 	go func() {
+		t.closed=false
 		for {
 			select {
 			case v:=<-readChan:
@@ -73,6 +75,7 @@ func (t *WSConn)handle(){
 		close(finishChan)
 		close(stopReadConnChan)
 		close(stopWriteConnChan)
+		t.closed=true
 	}()
 }
 func (t *WSConn)TickerFactor()(int){
@@ -95,4 +98,7 @@ func (t *WSConn)Retry()(error){
 }
 func (t *WSConn)Close()(error){
 	return 	t.conn.Close()
+}
+func (t *WSConn)Closed()(bool){
+	return t.closed
 }

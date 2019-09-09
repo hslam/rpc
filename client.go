@@ -31,6 +31,7 @@ type Client interface {
 	CallNoResponse(name string, args interface{}) ( err error)
 	OnlyCall(name string) ( err error)
 	Ping() bool
+	DisableRetry()
 	Close() ( err error)
 	Closed()bool
 }
@@ -46,7 +47,7 @@ func DialWithPipelining(network,address,codec string,MaxPipelineRequest int) (Cl
 	if err!=nil{
 		return nil,err
 	}
-	return NewClientnWithConcurrent(transporter,codec,MaxPipelineRequest+1)
+	return NewClientnWithConcurrent(transporter,codec,MaxPipelineRequest*2)
 }
 
 
@@ -54,6 +55,7 @@ type client struct {
 	mu 					sync.Mutex
 	conn				Conn
 	closed				bool
+	disconnect			bool
 	hystrix				bool
 	batchEnabled		bool
 	batchAsync			bool
@@ -76,68 +78,63 @@ type client struct {
 	maxErrPerSecond		int
 	maxErrHeartbeat		int
 	errCntHeartbeat		int
+	retry 				bool
 }
 func NewClient(conn	Conn,codec string)  (*client, error) {
-	return NewClientnWithConcurrent(conn,codec,DefaultMaxPipelineRequest+1)
+	return NewClientnWithConcurrent(conn,codec,DefaultMaxPipelineRequest*2)
 }
 func NewClientnWithConcurrent(conn	Conn,codec string,maxPipeliningRequest int)  (*client, error)  {
 	funcsCodecType,err:=FuncsCodecType(codec)
 	if err!=nil{
 		return nil,err
 	}
-	finishChan := make(chan bool)
-	stopChan := make(chan bool)
-	errCntChan:=make(chan int,1000000)
 	var client_id int64=0
 	idgenerator:=idgenerator.NewSnowFlake(client_id)
 	c :=  &client{
 		client_id:client_id,
 		conn:conn,
-		finishChan:finishChan,
-		stopChan:stopChan,
+		finishChan:make(chan bool,1),
+		stopChan:make(chan bool,1),
 		funcsCodecType:funcsCodecType,
 		compressLevel:NoCompression,
 		compressType:CompressTypeNocom,
+		retry:true,
 	}
 	c.readChan=make(chan []byte,maxPipeliningRequest)
 	c.writeChan= make(chan []byte,maxPipeliningRequest)
 	c.idgenerator=idgenerator
-	c.errCntChan=errCntChan
+	c.errCntChan=make(chan int,1000000)
 	c.timeout=DefaultClientTimeout
 	c.maxErrPerSecond=DefaultClientMaxErrPerSecond
 	c.heartbeatTimeout=DefaultClientHearbeatTimeout
 	c.maxErrHeartbeat=DefaultClientMaxErrHearbeat
 	c.conn.Handle(c.readChan,c.writeChan,c.stopChan,c.finishChan)
 	go func() {
-		defer func() {
-			defer c.Close()
-			close(c.writeChan)
-			close(c.readChan)
-			close(stopChan)
-			close(errCntChan)
-		}()
-		for{
-			select {
-			case <-c.stopChan:
-				c.Close()
-			}
-		}
-
-	}()
-	go func() {
 		for i :=range c.errCntChan{
 			c.errCnt+=i
+			if c.closed{
+				goto endfor
+			}
 		}
+		endfor:
 	}()
-	go func() {
+	go c.run()
+	c.pipeline=NewPipeline(maxPipeliningRequest,c.readChan,c.writeChan)
+	c.pipelineChan = make(chan bool,maxPipeliningRequest)
+	return c, nil
+}
+func (c *client)run(){
 		time.Sleep(time.Millisecond*time.Duration(rand.Int63n(800)))
 		ticker:=time.NewTicker(time.Second)
 		heartbeatTicker:=time.NewTicker(time.Millisecond*DefaultClientHearbeatTicker)
 		retryTicker:=time.NewTicker(time.Millisecond*DefaultClientRetryTicker)
 		for{
 			select {
+			case <-c.finishChan:
+				log.Traceln(c.client_id,"client.run finishChan")
+				c.retryConnect()
 			case <-heartbeatTicker.C:
-				if c.closed==false{
+				if c.disconnect==false&&c.retry{
 					err:=c.heartbeat()
 					if err!=nil{
 						c.errCntHeartbeat+=1
@@ -148,37 +145,44 @@ func NewClientnWithConcurrent(conn	Conn,codec string,maxPipeliningRequest int)  
 						}
 					}
 					if c.errCntHeartbeat>=c.maxErrHeartbeat{
-						c.Close()
+						c.Disconnect()
 						c.errCntHeartbeat=0
 					}
 				}
 			case <-retryTicker.C:
-				if c.closed==true{
-					c.Close()
-					err:=c.conn.Retry()
-					if err!=nil{
-						c.hystrix=true
-						log.Errorln(c.client_id,"retry connection err ",err)
-					}else {
-						c.closed=false
-						c.hystrix=false
-						c.pipeline.retry()
-					}
+				if c.disconnect==true&&c.retry{
+					c.retryConnect()
 				}
 			case <-ticker.C:
+				if c.closed{
+					goto endfor
+				}
+				if !c.retry{
+					return
+				}
 				if c.errCnt>=DefaultClientMaxErrPerSecond{
 					c.hystrix=true
-					c.Close()
 				}else {
 					c.hystrix=false
 				}
-				c.errCnt-=c.errCnt
+				c.errCnt=0
 			}
+
 		}
-	}()
-	c.pipeline=NewPipeline(maxPipeliningRequest,c.readChan,c.writeChan)
-	c.pipelineChan = make(chan bool,maxPipeliningRequest)
-	return c, nil
+	endfor:
+}
+func (c *client)retryConnect(){
+	c.Disconnect()
+	err:=c.conn.Retry()
+	if err!=nil{
+		c.hystrix=true
+		log.Traceln(c.client_id,"retry connection err ",err)
+	}else {
+		log.Traceln(c.client_id,"retry connection success")
+		c.disconnect=false
+		c.hystrix=false
+		c.pipeline.retry()
+	}
 }
 func (c *client)EnableBatch(){
 	c.mu.Lock()
@@ -403,6 +407,9 @@ func (c *client)Ping() bool {
 	}
 	return true
 }
+func (c *client)DisableRetry() {
+	c.retry=false
+}
 func (c *client)RemoteCall(b []byte)([]byte,error){
 	c.pipelineChan<-true
 	cbChan := make(chan []byte,1)
@@ -422,11 +429,31 @@ func (c *client)RemoteCallNoResponse(b []byte)(error){
 	<-c.pipelineChan
 	return nil
 }
+func (c *client)Disconnect() ( err error) {
+	if !c.conn.Closed(){
+		log.Traceln(c.client_id,"client conn Closed",c.conn.Closed())
+		c.stopChan<-true
+		time.Sleep(time.Millisecond*200)
+	}
+	c.disconnect = true
+	return c.conn.Close()
+}
 func (c *client)Close() ( err error) {
 	if c.closed {
 		return nil
 	}
 	c.closed = true
+	c.retry=false
+	if c.batch!=nil{
+		c.batch.Close()
+	}
+	if c.pipeline!=nil{
+		c.pipeline.Close()
+	}
+	close(c.writeChan)
+	close(c.readChan)
+	close(c.stopChan)
+	close(c.errCntChan)
 	return c.conn.Close()
 }
 func (c *client)Closed()bool{
