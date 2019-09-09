@@ -52,18 +52,26 @@ func (c *Pipeline)run() {
 		case cr:=<-c.pipelineRequestChan:
 			for {
 				if !c.stop{
-					c.writeChan<-cr.data
-					if cr.noResponse==false{
-						if len(c.actionPipelineRequestChan)<=c.maxPipelineRequest{
-							c.actionPipelineRequestChan<-cr
+					func() {
+						defer func() {
+							if err := recover(); err != nil {
+								log.Errorln("v.reply err", err)
+							}
+						}()
+						c.writeChan<-cr.data
+						if cr.noResponse==false{
+							if len(c.actionPipelineRequestChan)<=c.maxPipelineRequest{
+								c.actionPipelineRequestChan<-cr
+							}
+						}else {
+							if len(c.noResponsePipelineRequestChan)>=c.maxPipelineRequest{
+								<-c.noResponsePipelineRequestChan
+							}
+							c.noResponsePipelineRequestChan<-cr
+							cr.cbChan<-[]byte("0")
 						}
-					}else {
-						if len(c.noResponsePipelineRequestChan)>=c.maxPipelineRequest{
-							<-c.noResponsePipelineRequestChan
-						}
-						c.noResponsePipelineRequestChan<-cr
-						cr.cbChan<-[]byte("0")
-					}
+					}()
+
 					break
 				}
 			}
