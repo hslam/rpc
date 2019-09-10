@@ -2,7 +2,7 @@ package main
 
 import (
 	"hslam.com/mgit/Mort/rpc"
-	"hslam.com/mgit/Mort/rpc/stats"
+	"hslam.com/mgit/Mort/stats"
 	"math/rand"
 	"strconv"
 	"runtime"
@@ -102,30 +102,30 @@ type WrkClient struct {
 	Conn rpc.Client
 }
 
-func (c *WrkClient)Call()(int64,bool){
+func (c *WrkClient)Call()(int64,int64,bool){
 	var err error
-	len:=10
-	req := make([]byte, len)
-	for i := 0; i < len; i++ {
+	length:=10
+	req := make([]byte, length)
+	for i := 0; i < length; i++ {
 		b := rand.Intn(26) + 65
 		req[i] = byte(b)
 	}
 	if noresponse{
 		err = c.Conn.CallNoResponse("Echo.Set", &req)
 		if err==nil{
-			return 0,true
+			return int64(length),0,true
 		}
 	}else if onlycall{
 		err = c.Conn.OnlyCall("Echo.Clear")
 		if err==nil{
-			return 0,true
+			return 0,0,true
 		}
 	}else if norequest{
 		var req =[]byte("Hello World")
 		var res []byte
 		err = c.Conn.CallNoRequest("Echo.Get", &res)
 		if bytes.Equal(res,[]byte("Hello World")){
-			return 0,true
+			return 0,int64(len(res)),true
 		}else {
 			fmt.Printf("Echo.Get is not equal: req-%s res-%s\n",string(req),string(res))
 		}
@@ -133,7 +133,7 @@ func (c *WrkClient)Call()(int64,bool){
 		var res []byte
 		err = c.Conn.Call("Echo.ToLower", &req, &res)
 		if bytes.Equal(res,[]byte(strings.ToLower(string(req)))){
-			return 0,true
+			return int64(len(req)),int64(len(res)),true
 		}else {
 			fmt.Printf("Echo.ToLower is not equal: req-%s res-%s\n",string(req),string(res))
 		}
@@ -141,5 +141,5 @@ func (c *WrkClient)Call()(int64,bool){
 			fmt.Println("Echo error: ", err)
 		}
 	}
-	return 0,false
+	return 0,0,false
 }

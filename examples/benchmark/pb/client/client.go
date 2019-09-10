@@ -3,7 +3,7 @@ package main
 import (
 	"hslam.com/mgit/Mort/rpc/examples/benchmark/pb/service"
 	"hslam.com/mgit/Mort/rpc"
-	"hslam.com/mgit/Mort/rpc/stats"
+	"hslam.com/mgit/Mort/stats"
 	"math/rand"
 	"strconv"
 	"runtime"
@@ -91,7 +91,7 @@ type WrkClient struct {
 	Conn rpc.Client
 }
 
-func (c *WrkClient)Call()(int64,bool){
+func (c *WrkClient)Call()(int64,int64,bool){
 	var err error
 	A:= rand.Int31n(1000)
 	B:= rand.Int31n(1000)
@@ -99,13 +99,13 @@ func (c *WrkClient)Call()(int64,bool){
 	if noresponse{
 		err = c.Conn.CallNoResponse("Arith.Multiply", req) // 乘法运算
 		if err==nil{
-			return 0,true
+			return 0,0,true
 		}
 	}else {
 		var res service.ArithResponse
 		err = c.Conn.Call("Arith.Multiply", req, &res) // 乘法运算
 		if res.Pro==A*B{
-			return 0,true
+			return 0,0,true
 		}else {
 			fmt.Printf("err %d * %d = %d\n",A,B,res.Pro,)
 		}
@@ -113,5 +113,5 @@ func (c *WrkClient)Call()(int64,bool){
 			fmt.Println("arith error: ", err)
 		}
 	}
-	return 0,false
+	return 0,0,false
 }
