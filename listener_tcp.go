@@ -60,6 +60,11 @@ func ServeTCPConn(server *Server,conn net.Conn)error {
 			select {
 			case data := <-readChan:
 				go func(data []byte ,writeChan chan []byte) {
+					defer func() {
+						if err := recover(); err != nil {
+						}
+						<-jobChan
+					}()
 					jobChan<-true
 					priority,id,body,err:=UnpackFrame(data)
 					if err!=nil{
@@ -70,7 +75,6 @@ func ServeTCPConn(server *Server,conn net.Conn)error {
 						frameBytes:=PacketFrame(priority,id,res_bytes)
 						writeChan <- frameBytes
 					}
-					<-jobChan
 				}(data,writeChan)
 			case stop := <-finishChan:
 				if stop {

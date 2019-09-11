@@ -45,7 +45,13 @@ func Dial(network,address,codec string) (Client, error) {
 	}
 	return NewClient(transporter,codec)
 }
-
+func DialWithMaxRequests(network,address,codec string,max int) (Client, error) {
+	transporter,err:=dial(network,address)
+	if err!=nil{
+		return nil,err
+	}
+	return NewClientWithMaxRequests(transporter,codec,max)
+}
 type client struct {
 	mu 					sync.RWMutex
 	conn				Conn
@@ -77,8 +83,10 @@ type client struct {
 	errCntHeartbeat		int
 	retry 				bool
 }
-
-func NewClient(conn	Conn,codec string)  (*client, error)  {
+func NewClient(conn	Conn,codec string)  (*client, error) {
+	return NewClientWithMaxRequests(conn,codec,DefaultMaxRequests)
+}
+func NewClientWithMaxRequests(conn	Conn,codec string,max int)  (*client, error)  {
 	funcsCodecType,err:=FuncsCodecType(codec)
 	if err!=nil{
 		return nil,err
@@ -101,7 +109,7 @@ func NewClient(conn	Conn,codec string)  (*client, error)  {
 	c.maxErrPerSecond=DefaultClientMaxErrPerSecond
 	c.heartbeatTimeout=DefaultClientHearbeatTimeout
 	c.maxErrHeartbeat=DefaultClientMaxErrHearbeat
-	c.setMaxRequests(DefaultMaxRequests)
+	c.setMaxRequests(max)
 	c.conn.Handle(c.readChan,c.writeChan,c.stopChan,c.finishChan)
 	go func() {
 		for i :=range c.errCntChan{

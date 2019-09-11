@@ -22,6 +22,22 @@ func Dials(total int,network,address,codec string)(*Pool,error){
 	return p,nil
 }
 
+func DialsWithMaxRequests(total int,network,address,codec string,max int)(*Pool,error){
+	p :=  &Pool{
+		connPool:make(ClientPool,total),
+		conns:make([]Client,total),
+	}
+	for i := 0;i<total;i++{
+		conn,err:=DialWithMaxRequests(network,address,codec,max)
+		if err != nil {
+			return nil,err
+		}
+		p.connPool <- conn
+		p.conns[i]=conn
+	}
+	return p,nil
+}
+
 
 type ClientPool chan Client
 
