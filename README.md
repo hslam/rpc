@@ -1,10 +1,12 @@
 
 ## server
-### handle
+### pipelining
 ```
 async
 sync
 ```
+### multiplexing
+
 ### worker pool
 
 ## client
@@ -34,10 +36,11 @@ gzip
 no
 ```
 
-### pipeline
+### pipelining
+
+### multiplexing
 
 ### batch
-### batch handle
 ```
 async
 sync
@@ -56,6 +59,7 @@ onlycall
 ```
 stream
 message
+frame
 conn
 ```
 
