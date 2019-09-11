@@ -25,6 +25,8 @@ func DialHTTP2(address string)  (Conn, error)  {
 	transport := &http.Transport{
 		TLSClientConfig: tlsConfig,
 		IdleConnTimeout: time.Duration(DefaultClientTimeout) * time.Millisecond,
+		DisableKeepAlives:false,
+		MaxConnsPerHost:1,
 	}
 	http2.ConfigureTransport(transport)
 	t:=&HTTP2Conn{
@@ -47,8 +49,16 @@ func (t *HTTP2Conn)BatchFactor()(int){
 	return 64
 }
 func (t *HTTP2Conn)Retry()(error){
+	var tlsConfig *tls.Config
+	tlsConfig=&tls.Config{InsecureSkipVerify: true}
+	transport := &http.Transport{
+		TLSClientConfig: tlsConfig,
+		IdleConnTimeout: time.Duration(DefaultClientTimeout) * time.Millisecond,
+		DisableKeepAlives:false,
+		MaxConnsPerHost:1,
+	}
 	t.conn=&http.Client{
-		Transport: &http.Transport{},
+		Transport: transport,
 	}
 	return nil
 }

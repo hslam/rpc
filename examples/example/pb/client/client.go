@@ -28,13 +28,15 @@ var log_once bool
 var run_time_second int64
 var addr string
 var batch bool
+var batch_async bool
 var pipelining bool
+var multiplexing bool
 var noresponse bool
 var clients int
 
 func init()  {
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	flag.StringVar(&network, "network", "http", "network: -network=tcp|ws|fast|http|http2|quic|udp")
+	flag.StringVar(&network, "network", "tcp", "network: -network=tcp|ws|fast|http|http2|quic|udp")
 	flag.StringVar(&codec, "codec", "pb", "codec: -codec=pb|json|xml")
 	flag.StringVar(&compress, "compress", "no", "compress: -compress=no|flate|zlib|gzip")
 	flag.BoolVar(&debug, "debug", false, "debug: -debug=false")
@@ -43,10 +45,12 @@ func init()  {
 	flag.IntVar(&port, "p", 9999, "port: -p=9999")
 	flag.BoolVar(&log_once, "log_once", false, "log_once: -log_once=false")
 	flag.Int64Var(&run_time_second, "ts", 180, "run_time_second: -ts=60")
-	flag.BoolVar(&batch, "batch", false, "batch: -batch=false")
+	flag.BoolVar(&batch, "batch", true, "batch: -batch=false")
+	flag.BoolVar(&batch_async, "batch_async", true, "batch_async: -batch_async=false")
 	flag.BoolVar(&pipelining, "pipelining", false, "pipelining: -pipelining=false")
+	flag.BoolVar(&multiplexing, "multiplexing", true, "pipelining: -pipelining=false")
 	flag.BoolVar(&noresponse, "noresponse", false, "noresponse: -noresponse=false")
-	flag.IntVar(&clients, "clients", 1, "num: -clients=1")
+	flag.IntVar(&clients, "clients", 2, "num: -clients=1")
 	log.SetFlags(0)
 	flag.Parse()
 	addr=host+":"+strconv.Itoa(port)
@@ -67,6 +71,8 @@ func main()  {
 		}
 		pool.SetCompressType(compress)
 		if batch {pool.EnableBatch()}
+		if batch_async{pool.EnableBatchAsync()}
+		if multiplexing{pool.EnableMultiplexing()}
 		for i:=0;i<clients;i++{
 			go run(pool.Get())
 		}
@@ -78,6 +84,7 @@ func main()  {
 		}
 		conn.SetCompressType(compress)
 		if batch {conn.EnableBatch()}
+		if multiplexing{conn.EnableMultiplexing()}
 		go run(conn)
 	}else {
 		return
@@ -110,7 +117,9 @@ func run(conn rpc.Client)  {
 	if batch{
 		parallel=conn.GetMaxBatchRequest()
 	}else if pipelining{
-		parallel=conn.GetMaxPipelineRequest()
+		parallel=conn.GetMaxRequests()
+	}else if multiplexing{
+		parallel=conn.GetMaxRequests()
 	}
 	if log_once{
 		fmt.Println("parallel - ",parallel)

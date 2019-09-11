@@ -7,11 +7,14 @@ import (
 	"hslam.com/mgit/Mort/rpc/log"
 )
 type Client interface {
+	SetMaxRequests(max int)
+	GetMaxRequests()(int)
+	EnablePipelining()
+	EnableMultiplexing()
 	EnableBatch()
 	EnableBatchAsync()
-	SetMaxBatchRequest(maxBatchRequest int)error
+	SetMaxBatchRequest(max int)error
 	GetMaxBatchRequest()int
-	GetMaxPipelineRequest()(int)
 	SetCompressType(compress string)
 	SetCompressLevel(compress,level string)
 	SetID(id int64)error
@@ -42,17 +45,9 @@ func Dial(network,address,codec string) (Client, error) {
 	}
 	return NewClient(transporter,codec)
 }
-func DialWithPipelining(network,address,codec string,MaxPipelineRequest int) (Client, error) {
-	transporter,err:=dial(network,address)
-	if err!=nil{
-		return nil,err
-	}
-	return NewClientnWithConcurrent(transporter,codec,MaxPipelineRequest*2)
-}
-
 
 type client struct {
-	mu 					sync.Mutex
+	mu 					sync.RWMutex
 	conn				Conn
 	closed				bool
 	disconnect			bool
@@ -60,8 +55,10 @@ type client struct {
 	batchEnabled		bool
 	batchAsync			bool
 	batch				*Batch
-	pipeline 			*Pipeline
-	pipelineChan		chan bool
+	io					IO
+	//pipeline 			*Pipeline
+	maxRequests			int
+	requestChan			chan bool
 	readChan			chan []byte
 	writeChan			chan []byte
 	finishChan			chan bool
@@ -80,10 +77,8 @@ type client struct {
 	errCntHeartbeat		int
 	retry 				bool
 }
-func NewClient(conn	Conn,codec string)  (*client, error) {
-	return NewClientnWithConcurrent(conn,codec,DefaultMaxPipelineRequest*2)
-}
-func NewClientnWithConcurrent(conn	Conn,codec string,maxPipeliningRequest int)  (*client, error)  {
+
+func NewClient(conn	Conn,codec string)  (*client, error)  {
 	funcsCodecType,err:=FuncsCodecType(codec)
 	if err!=nil{
 		return nil,err
@@ -100,14 +95,13 @@ func NewClientnWithConcurrent(conn	Conn,codec string,maxPipeliningRequest int)  
 		compressType:CompressTypeNocom,
 		retry:true,
 	}
-	c.readChan=make(chan []byte,maxPipeliningRequest)
-	c.writeChan= make(chan []byte,maxPipeliningRequest)
 	c.idgenerator=idgenerator
 	c.errCntChan=make(chan int,1000000)
 	c.timeout=DefaultClientTimeout
 	c.maxErrPerSecond=DefaultClientMaxErrPerSecond
 	c.heartbeatTimeout=DefaultClientHearbeatTimeout
 	c.maxErrHeartbeat=DefaultClientMaxErrHearbeat
+	c.setMaxRequests(DefaultMaxRequests)
 	c.conn.Handle(c.readChan,c.writeChan,c.stopChan,c.finishChan)
 	go func() {
 		for i :=range c.errCntChan{
@@ -119,8 +113,7 @@ func NewClientnWithConcurrent(conn	Conn,codec string,maxPipeliningRequest int)  
 		endfor:
 	}()
 	go c.run()
-	c.pipeline=NewPipeline(maxPipeliningRequest,c.readChan,c.writeChan)
-	c.pipelineChan = make(chan bool,maxPipeliningRequest)
+	c.enablePipelining()
 	return c, nil
 }
 func (c *client)run(){
@@ -181,8 +174,55 @@ func (c *client)retryConnect(){
 		log.Traceln(c.client_id,"retry connection success")
 		c.disconnect=false
 		c.hystrix=false
-		c.pipeline.retry()
+		c.io.Retry()
 	}
+}
+func (c *client)SetMaxRequests(max int) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.setMaxRequests(max)
+}
+
+func (c *client)setMaxRequests(max int) {
+	c.maxRequests=max+1
+	c.readChan=make(chan []byte,c.maxRequests)
+	c.writeChan= make(chan []byte,c.maxRequests)
+	c.requestChan=make(chan bool,c.maxRequests)
+	if c.io!=nil{
+		c.io.ResetMaxRequests(c.maxRequests)
+		c.io.Reset(c.readChan,c.writeChan)
+	}
+}
+func (c *client)GetMaxRequests()(int){
+	return c.maxRequests-1
+}
+func (c *client)EnablePipelining(){
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.enablePipelining()
+}
+func (c *client)enablePipelining(){
+	if c.maxRequests==0||c.readChan==nil||c.writeChan==nil{
+		c.setMaxRequests(DefaultMaxRequests)
+	}
+	if c.io!=nil{
+		c.io.Close()
+	}
+	c.io=NewPipeline(c.maxRequests,c.readChan,c.writeChan)
+}
+func (c *client)EnableMultiplexing(){
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.enableMultiplexing()
+}
+func (c *client)enableMultiplexing(){
+	if c.maxRequests==0||c.readChan==nil||c.writeChan==nil{
+		c.setMaxRequests(DefaultMaxRequests)
+	}
+	if c.io!=nil{
+		c.io.Close()
+	}
+	c.io=NewMultiplex(c,c.maxRequests,c.readChan,c.writeChan)
 }
 func (c *client)EnableBatch(){
 	c.mu.Lock()
@@ -196,13 +236,13 @@ func (c *client)EnableBatchAsync(){
 	defer c.mu.Unlock()
 	c.batchAsync = true
 }
-func (c *client)SetMaxBatchRequest(maxBatchRequest int)error {
+func (c *client)SetMaxBatchRequest(max int)error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if maxBatchRequest<=0{
+	if max<=0{
 		return ErrSetMaxBatchRequest
 	}
-	c.batch.SetMaxBatchRequest(maxBatchRequest)
+	c.batch.SetMaxBatchRequest(max)
 	return nil
 }
 func (c *client)GetMaxBatchRequest()int {
@@ -210,9 +250,7 @@ func (c *client)GetMaxBatchRequest()int {
 	defer c.mu.Unlock()
 	return c.batch.GetMaxBatchRequest()
 }
-func (c *client)GetMaxPipelineRequest()(int){
-	return c.pipeline.GetMaxPipelineRequest()-1
-}
+
 func (c *client)SetCompressType(compress string){
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -411,22 +449,22 @@ func (c *client)DisableRetry() {
 	c.retry=false
 }
 func (c *client)RemoteCall(b []byte)([]byte,error){
-	c.pipelineChan<-true
+	c.requestChan<-true
 	cbChan := make(chan []byte,1)
-	c.pipeline.pipelineRequestChan<-NewPipelineRequest(b,false,cbChan)
+	c.io.RequestChan()<-c.io.NewRequest(0,b,false,cbChan)
 	data,ok := <-cbChan
-	<-c.pipelineChan
+	<-c.requestChan
 	if ok{
 		return data,nil
 	}
 	return nil,ErrRemoteCall
 }
 func (c *client)RemoteCallNoResponse(b []byte)(error){
-	c.pipelineChan<-true
+	c.requestChan<-true
 	cbChan := make(chan []byte,1)
-	c.pipeline.pipelineRequestChan<-NewPipelineRequest(b,true,cbChan)
+	c.io.RequestChan()<-c.io.NewRequest(0,b,true,cbChan)
 	<-cbChan
-	<-c.pipelineChan
+	<-c.requestChan
 	return nil
 }
 func (c *client)Disconnect() ( err error) {
@@ -447,8 +485,8 @@ func (c *client)Close() ( err error) {
 	if c.batch!=nil{
 		c.batch.Close()
 	}
-	if c.pipeline!=nil{
-		c.pipeline.Close()
+	if c.io!=nil{
+		c.io.Close()
 	}
 	close(c.writeChan)
 	close(c.readChan)

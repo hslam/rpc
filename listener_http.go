@@ -60,12 +60,25 @@ func (h *Handler)ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func ServeHTTP(server *Server,w io.Writer,data []byte)error {
-	_,res_bytes, _ := server.ServeRPC(data)
-	if res_bytes!=nil{
-		_,err:=w.Write(res_bytes)
-		return err
+	if server.multiplexing{
+		priority,id,body,err:=UnpackFrame(data)
+		if err!=nil{
+			return err
+		}
+		_,res_bytes, _ := server.ServeRPC(body)
+		if res_bytes!=nil{
+			frameBytes:=PacketFrame(priority,id,res_bytes)
+			_,err:=w.Write(frameBytes)
+			return err
+		}
 	}else {
-		return nil
+		_,res_bytes, _ := server.ServeRPC(data)
+		if res_bytes!=nil{
+			_,err:=w.Write(res_bytes)
+			return err
+		}else {
+			return nil
+		}
 	}
 	return ErrConnExit
 }

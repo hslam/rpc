@@ -15,7 +15,9 @@ type FASTHTTPConn struct {
 func DialFASTHTTP(address string)  (Conn, error)  {
 	u:=url.URL{Scheme: "http", Host: address, Path: "/"}
 	t:=&FASTHTTPConn{
-		conn:&fasthttp.Client{},
+		conn:&fasthttp.Client{
+			MaxConnsPerHost:1,
+		},
 		address:address,
 		url:u.String(),
 	}
@@ -32,7 +34,9 @@ func (t *FASTHTTPConn)BatchFactor()(int){
 	return 64
 }
 func (t *FASTHTTPConn)Retry()(error){
-	t.conn=&fasthttp.Client{}
+	t.conn=&fasthttp.Client{
+		MaxConnsPerHost:1,
+	}
 	return nil
 }
 func (t *FASTHTTPConn)Close()(error){

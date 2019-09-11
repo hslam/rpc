@@ -22,9 +22,7 @@ func DialHTTP(address string)  (Conn, error)  {
 		conn:&http.Client{
 			Transport: &http.Transport{
 				DisableKeepAlives:false,
-				MaxConnsPerHost:DefaultMaxPipelineRequest+1,
-				MaxIdleConns:DefaultMaxPipelineRequest+1,
-				MaxIdleConnsPerHost:DefaultMaxPipelineRequest+1,
+				MaxConnsPerHost:1,
 				IdleConnTimeout: time.Duration(DefaultClientTimeout) * time.Millisecond,
 			},
 		},
@@ -45,7 +43,11 @@ func (t *HTTPConn)BatchFactor()(int){
 }
 func (t *HTTPConn)Retry()(error){
 	t.conn=&http.Client{
-		Transport: &http.Transport{},
+		Transport: &http.Transport{
+			DisableKeepAlives:false,
+			MaxConnsPerHost:1,
+			IdleConnTimeout: time.Duration(DefaultClientTimeout) * time.Millisecond,
+		},
 	}
 	return nil
 }

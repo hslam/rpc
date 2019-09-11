@@ -11,13 +11,13 @@ const (
 	StreamBodyLength		= 4
 )
 
-func PacketStream(message []byte) []byte {
-	var buffer=make([]byte,StreamHeaderLength+StreamBodyLength+len(message))
+func PacketStream(body []byte) []byte {
+	var buffer=make([]byte,StreamHeaderLength+StreamBodyLength+len(body))
 	copy(buffer[:], []byte(StreamHeader))
-	copy(buffer[StreamHeaderLength:], uint32ToBytes(uint32(len(message))))
-	copy(buffer[StreamHeaderLength+StreamBodyLength:],message)
+	copy(buffer[StreamHeaderLength:], uint32ToBytes(uint32(len(body))))
+	copy(buffer[StreamHeaderLength+StreamBodyLength:],body)
 	return buffer
-	//return append(append([]byte(StreamHeader), uint32ToBytes(uint32(len(message)))...), message...)
+	//return append(append([]byte(StreamHeader), uint32ToBytes(uint32(len(body)))...), body...)
 }
 
 func UnpackStream(buffer []byte, readerChannel chan []byte) ([]byte,error) {
@@ -32,8 +32,8 @@ func UnpackStream(buffer []byte, readerChannel chan []byte) ([]byte,error) {
 			if length < i+StreamHeaderLength+StreamBodyLength+bodyLength {
 				break
 			}
-			data := buffer[i+StreamHeaderLength+StreamBodyLength : i+StreamHeaderLength+StreamBodyLength+bodyLength]
-			readerChannel <- data
+			body := buffer[i+StreamHeaderLength+StreamBodyLength : i+StreamHeaderLength+StreamBodyLength+bodyLength]
+			readerChannel <- body
 			i += StreamHeaderLength+StreamBodyLength + bodyLength
 		}else {
 			return nil,errors.New("invalid")

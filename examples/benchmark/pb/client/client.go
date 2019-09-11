@@ -20,6 +20,7 @@ var addr string
 var batch bool
 var batch_async bool
 var pipelining bool
+var multiplexing bool
 var noresponse bool
 var clients int
 var total_calls int
@@ -35,9 +36,10 @@ func init()  {
 	flag.IntVar(&total_calls, "total", 1000000, "total_calls: -total=10000")
 	flag.BoolVar(&batch, "batch", true, "batch: -batch=false")
 	flag.BoolVar(&batch_async, "batch_async", true, "batch_async: -batch_async=false")
-	flag.BoolVar(&pipelining, "pipelining", true, "pipelining: -pipelining=false")
+	flag.BoolVar(&pipelining, "pipelining", false, "pipelining: -pipelining=false")
+	flag.BoolVar(&multiplexing, "multiplexing", true, "pipelining: -pipelining=false")
 	flag.BoolVar(&noresponse, "noresponse", false, "noresponse: -noresponse=false")
-	flag.IntVar(&clients, "clients", 32, "num: -clients=1")
+	flag.IntVar(&clients, "clients", 1, "num: -clients=1")
 	flag.BoolVar(&bar, "bar", false, "bar: -bar=true")
 	log.SetFlags(0)
 	flag.Parse()
@@ -57,14 +59,17 @@ func main()  {
 		pool.SetCompressType(compress)
 		if batch {pool.EnableBatch()}
 		if batch_async{pool.EnableBatchAsync()}
+		if multiplexing{pool.EnableMultiplexing()}
 		wrkClients=make([]stats.Client,len(pool.All()))
 		for i:=0; i<len(pool.All());i++  {
 			wrkClients[i]=&WrkClient{pool.All()[i]}
 		}
 		if batch{
-			parallel=pool.All()[0].GetMaxBatchRequest()
+			parallel=pool.GetMaxBatchRequest()
 		}else if pipelining{
-			parallel=pool.All()[0].GetMaxPipelineRequest()
+			parallel=pool.GetMaxRequests()
+		}else if multiplexing{
+			parallel=pool.GetMaxRequests()
 		}
 	}else if clients==1 {
 		conn, err:= rpc.Dial(network,addr,codec)
@@ -74,10 +79,13 @@ func main()  {
 		conn.SetCompressType(compress)
 		if batch {conn.EnableBatch()}
 		if batch_async{conn.EnableBatchAsync()}
+		if multiplexing{conn.EnableMultiplexing()}
 		if batch{
 			parallel=conn.GetMaxBatchRequest()
 		}else if pipelining{
-			parallel=conn.GetMaxPipelineRequest()
+			parallel=conn.GetMaxRequests()
+		}else if multiplexing{
+			parallel=conn.GetMaxRequests()
 		}
 		wrkClients=make([]stats.Client,1)
 		wrkClients[0]= &WrkClient{conn}

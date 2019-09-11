@@ -21,21 +21,7 @@ func Dials(total int,network,address,codec string)(*Pool,error){
 	}
 	return p,nil
 }
-func DialsWithPipelining(total int,network,address,codec string,MaxPipelineRequest int)(*Pool,error){
-	p :=  &Pool{
-		connPool:make(ClientPool,total),
-		conns:make([]Client,total),
-	}
-	for i := 0;i<total;i++{
-		conn,err:=DialWithPipelining(network,address,codec,MaxPipelineRequest)
-		if err != nil {
-			return nil,err
-		}
-		p.connPool <- conn
-		p.conns[i]=conn
-	}
-	return p,nil
-}
+
 
 type ClientPool chan Client
 
@@ -61,6 +47,35 @@ func (p *Pool)All()[]Client{
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.conns
+}
+func (p *Pool)SetMaxRequests(max int){
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for _,c:= range p.conns{
+		c.SetMaxRequests(max)
+	}
+}
+func (p *Pool)GetMaxRequests()(int){
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for _,c:= range p.conns{
+		return c.GetMaxRequests()
+	}
+	return -1
+}
+func (p *Pool)EnablePipelining(){
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for _,c:= range p.conns{
+		c.EnablePipelining()
+	}
+}
+func (p *Pool)EnableMultiplexing(){
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for _,c:= range p.conns{
+		c.EnableMultiplexing()
+	}
 }
 func (p *Pool)EnableBatch(){
 	p.mu.Lock()
@@ -95,14 +110,7 @@ func (p *Pool)GetMaxBatchRequest()int {
 	}
 	return -1
 }
-func (p *Pool)GetMaxPipelineRequest()(int){
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	for _,c:= range p.conns{
-		return c.GetMaxPipelineRequest()
-	}
-	return -1
-}
+
 func (p *Pool)SetCompressType(compress string){
 	p.mu.Lock()
 	defer p.mu.Unlock()

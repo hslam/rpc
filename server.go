@@ -21,6 +21,7 @@ type Server struct {
 	listener 			Listener
 	Funcs 				*funcs.Funcs
 	timeout 			int64
+	multiplexing		bool
 	async				bool
 	asyncMax			int
 	workerPoolSize		int
@@ -83,6 +84,19 @@ func (s *Server)ListenAndServe(network,address string) error {
 		return err
 	}
 	return nil
+}
+func EnableMultiplexing()  {
+	DefaultServer.EnableMultiplexing()
+}
+func (s *Server) EnableMultiplexing() {
+	s.EnableMultiplexingWithSize(asyncMax)
+}
+func EnableMultiplexingWithSize(size  int)  {
+	DefaultServer.EnableMultiplexingWithSize(size)
+}
+func (s *Server) EnableMultiplexingWithSize(size  int) {
+	s.multiplexing=true
+	s.asyncMax=size
 }
 func Async() bool {
 	return DefaultServer.Async()

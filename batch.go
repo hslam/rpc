@@ -6,7 +6,7 @@ import (
 	"hslam.com/mgit/Mort/rpc/log"
 )
 
-type RequestChan chan *BatchRequest
+type BatchRequestChan chan *BatchRequest
 
 type BatchRequest struct {
 	id uint64
@@ -19,7 +19,7 @@ type BatchRequest struct {
 }
 type Batch struct {
 	mut sync.Mutex
-	reqChan RequestChan
+	reqChan BatchRequestChan
 	client *client
 	readyRequests []*BatchRequest
 	maxBatchRequest	int

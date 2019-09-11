@@ -44,7 +44,6 @@ func (t *UDPConn)handle(){
 	go protocol.HandleMessage(t.conn,readChan,writeChan,stopChan,finishChan)
 	go func() {
 		t.closed=false
-		log.Traceln("UDPConn.handle start")
 		for {
 			select {
 			case v:=<-readChan:
@@ -83,7 +82,6 @@ func (t *UDPConn)handle(){
 		close(finishChan)
 		close(stopChan)
 		t.closed=true
-		log.Traceln("UDPConn.handle end")
 	}()
 }
 func (t *UDPConn)TickerFactor()(int){

@@ -73,7 +73,33 @@ func ServeWSConn(server *Server,conn *websocket.Conn)error {
 	var wsConn =&protocol.WSConn{conn}
 	go protocol.ReadConn(wsConn, readChan, stopReadConnChan,finishChan)
 	go protocol.WriteConn(wsConn, writeChan, stopWriteConnChan,finishChan)
-	if server.async{
+	if server.multiplexing{
+		jobChan := make(chan bool,server.asyncMax)
+		for {
+			select {
+			case data := <-readChan:
+				go func(data []byte ,writeChan chan []byte) {
+					jobChan<-true
+					priority,id,body,err:=UnpackFrame(data)
+					if err!=nil{
+						return
+					}
+					_,res_bytes, _ := server.ServeRPC(body)
+					if res_bytes!=nil{
+						frameBytes:=PacketFrame(priority,id,res_bytes)
+						writeChan <- frameBytes
+					}
+					<-jobChan
+				}(data,writeChan)
+			case stop := <-finishChan:
+				if stop {
+					stopReadConnChan<-true
+					stopWriteConnChan<-true
+					goto endfor
+				}
+			}
+		}
+	}else if server.async{
 		syncConn:=newSyncConn(server)
 		go protocol.HandleSyncConn(syncConn, writeChan,readChan,stopChan,server.asyncMax)
 		select {
