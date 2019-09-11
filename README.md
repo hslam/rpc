@@ -1,16 +1,16 @@
 
 ## server
-### pipelining
+#### pipelining
 ```
 async
 sync
 ```
-### multiplexing
+#### multiplexing
 
-### worker pool
+#### worker pool
 
 ## client
-### network
+#### network
 ```
 tcp
 ws
@@ -21,14 +21,14 @@ quic
 udp
 ```
 
-### codec
+#### codec
 ```
 json
 protobuf
 xml
 ```
 
-### compress
+#### compress
 ```
 flate
 zlib
@@ -36,17 +36,17 @@ gzip
 no
 ```
 
-### pipelining
+#### pipelining
 
-### multiplexing
+#### multiplexing
 
-### batch
+#### batch
 ```
 async
 sync
 ```
 
-### call
+#### call
 ```
 call
 callnorequest
@@ -55,7 +55,7 @@ onlycall
 ```
 
 
-### protocal
+#### protocal
 ```
 stream
 message
@@ -63,7 +63,7 @@ frame
 conn
 ```
 
-### pool
+#### pool
 
 ## Benchmark
 ### def
