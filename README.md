@@ -66,7 +66,7 @@ conn
 #### pool
 
 ## Benchmark
-./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false multiplexing=true -batch=true -batch_async=true -noresponse=false -clients=1
+./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=1
 ```
 ==========================BENCHMARK==========================
 Used Connections:			1
@@ -85,7 +85,7 @@ Slowest time for request:		31.00ms
 ResponseOk:				1000001 (100.00%)
 Errors:					0 (0.00%)
 ```
-./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false multiplexing=true -batch=true -batch_async=true -noresponse=false -clients=8
+./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=8
 ```
 ==========================BENCHMARK==========================
 Used Connections:			8

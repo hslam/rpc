@@ -142,7 +142,7 @@ func (s *Server)ServeRPC(b []byte) (bool,[]byte,error) {
 		batchCodec.Decode(msg.data)
 		res_bytes_s:=make([][]byte,len(batchCodec.data))
 		NoResponseCnt:=0
-		if s.async&&batchCodec.async{
+		if s.async||batchCodec.async{
 			waitGroup :=sync.WaitGroup{}
 			for i,v:=range batchCodec.data{
 				waitGroup.Add(1)
