@@ -66,6 +66,45 @@ conn
 #### pool
 
 ## Benchmark
+./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false multiplexing=true -batch=true -batch_async=true -noresponse=false -clients=1
+```
+==========================BENCHMARK==========================
+Used Connections:			1
+Concurrent Calls Per Connection:	512
+Total Number Of Calls:			1000001
+
+===========================TIMINGS===========================
+Total time passed:			5.67s
+Avg time per request:			2.90ms
+Requests per second:			176233.27
+Median time per request:		2.52ms
+99th percentile time:			11.44ms
+Slowest time for request:		31.00ms
+
+==========================RESPONSES==========================
+ResponseOk:				1000001 (100.00%)
+Errors:					0 (0.00%)
+```
+./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false multiplexing=true -batch=true -batch_async=true -noresponse=false -clients=8
+```
+==========================BENCHMARK==========================
+Used Connections:			8
+Concurrent Calls Per Connection:	512
+Total Number Of Calls:			1000000
+
+===========================TIMINGS===========================
+Total time passed:			3.69s
+Avg time per request:			14.93ms
+Requests per second:			270968.64
+Median time per request:		11.66ms
+99th percentile time:			93.65ms
+Slowest time for request:		214.00ms
+
+==========================RESPONSES==========================
+ResponseOk:				1000000 (100.00%)
+Errors:					0 (0.00%)
+```
+
 ### def
 ```
 t   Thread

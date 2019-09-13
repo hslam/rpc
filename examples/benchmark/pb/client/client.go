@@ -39,7 +39,7 @@ func init()  {
 	flag.BoolVar(&pipelining, "pipelining", false, "pipelining: -pipelining=false")
 	flag.BoolVar(&multiplexing, "multiplexing", true, "pipelining: -pipelining=false")
 	flag.BoolVar(&noresponse, "noresponse", false, "noresponse: -noresponse=false")
-	flag.IntVar(&clients, "clients", 1, "num: -clients=1")
+	flag.IntVar(&clients, "clients", 8, "num: -clients=1")
 	flag.BoolVar(&bar, "bar", false, "bar: -bar=true")
 	log.SetFlags(0)
 	flag.Parse()
@@ -48,7 +48,7 @@ func init()  {
 }
 
 func main()  {
-	fmt.Printf("./client -network=%s -codec=%s -compress=%s -h=%s -p=%d -total=%d -pipelining=%t -batch=%t -batch_async=%t -noresponse=%t -clients=%d\n",network,codec,compress,host,port,total_calls,pipelining,batch,batch_async,noresponse,clients)
+	fmt.Printf("./client -network=%s -codec=%s -compress=%s -h=%s -p=%d -total=%d -pipelining=%t multiplexing=%t -batch=%t -batch_async=%t -noresponse=%t -clients=%d\n",network,codec,compress,host,port,total_calls,pipelining,multiplexing,batch,batch_async,noresponse,clients)
 	var wrkClients []stats.Client
 	parallel:=1
 	if clients>1{
