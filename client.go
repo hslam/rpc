@@ -110,6 +110,11 @@ func NewClientWithMaxRequests(conn	Conn,codec string,max int)  (*client, error) 
 	c.maxErrHeartbeat=DefaultClientMaxErrHearbeat
 	c.setMaxRequests(max)
 	c.conn.Handle(c.readChan,c.writeChan,c.stopChan,c.finishChan)
+	c.enablePipelining()
+	go c.run()
+	return c, nil
+}
+func (c *client)run(){
 	go func() {
 		for i :=range c.errCntChan{
 			c.errCnt+=i
@@ -117,58 +122,53 @@ func NewClientWithMaxRequests(conn	Conn,codec string,max int)  (*client, error) 
 				goto endfor
 			}
 		}
-		endfor:
+	endfor:
 	}()
-	go c.run()
-	c.enablePipelining()
-	return c, nil
-}
-func (c *client)run(){
-		time.Sleep(time.Millisecond*time.Duration(rand.Int63n(800)))
-		ticker:=time.NewTicker(time.Second)
-		heartbeatTicker:=time.NewTicker(time.Millisecond*DefaultClientHearbeatTicker)
-		retryTicker:=time.NewTicker(time.Millisecond*DefaultClientRetryTicker)
-		for{
-			select {
-			case <-c.finishChan:
-				log.Traceln(c.client_id,"client.run finishChan")
-				c.retryConnect()
-			case <-heartbeatTicker.C:
-				if c.disconnect==false&&c.retry{
-					err:=c.heartbeat()
-					if err!=nil{
-						c.errCntHeartbeat+=1
-					}else {
-						c.errCntHeartbeat-=1
-						if c.errCntHeartbeat<0{
-							c.errCntHeartbeat=0
-						}
-					}
-					if c.errCntHeartbeat>=c.maxErrHeartbeat{
-						c.Disconnect()
+	time.Sleep(time.Millisecond*time.Duration(rand.Int63n(800)))
+	ticker:=time.NewTicker(time.Second)
+	heartbeatTicker:=time.NewTicker(time.Millisecond*DefaultClientHearbeatTicker)
+	retryTicker:=time.NewTicker(time.Millisecond*DefaultClientRetryTicker)
+	for{
+		select {
+		case <-c.finishChan:
+			log.Traceln(c.client_id,"client.run finishChan")
+			c.retryConnect()
+		case <-heartbeatTicker.C:
+			if c.disconnect==false&&c.retry{
+				err:=c.heartbeat()
+				if err!=nil{
+					c.errCntHeartbeat+=1
+				}else {
+					c.errCntHeartbeat-=1
+					if c.errCntHeartbeat<0{
 						c.errCntHeartbeat=0
 					}
 				}
-			case <-retryTicker.C:
-				if c.disconnect==true&&c.retry{
-					c.retryConnect()
+				if c.errCntHeartbeat>=c.maxErrHeartbeat{
+					c.Disconnect()
+					c.errCntHeartbeat=0
 				}
-			case <-ticker.C:
-				if c.closed{
-					goto endfor
-				}
-				if !c.retry{
-					return
-				}
-				if c.errCnt>=DefaultClientMaxErrPerSecond{
-					c.hystrix=true
-				}else {
-					c.hystrix=false
-				}
-				c.errCnt=0
 			}
-
+		case <-retryTicker.C:
+			if c.disconnect==true&&c.retry{
+				c.retryConnect()
+			}
+		case <-ticker.C:
+			if c.closed{
+				goto endfor
+			}
+			if !c.retry{
+				return
+			}
+			if c.errCnt>=DefaultClientMaxErrPerSecond{
+				c.hystrix=true
+			}else {
+				c.hystrix=false
+			}
+			c.errCnt=0
 		}
+
+	}
 	endfor:
 }
 func (c *client)retryConnect(){
