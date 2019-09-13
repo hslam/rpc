@@ -62,7 +62,6 @@ type client struct {
 	batchAsync			bool
 	batch				*Batch
 	io					IO
-	//pipeline 			*Pipeline
 	maxRequests			int
 	requestChan			chan bool
 	readChan			chan []byte
