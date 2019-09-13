@@ -188,7 +188,7 @@ var network string
 var port int
 var saddr string
 func init()  {
-	flag.StringVar(&network, "network", "tcp", "network: -network=fast;ws;tcp;quic;udp")
+	flag.StringVar(&network, "network", "tcp", "network: -network=tcp|ws|fast|http|http2|quic|udp")
 	flag.IntVar(&port, "p", 9999, "port: -p=9999")
 	flag.Parse()
 	saddr = ":"+strconv.Itoa(port)
@@ -216,7 +216,7 @@ var host string
 var port int
 var addr string
 func init()  {
-	flag.StringVar(&network, "network", "tcp", "network: -network=fast|ws|tcp|quic|udp")
+	flag.StringVar(&network, "network", "tcp", "network: -network=tcp|ws|fast|http|http2|quic|udp")
 	flag.StringVar(&codec, "codec", "pb", "codec: -codec=pb|json|xml")
 	flag.StringVar(&host, "h", "localhost", "host: -h=localhost")
 	flag.IntVar(&port, "p", 9999, "port: -p=9999")
@@ -260,7 +260,7 @@ var network string
 var port int
 var saddr string
 func init()  {
-	flag.StringVar(&network, "network", "fast", "network: -network=fast;ws;tcp;quic;udp")
+	flag.StringVar(&network, "network", "http", "network: -network=tcp|ws|fast|http|http2|quic|udp")
 	flag.IntVar(&port, "p", 9999, "port: -p=9999")
 	flag.Parse()
 	saddr = ":"+strconv.Itoa(port)
