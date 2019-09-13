@@ -89,7 +89,6 @@ func (c *Pipeline)run() {
 			cr:=<-c.actionChan
 			cr.cbChan<-b
 			c.retryMu.RUnlock()
-
 		}
 	}
 	endfor:

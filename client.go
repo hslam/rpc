@@ -90,10 +90,10 @@ func NewClientWithMaxRequests(conn	Conn,codec string,max int)  (*client, error) 
 	if err!=nil{
 		return nil,err
 	}
-	var client_id int64=0
-	idgenerator:=idgenerator.NewSnowFlake(client_id)
+	var client_id int64=1
 	c :=  &client{
 		client_id:client_id,
+		idgenerator:idgenerator.NewSnowFlake(client_id),
 		conn:conn,
 		finishChan:make(chan bool,1),
 		stopChan:make(chan bool,1),
@@ -101,13 +101,12 @@ func NewClientWithMaxRequests(conn	Conn,codec string,max int)  (*client, error) 
 		compressLevel:NoCompression,
 		compressType:CompressTypeNocom,
 		retry:true,
+		errCntChan:make(chan int,1000000),
+		timeout:DefaultClientTimeout,
+		maxErrPerSecond:DefaultClientMaxErrPerSecond,
+		heartbeatTimeout:DefaultClientHearbeatTimeout,
+		maxErrHeartbeat:DefaultClientMaxErrHearbeat,
 	}
-	c.idgenerator=idgenerator
-	c.errCntChan=make(chan int,1000000)
-	c.timeout=DefaultClientTimeout
-	c.maxErrPerSecond=DefaultClientMaxErrPerSecond
-	c.heartbeatTimeout=DefaultClientHearbeatTimeout
-	c.maxErrHeartbeat=DefaultClientMaxErrHearbeat
 	c.setMaxRequests(max)
 	c.conn.Handle(c.readChan,c.writeChan,c.stopChan,c.finishChan)
 	c.enablePipelining()

@@ -13,6 +13,7 @@ type TCPConn struct {
 	writeChan 		chan []byte
 	stopChan 		chan bool
 	finishChan		chan bool
+	stopHandleChan	chan bool
 	closed			bool
 }
 
@@ -41,6 +42,7 @@ func (t *TCPConn)Handle(readChan chan []byte,writeChan chan []byte, stopChan cha
 	t.finishChan=finishChan
 	t.handle()
 }
+
 func (t *TCPConn)handle(){
 	readChan:=make(chan []byte)
 	writeChan:=make(chan []byte)
@@ -81,7 +83,6 @@ func (t *TCPConn)handle(){
 				stopReadStreamChan<-true
 				stopWriteStreamChan<-true
 				goto endfor
-
 			}
 		}
 		endfor:
