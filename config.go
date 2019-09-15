@@ -76,6 +76,10 @@ const (
 	FLATE  = "flate"
 	ZLIB   = "zlib"
 	GZIP   = "gzip"
+
+	DefaultMaxConnNum=1024*64
+	DefaultMaxMultiplexingPerConn=64
+	DefaultMaxAsyncPerConn =64
 )
 
 func SetLogLevel(level log.Level) {

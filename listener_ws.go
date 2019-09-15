@@ -19,6 +19,8 @@ type WSListener struct {
 	address			string
 	httpServer		http.Server
 	listener		net.Listener
+	maxConnNum		int
+	connNum			int
 }
 func ListenWS(address string,server *Server) (Listener, error) {
 	lis, err := net.Listen("tcp", address)
@@ -28,6 +30,19 @@ func ListenWS(address string,server *Server) (Listener, error) {
 	}
 	var httpServer http.Server
 	httpServer.Addr = address
+
+	l:= &WSListener{address:address,httpServer:httpServer,listener:lis,server:server,maxConnNum:DefaultMaxConnNum}
+	return l,nil
+}
+func (l *WSListener)Serve() (error) {
+	log.Allf( "%s", "Waiting for clients")
+	workerChan := make(chan bool,l.maxConnNum)
+	connChange := make(chan int)
+	go func() {
+		for conn_change := range connChange {
+			l.connNum += conn_change
+		}
+	}()
 	http.HandleFunc("/",func (w http.ResponseWriter, r *http.Request) {
 		r.Header.Del("Origin")
 		conn, err := upgrader.Upgrade(w, r, nil)
@@ -35,23 +50,20 @@ func ListenWS(address string,server *Server) (Listener, error) {
 			log.Warnf("upgrade : %s", err)
 			return
 		}
-		log.Infof("new client %s comming",conn.RemoteAddr())
-		if server.useWorkerPool{
-			server.workerPool.Process(func(obj interface{}, args ...interface{}) interface{} {
-				var w = obj.( *websocket.Conn)
-				var server = args[0].(*Server)
-				return ServeWSConn(server,w)
-			},conn,server)
-		}else {
-			ServeWSConn(server,conn)
-		}
+		workerChan<-true
+		func() {
+			defer func() {
+				if err := recover(); err != nil {
+				}
+				<-workerChan
+			}()
+			connChange <- 1
+			log.Infof("new client %s comming",conn.RemoteAddr())
+			ServeWSConn(l.server,conn)
+			log.Infof("client %s exiting",conn.RemoteAddr())
+			connChange <- -1
+		}()
 	})
-	l:= &WSListener{address:address,httpServer:httpServer,listener:lis,server:server}
-
-	return l,nil
-}
-func (l *WSListener)Serve() (error) {
-	log.Allf( "%s", "Waiting for clients")
 	err:=l.httpServer.Serve(l.listener)
 	if err != nil {
 		log.Errorf("fatal error: %s", err)
@@ -63,7 +75,6 @@ func (l *WSListener)Serve() (error) {
 	 return l.address
  }
 func ServeWSConn(server *Server,conn *websocket.Conn)error {
-	var RemoteAddr=conn.RemoteAddr().String()
 	readChan := make(chan []byte)
 	writeChan := make(chan []byte)
 	finishChan:= make(chan bool,1)
@@ -137,7 +148,6 @@ endfor:
 	close(stopReadConnChan)
 	close(stopWriteConnChan)
 	close(stopChan)
-	log.Infof("client %s exiting",RemoteAddr)
 	return ErrConnExit
 }
 

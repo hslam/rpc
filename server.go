@@ -3,54 +3,63 @@ package rpc
 import (
 	"hslam.com/mgit/Mort/funcs"
 	"hslam.com/mgit/Mort/rpc/log"
-	"hslam.com/mgit/Mort/workerpool"
 	"fmt"
 	"time"
 	"sync"
 )
 
 var (
-	asyncMax				=64
-	workerPoolSize			=1024
-	workerMax				=64
+
 	DefaultServer = NewServer()
 )
 
 type Server struct {
-	network 			string
-	listener 			Listener
-	Funcs 				*funcs.Funcs
-	timeout 			int64
-	multiplexing		bool
-	async				bool
-	asyncMax			int
-	workerPoolSize		int
-	workerMax			int
-	useWorkerPool		bool
-	workerPool 			*workerpool.Pool
+	network 					string
+	listener 					Listener
+	Funcs 						*funcs.Funcs
+	timeout 					int64
+	multiplexing				bool
+	async						bool
+	asyncMax					int
 }
 func NewServer() *Server {
-	return &Server{Funcs:funcs.New(),timeout:DefaultServerTimeout}
+	return &Server{Funcs:funcs.New(),timeout:DefaultServerTimeout,asyncMax:DefaultMaxAsyncPerConn}
 }
 
-func EnableWorkerPool() {
-	DefaultServer.EnableWorkerPool()
+func EnableMultiplexing()  {
+	DefaultServer.EnableMultiplexing()
 }
-func (s *Server) EnableWorkerPool() {
-	s.useWorkerPool=true
-	DefaultServer.workerPool=workerpool.New(workerPoolSize,workerMax)
+func (s *Server) EnableMultiplexing() {
+	s.EnableMultiplexingWithSize(DefaultMaxMultiplexingPerConn)
 }
-func EnableWorkerPoolWithSize(size ,max int) {
-	DefaultServer.EnableWorkerPoolWithSize(size ,max)
+func EnableMultiplexingWithSize(size  int)  {
+	DefaultServer.EnableMultiplexingWithSize(size)
+}
+func (s *Server) EnableMultiplexingWithSize(size  int) {
+	s.multiplexing=true
+	s.asyncMax=size
+}
+func Async() bool {
+	return DefaultServer.Async()
+}
+func (s *Server) Async() bool {
+	return s.async
+}
+func EnableAsyncHandle()  {
+	DefaultServer.EnableAsyncHandle()
+}
+func (s *Server) EnableAsyncHandle() {
+	s.EnableAsyncHandleWithSize(DefaultMaxAsyncPerConn)
 }
 
-func (s *Server) EnableWorkerPoolWithSize(size ,max int) {
-	s.useWorkerPool=true
-	s.workerPoolSize=size
-	s.workerMax=max
-	s.workerPool= workerpool.New(workerPoolSize,workerMax)
+func EnableAsyncHandleWithSize(size  int) {
+	DefaultServer.EnableAsyncHandleWithSize(size )
 }
 
+func (s *Server) EnableAsyncHandleWithSize(size int) {
+	s.async=true
+	s.asyncMax=size
+}
 func Register(obj interface{}) error {
 	return DefaultServer.Register(obj)
 }
@@ -85,40 +94,7 @@ func (s *Server)ListenAndServe(network,address string) error {
 	}
 	return nil
 }
-func EnableMultiplexing()  {
-	DefaultServer.EnableMultiplexing()
-}
-func (s *Server) EnableMultiplexing() {
-	s.EnableMultiplexingWithSize(asyncMax)
-}
-func EnableMultiplexingWithSize(size  int)  {
-	DefaultServer.EnableMultiplexingWithSize(size)
-}
-func (s *Server) EnableMultiplexingWithSize(size  int) {
-	s.multiplexing=true
-	s.asyncMax=size
-}
-func Async() bool {
-	return DefaultServer.Async()
-}
-func (s *Server) Async() bool {
-	return s.async
-}
-func EnableAsyncHandle()  {
-	DefaultServer.EnableAsyncHandle()
-}
-func (s *Server) EnableAsyncHandle() {
-	s.EnableAsyncHandleWithSize(asyncMax)
-}
 
-func EnableAsyncHandleWithSize(size  int) {
-	DefaultServer.EnableAsyncHandleWithSize(size )
-}
-
-func (s *Server) EnableAsyncHandleWithSize(size int) {
-	s.async=true
-	s.asyncMax=size
-}
 func ServeRPC(b []byte) (bool,[]byte,error) {
 	return DefaultServer.ServeRPC(b)
 }

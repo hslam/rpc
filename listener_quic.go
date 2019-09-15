@@ -10,6 +10,8 @@ type QUICListener struct {
 	server			*Server
 	address			string
 	quicListener	quic.Listener
+	maxConnNum		int
+	connNum			int
 }
 func ListenQUIC(address string,server *Server) (Listener, error) {
 	quic_listener, err := quic.ListenAddr(address, generateTLSConfig(), nil)
@@ -17,27 +19,37 @@ func ListenQUIC(address string,server *Server) (Listener, error) {
 		log.Errorf("fatal error: %s", err)
 		return nil,err
 	}
-	listener:= &QUICListener{address:address,quicListener:quic_listener,server:server}
+	listener:= &QUICListener{address:address,quicListener:quic_listener,server:server,maxConnNum:DefaultMaxConnNum}
 	return listener,nil
 }
 func (l *QUICListener)Serve() (error) {
 	log.Allf( "%s", "Waiting for clients")
+	workerChan := make(chan bool,l.maxConnNum)
+	connChange := make(chan int)
+	go func() {
+		for conn_change := range connChange {
+			l.connNum += conn_change
+		}
+	}()
 	for{
 		sess, err := l.quicListener.Accept()
 		if err != nil {
 			log.Warnf("Accept: %s", err)
 			continue
 		}else{
-			log.Infof("new client %s comming",sess.RemoteAddr())
-			if l.server.useWorkerPool{
-				l.server.workerPool.ProcessAsyn( func(obj interface{}, args ...interface{}) interface{} {
-					var s = obj.(quic.Session)
-					var server = args[0].(*Server)
-					return ServeQUICConn(server,s)
-				},sess,l.server)
-			}else {
-				go ServeQUICConn(l.server,sess)
-			}
+			workerChan<-true
+			go func() {
+				defer func() {
+					if err := recover(); err != nil {
+					}
+					<-workerChan
+				}()
+				connChange <- 1
+				log.Infof("new client %s comming",sess.RemoteAddr())
+				ServeQUICConn(l.server,sess)
+				log.Infof("client %s exiting",sess.RemoteAddr())
+				connChange <- -1
+			}()
 		}
 	}
 	return nil
@@ -46,7 +58,6 @@ func (l *QUICListener)Addr() (string) {
 	return l.address
 }
 func ServeQUICConn(server *Server,sess quic.Session)error {
-	var RemoteAddr=sess.RemoteAddr().String()
 	stream, err := sess.AcceptStream()
 	if err != nil {
 		log.Errorln(err)
@@ -124,6 +135,5 @@ func ServeQUICConn(server *Server,sess quic.Session)error {
 	close(stopReadStreamChan)
 	close(stopWriteStreamChan)
 	close(stopChan)
-	log.Infof("client %s exiting",RemoteAddr)
 	return ErrConnExit
 }

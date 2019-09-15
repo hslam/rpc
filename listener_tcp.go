@@ -10,6 +10,8 @@ type TCPListener struct {
 	server			*Server
 	address			string
 	netListener		net.Listener
+	maxConnNum		int
+	connNum			int
 }
 func ListenTCP(address string,server *Server) (Listener, error) {
 	lis, err := net.Listen("tcp", address)
@@ -17,27 +19,37 @@ func ListenTCP(address string,server *Server) (Listener, error) {
 		log.Errorf("fatal error: %s", err)
 		return nil,err
 	}
-	listener:= &TCPListener{address:address,netListener:lis,server:server}
+	listener:= &TCPListener{address:address,netListener:lis,server:server,maxConnNum:DefaultMaxConnNum}
 	return listener,nil
 }
 func (l *TCPListener)Serve() (error) {
 	log.Allf( "%s", "Waiting for clients")
+	workerChan := make(chan bool,l.maxConnNum)
+	connChange := make(chan int)
+	go func() {
+		for conn_change := range connChange {
+			l.connNum += conn_change
+		}
+	}()
 	for {
 		conn, err := l.netListener.Accept()
 		if err != nil {
 			log.Warnf("Accept: %s", err)
 			continue
 		}
-		log.Infof("new client %s comming",conn.RemoteAddr())
-		if l.server.useWorkerPool{
-			l.server.workerPool.ProcessAsyn( func(obj interface{}, args ...interface{}) interface{} {
-				var c = obj.(net.Conn )
-				var server = args[0].(*Server)
-				return ServeTCPConn(server,c)
-			},conn,l.server)
-		}else {
-			go ServeTCPConn(l.server,conn)
-		}
+		workerChan<-true
+		go func() {
+			defer func() {
+				if err := recover(); err != nil {
+				}
+				<-workerChan
+			}()
+			connChange <- 1
+			log.Infof("new client %s comming",conn.RemoteAddr())
+			ServeTCPConn(l.server,conn)
+			log.Infof("client %s exiting",conn.RemoteAddr())
+			connChange <- -1
+		}()
 	}
 	return nil
 }
@@ -45,7 +57,6 @@ func (l *TCPListener)Addr() (string) {
 	return l.address
 }
 func ServeTCPConn(server *Server,conn net.Conn)error {
-	var RemoteAddr=conn.RemoteAddr().String()
 	readChan := make(chan []byte)
 	writeChan := make(chan []byte)
 	finishChan:= make(chan bool,1)
@@ -121,6 +132,5 @@ func ServeTCPConn(server *Server,conn net.Conn)error {
 	close(stopReadStreamChan)
 	close(stopWriteStreamChan)
 	close(stopChan)
-	log.Infof("client %s exiting",RemoteAddr)
 	return ErrConnExit
 }

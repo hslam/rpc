@@ -10,30 +10,41 @@ type FASTHTTPListener struct {
 	server			*Server
 	address			string
 	fastrouter		*fasthttprouter.Router
+	maxConnNum		int
+	connNum			int
 }
 func ListenFASTHTTP(address string,server *Server) (Listener, error) {
 	router := fasthttprouter.New()
-	router.POST("/", func (ctx *fasthttp.RequestCtx) {
-		ctx.Response.Header.Set("Access-Control-Allow-Origin", "*")
-		var RemoteAddr=ctx.RemoteAddr().String()
-		log.AllInfof("new client %s comming",RemoteAddr)
-		if server.useWorkerPool{
-			server.workerPool.Process(func(obj interface{}, args ...interface{}) interface{} {
-				var requestCtx = obj.(*fasthttp.RequestCtx)
-				var server = args[0].(*Server)
-				return ServeHTTP(server,requestCtx,requestCtx.Request.Body())
-			},ctx,server)
-		}else {
-			ServeHTTP(server,ctx,ctx.Request.Body())
-		}
-		log.AllInfof("client %s exiting",RemoteAddr)
-	})
-	listener:=  &FASTHTTPListener{address:address,fastrouter:router,server:server}
+	listener:=  &FASTHTTPListener{address:address,fastrouter:router,server:server,maxConnNum:DefaultMaxConnNum*server.asyncMax}
 	return listener,nil
 }
 
 func (l *FASTHTTPListener)Serve() (error) {
 	log.Allf( "%s", "Waiting for clients")
+	workerChan := make(chan bool,l.maxConnNum)
+	connChange := make(chan int)
+	go func() {
+		for conn_change := range connChange {
+			l.connNum += conn_change
+		}
+	}()
+	l.fastrouter.POST("/", func (ctx *fasthttp.RequestCtx) {
+		ctx.Response.Header.Set("Access-Control-Allow-Origin", "*")
+		var RemoteAddr=ctx.RemoteAddr().String()
+		workerChan<-true
+		func() {
+			defer func() {
+				if err := recover(); err != nil {
+				}
+				<-workerChan
+			}()
+			connChange <- 1
+			log.Infof("new client %s comming",RemoteAddr)
+			ServeHTTP(l.server,ctx,ctx.Request.Body())
+			log.Infof("client %s exiting",RemoteAddr)
+			connChange <- -1
+		}()
+	})
 	err:=fasthttp.ListenAndServe(l.address, l.fastrouter.Handler)
 	if err!=nil{
 		log.Errorf("fatal error: %s", err)

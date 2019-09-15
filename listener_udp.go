@@ -10,6 +10,8 @@ type UDPListener struct {
 	server			*Server
 	address			string
 	netUDPConn		*net.UDPConn
+	maxConnNum		int
+	connNum			int
 }
 func ListenUDP(address string,server *Server) (Listener, error) {
 	addr, err := net.ResolveUDPAddr("udp", address)
@@ -22,12 +24,19 @@ func ListenUDP(address string,server *Server) (Listener, error) {
 		log.Errorf("fatal error: %s", err)
 		return nil,err
 	}
-	listener:=  &UDPListener{address:address,netUDPConn:conn,server:server}
+	listener:=  &UDPListener{address:address,netUDPConn:conn,server:server,maxConnNum:DefaultMaxConnNum*server.asyncMax}
 	return listener,nil
 }
 
 func (l *UDPListener)Serve() (error) {
 	log.Allf( "%s", "Waiting for clients")
+	workerChan := make(chan bool,l.maxConnNum)
+	connChange := make(chan int)
+	go func() {
+		for conn_change := range connChange {
+			l.connNum += conn_change
+		}
+	}()
 	readChan := make(chan *protocol.UDPMsg,10240)
 	writeChan := make(chan  *protocol.UDPMsg,10240)
 	go protocol.ReadUDPConn(l.netUDPConn, readChan)
@@ -35,18 +44,20 @@ func (l *UDPListener)Serve() (error) {
 	for {
 		select {
 		case udp_msg := <-readChan:
-			var RemoteAddr=udp_msg.RemoteAddr.String()
-			log.AllInfof("new client %s comming",RemoteAddr)
-			if l.server.useWorkerPool{
-				l.server.workerPool.ProcessAsyn( func(obj interface{}, args ...interface{}) interface{} {
-					var udp_msg = obj.(*protocol.UDPMsg)
-					var writeChan=args[0].(chan *protocol.UDPMsg)
-					var server = args[1].(*Server)
-					return ServeUDPConn(server,udp_msg,writeChan)
-				},udp_msg,writeChan,l.server)
-			}else {
-				go ServeUDPConn(l.server,udp_msg,writeChan)
-			}
+			workerChan<-true
+			go func() {
+				defer func() {
+					if err := recover(); err != nil {
+					}
+					<-workerChan
+				}()
+				connChange <- 1
+				var RemoteAddr=udp_msg.RemoteAddr.String()
+				log.AllInfof("new client %s comming",RemoteAddr)
+				ServeUDPConn(l.server,udp_msg,writeChan)
+				log.Infof("client %s exiting",RemoteAddr)
+				connChange <- -1
+			}()
 		}
 	}
 	l.netUDPConn.Close()
@@ -78,7 +89,5 @@ func ServeUDPConn(server *Server,udp_msg *protocol.UDPMsg,writeChan chan *protoc
 			writeChan <- &protocol.UDPMsg{udp_msg.ID,nil,udp_msg.RemoteAddr}
 		}
 	}
-
-	log.AllInfof("client %s exiting",udp_msg.RemoteAddr)
 	return ErrConnExit
 }

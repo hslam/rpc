@@ -15,9 +15,6 @@ var network string
 var debug bool
 var debug_port int
 var port int
-var num int
-var max int
-var useWorkerPool bool
 var async bool
 var multiplexing bool
 var saddr string
@@ -27,9 +24,6 @@ func init()  {
 	flag.BoolVar(&debug, "debug", true, "debug: -debug=false")
 	flag.IntVar(&debug_port, "dp", 6060, "debug_port: -dp=6060")
 	flag.IntVar(&port, "p", 9999, "port: -p=9999")
-	flag.IntVar(&num, "n", 65536, "num: -n=1024")
-	flag.IntVar(&max, "m", runtime.NumCPU()*64, "max: -m=64")
-	flag.BoolVar(&useWorkerPool, "pool", false, "useWorkerPool: -pool=false")
 	flag.BoolVar(&async, "async", false, "async: -async=false")
 	flag.BoolVar(&multiplexing, "multiplexing", true, "multiplexing: -multiplexing=false")
 	flag.Parse()
@@ -38,10 +32,7 @@ func init()  {
 func main()  {
 	go func() {if debug{log.Println(http.ListenAndServe(":"+strconv.Itoa(debug_port), nil))}}()
 	rpc.Register(new(service.Arith))
-	rpc.SetLogLevel(6)
-	if useWorkerPool{
-		rpc.EnableWorkerPoolWithSize(num,max)
-	}
+	rpc.SetLogLevel(4)
 	if async{
 		rpc.EnableAsyncHandle()
 	}
