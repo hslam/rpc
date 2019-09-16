@@ -26,14 +26,14 @@ func ReadUDPConn(reader *net.UDPConn, readChan chan *UDPMsg) {
 			if err != nil {
 				return
 			}
-			var data =make([]byte,n)
-			copy(data,buffer[:n])
-			oprationType,id,msg,err:=UnpackMessage(data)
+			oprationType,id,msg,err:=UnpackMessage(buffer[:n])
 			if err != nil {
 				return
 			}
+			cp_msg:=make([]byte,len(msg))
+			copy(cp_msg,msg)
 			if oprationType==OprationTypeData{
-				readChan<-&UDPMsg{id,msg,remoteAddr}
+				readChan<-&UDPMsg{id,cp_msg,remoteAddr}
 			}
 		}()
 	}

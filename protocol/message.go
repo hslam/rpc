@@ -122,16 +122,15 @@ func ReadMessage(reader io.Reader, readMessageChan chan *Message, stopChan chan 
 		if err != nil {
 			goto finish
 		}
-		var data =make([]byte,n)
-		copy(data,buffer[:n])
 		log.Debugf("recv data size %d",n)
-		oprationType,id,msg,err:=UnpackMessage(data)
+		oprationType,id,msg,err:=UnpackMessage(buffer[:n])
 		if err != nil {
 			continue
 		}
+		cp_msg:=make([]byte,len(msg))
+		copy(cp_msg,msg)
 		if oprationType==OprationTypeAck|| oprationType==OprationTypeData{
-			msg:=&Message{oprationType,id,msg}
-			readMessageChan<-msg
+			readMessageChan<-&Message{oprationType,id,cp_msg}
 			continue
 		}
 		select {
