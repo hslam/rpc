@@ -332,3 +332,10 @@ func main()  {
     console.log(req.a.toString()+" / "+req.b.toString()+", quo is "+reply.quo.toString()+", rem is "+reply.rem.toString());
 </script>
 ```
+
+### Licence
+This package is licenced under a MIT licence (Copyright (c) 2019 Mort Huang)
+
+
+### Authors
+workerpool was written by Mort Huang.
