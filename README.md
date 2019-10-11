@@ -241,7 +241,7 @@ func init()  {
 }
 func main()  {
 	rpc.Register(new(service.Arith))
-	rpc.ListenAndServe(network,saddr)
+	rpc. (network,saddr)
 }
 ```
 

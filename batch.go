@@ -24,7 +24,7 @@ type Batch struct {
 	readyRequests []*BatchRequest
 	maxBatchRequest	int
 	maxDelayNanoSecond	int
-	closed  bool
+	closeChan 			chan bool
 }
 func NewBatch(c *client,maxDelayNanoSecond int) *Batch {
 	b:= &Batch{
@@ -33,6 +33,7 @@ func NewBatch(c *client,maxDelayNanoSecond int) *Batch {
 		readyRequests:make([]*BatchRequest,0),
 		maxBatchRequest:DefaultMaxBatchRequest,
 		maxDelayNanoSecond:maxDelayNanoSecond,
+		closeChan:make(chan bool,1),
 	}
 	go b.run()
 	return b
@@ -47,40 +48,40 @@ func (b *Batch)SetMaxBatchRequest(maxBatchRequest int) {
 func (b *Batch)run() {
 	go func() {
 		for cr := range b.reqChan {
-			if b.closed{
-				goto endfor
-			}
-			b.mut.Lock()
-			b.readyRequests=append(b.readyRequests, cr)
-			if len(b.readyRequests)>=b.maxBatchRequest{
-				crs:=b.readyRequests[:]
-				b.readyRequests=nil
-				b.readyRequests=make([]*BatchRequest,0)
-				b.Ticker(crs)
-			}
-			b.mut.Unlock()
+			func(){
+				b.mut.Lock()
+				defer b.mut.Unlock()
+				b.readyRequests=append(b.readyRequests, cr)
+				if len(b.readyRequests)>=b.maxBatchRequest{
+					crs:=b.readyRequests[:]
+					b.readyRequests=nil
+					b.readyRequests=make([]*BatchRequest,0)
+					b.Ticker(crs)
+				}
+			}()
 		}
-		endfor:
 	}()
 	tick := time.NewTicker(1 * time.Nanosecond*time.Duration(b.maxDelayNanoSecond))
 	for {
 		select {
+		case <-b.closeChan:
+			close(b.closeChan)
+			tick.Stop()
+			goto endfor
 		case <-tick.C:
-			if b.closed{
-				goto endfor
-			}
-			b.mut.Lock()
-			if len(b.readyRequests)>b.maxBatchRequest{
-				crs:=b.readyRequests[:b.maxBatchRequest]
-				b.readyRequests=b.readyRequests[b.maxBatchRequest:]
-				b.Ticker(crs)
-			}else  if len(b.readyRequests)>0{
-				crs:=b.readyRequests[:]
-				b.readyRequests=b.readyRequests[len(b.readyRequests):]
-				b.Ticker(crs)
-			}else {
-			}
-			b.mut.Unlock()
+			func(){
+				b.mut.Lock()
+				defer b.mut.Unlock()
+				if len(b.readyRequests)>b.maxBatchRequest{
+					crs:=b.readyRequests[:b.maxBatchRequest]
+					b.readyRequests=b.readyRequests[b.maxBatchRequest:]
+					b.Ticker(crs)
+				}else  if len(b.readyRequests)>0{
+					crs:=b.readyRequests[:]
+					b.readyRequests=b.readyRequests[len(b.readyRequests):]
+					b.Ticker(crs)
+				}
+			}()
 		}
 	}
 endfor:
@@ -158,5 +159,8 @@ func (b *Batch)Ticker(crs []*BatchRequest){
 }
 
 func (b *Batch)Close() {
-	b.closed=true
+	close(b.reqChan)
+	b.client=nil
+	b.readyRequests=nil
+	b.closeChan<-true
 }

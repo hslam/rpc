@@ -75,7 +75,10 @@ func (t *QUICConn)handle(){
 				if stop {
 					stopReadStreamChan<-true
 					stopWriteStreamChan<-true
-					t.finishChan<-true
+					func(){
+						defer func() {if err := recover(); err != nil {}}()
+						t.finishChan<-true
+					}()
 					goto endfor
 				}
 			case <-t.stopChan:

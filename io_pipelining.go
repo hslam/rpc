@@ -49,52 +49,52 @@ func (c *Pipeline)Reset(readChan chan []byte,writeChan chan []byte) {
 	c.writeChan=writeChan
 }
 func (c *Pipeline)run() {
-	writeStop:=false
 	go func() {
 		for cr:=range c.requestChan{
-			c.retryMu.RLock()
-			func() {
-				defer func() {
-					if err := recover(); err != nil {
-						log.Errorln("v.reply err", err)
+			func(){
+				c.retryMu.RLock()
+				defer c.retryMu.RUnlock()
+				func() {
+					defer func() {
+						if err := recover(); err != nil {
+							log.Errorln("v.reply err", err)
+						}
+					}()
+					c.writeChan<-cr.data
+					if cr.noResponse==false{
+						if len(c.actionChan)<=c.maxRequests{
+							c.actionChan<-cr
+						}
+					}else {
+						if len(c.noResponseChan)>=c.maxRequests{
+							<-c.noResponseChan
+						}
+						c.noResponseChan<-cr
+						cr.cbChan<-[]byte("0")
 					}
 				}()
-				c.writeChan<-cr.data
-				if cr.noResponse==false{
-					if len(c.actionChan)<=c.maxRequests{
-						c.actionChan<-cr
-					}
-				}else {
-					if len(c.noResponseChan)>=c.maxRequests{
-						<-c.noResponseChan
-					}
-					c.noResponseChan<-cr
-					cr.cbChan<-[]byte("0")
-				}
 			}()
-			c.retryMu.RUnlock()
-			if writeStop{
-				goto endfor
-			}
 		}
-		endfor:
 	}()
 	for{
 		select {
 		case <-c.closeChan:
-			writeStop=true
+			close(c.closeChan)
 			goto endfor
 		case b:=<-c.readChan:
-			c.retryMu.RLock()
-			cr:=<-c.actionChan
-			cr.cbChan<-b
-			c.retryMu.RUnlock()
+			func(){
+				c.retryMu.RLock()
+				defer c.retryMu.RUnlock()
+				cr:=<-c.actionChan
+				cr.cbChan<-b
+			}()
 		}
 	}
 	endfor:
 }
 func (c *Pipeline)Retry() {
 	c.retryMu.Lock()
+	defer c.retryMu.Unlock()
 	if len(c.readChan)>0{
 		for i:=0;i<len(c.readChan);i++{
 			<-c.readChan
@@ -129,8 +129,13 @@ func (c *Pipeline)Retry() {
 
 		}
 	}
-	c.retryMu.Unlock()
 }
 func (c *Pipeline)Close() {
+	close(c.requestChan)
+	close(c.actionChan)
+	close(c.noResponseChan)
+	c.readChan=nil
+	c.writeChan=nil
+	c.client=nil
 	c.closeChan<-true
 }

@@ -12,7 +12,7 @@ type UDPConn struct {
 	readChan 		chan []byte
 	writeChan 		chan []byte
 	stopChan 		chan bool
-	finishChan chan bool
+	finishChan 		chan bool
 	closed			bool
 }
 
@@ -72,7 +72,10 @@ func (t *UDPConn)handle(){
 				}()
 				goto endfor
 			case <-finishChan:
-				t.finishChan<-true
+				func(){
+					defer func() {if err := recover(); err != nil {}}()
+					t.finishChan<-true
+				}()
 				goto endfor
 			}
 		}

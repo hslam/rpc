@@ -226,7 +226,7 @@ func HandleMessage(readWriter io.ReadWriter,readChan chan []byte,writeChan chan 
 	for send_data:= range writeChan{
 		id=(id+1)%max_id
 		idChan<-id
-		recvChan:=make(chan bool)
+		recvChan:=make(chan bool,1)
 		notice:=&Notice{Id:id,RecvChan:recvChan}
 		queueMsg.Push(notice)
 		msg:=&Message{OprationTypeData,id,send_data}

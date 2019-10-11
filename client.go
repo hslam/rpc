@@ -56,6 +56,7 @@ type client struct {
 	mu 					sync.RWMutex
 	conn				Conn
 	closed				bool
+	closeChan 			chan bool
 	disconnect			bool
 	hystrix				bool
 	batchEnabled		bool
@@ -97,6 +98,7 @@ func NewClientWithMaxRequests(conn	Conn,codec string,max int)  (*client, error) 
 		conn:conn,
 		finishChan:make(chan bool,1),
 		stopChan:make(chan bool,1),
+		closeChan:make(chan bool,1),
 		funcsCodecType:funcsCodecType,
 		compressLevel:NoCompression,
 		compressType:CompressTypeNocom,
@@ -117,11 +119,7 @@ func (c *client)run(){
 	go func() {
 		for i :=range c.errCntChan{
 			c.errCnt+=i
-			if c.closed{
-				goto endfor
-			}
 		}
-	endfor:
 	}()
 	time.Sleep(time.Millisecond*time.Duration(rand.Int63n(800)))
 	ticker:=time.NewTicker(time.Second)
@@ -130,7 +128,7 @@ func (c *client)run(){
 	for{
 		select {
 		case <-c.finishChan:
-			log.Traceln(c.client_id,"client.run finishChan")
+			//log.Traceln(c.client_id,"client.run finishChan")
 			c.retryConnect()
 		case <-heartbeatTicker.C:
 			if c.disconnect==false&&c.retry{
@@ -152,10 +150,18 @@ func (c *client)run(){
 			if c.disconnect==true&&c.retry{
 				c.retryConnect()
 			}
+		case <-c.closeChan:
+			func() {
+				defer func() {if err := recover(); err != nil {}}()
+				c.stopChan<-true
+			}()
+			close(c.closeChan)
+			ticker.Stop()
+			retryTicker.Stop()
+			heartbeatTicker.Stop()
+			goto endfor
+
 		case <-ticker.C:
-			if c.closed{
-				goto endfor
-			}
 			if !c.retry{
 				return
 			}
@@ -442,7 +448,7 @@ func (c *client)OnlyCall(name string) ( err error) {
 func (c *client)Ping() bool {
 	defer func() {
 		if err := recover(); err != nil {
-			log.Errorln("*client.Ping failed:", err)
+			log.Errorln("client.Ping failed:", err)
 		}
 	}()
 	err:=c.heartbeat()
@@ -455,6 +461,11 @@ func (c *client)DisableRetry() {
 	c.retry=false
 }
 func (c *client)RemoteCall(b []byte)([]byte,error){
+	defer func() {
+		if err := recover(); err != nil {
+			log.Errorln("client.RemoteCall failed:", err)
+		}
+	}()
 	c.requestChan<-true
 	cbChan := make(chan []byte,1)
 	c.io.RequestChan()<-c.io.NewRequest(0,b,false,cbChan)
@@ -466,6 +477,11 @@ func (c *client)RemoteCall(b []byte)([]byte,error){
 	return nil,ErrRemoteCall
 }
 func (c *client)RemoteCallNoResponse(b []byte)(error){
+	defer func() {
+		if err := recover(); err != nil {
+			log.Errorln("client.RemoteCallNoResponse failed:", err)
+		}
+	}()
 	c.requestChan<-true
 	cbChan := make(chan []byte,1)
 	c.io.RequestChan()<-c.io.NewRequest(0,b,true,cbChan)
@@ -474,6 +490,11 @@ func (c *client)RemoteCallNoResponse(b []byte)(error){
 	return nil
 }
 func (c *client)Disconnect() ( err error) {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Errorln("client.Disconnect failed:", err)
+		}
+	}()
 	if !c.conn.Closed(){
 		log.Traceln(c.client_id,"client conn Closed",c.conn.Closed())
 		c.stopChan<-true
@@ -483,6 +504,11 @@ func (c *client)Disconnect() ( err error) {
 	return c.conn.Close()
 }
 func (c *client)Close() ( err error) {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Errorln("client.Close failed:", err)
+		}
+	}()
 	if c.closed {
 		return nil
 	}
@@ -494,10 +520,14 @@ func (c *client)Close() ( err error) {
 	if c.io!=nil{
 		c.io.Close()
 	}
+	c.closeChan<-true
 	close(c.writeChan)
 	close(c.readChan)
 	close(c.stopChan)
+	close(c.finishChan)
 	close(c.errCntChan)
+	close(c.requestChan)
+	c.idgenerator=nil
 	return c.conn.Close()
 }
 func (c *client)Closed()bool{
@@ -578,8 +608,8 @@ func (c *client)call(name string, args interface{}, reply interface{}) ( err err
 		}()
 		select {
 		case <-ch:
-		case <-time.After(time.Millisecond * time.Duration(c.timeout)):
-			err=ErrTimeOut
+		//case <-time.After(time.Millisecond * time.Duration(c.timeout)):
+		//	err=ErrTimeOut
 		}
 		return err
 	}
@@ -622,10 +652,10 @@ func (c *client)batchCall(name string, args interface{}, reply interface{}) ( er
 			if ok{
 				return err
 			}
-		case <-time.After(time.Millisecond * time.Duration(c.timeout)):
-			close(cr.reply_bytes)
-			close(cr.reply_error)
-			return ErrTimeOut
+		//case <-time.After(time.Millisecond * time.Duration(c.timeout)):
+		//	close(cr.reply_bytes)
+		//	close(cr.reply_error)
+		//	return ErrTimeOut
 		}
 		return nil
 	}

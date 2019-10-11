@@ -318,6 +318,13 @@ func (p *Pool)Ping() bool {
 	}(c)
 	return c.Ping()
 }
+func (p *Pool)DisableRetry() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for _,c:= range p.conns{
+		c.DisableRetry()
+	}
+}
 func (p *Pool)RemoteCall(b []byte)([]byte,error){
 	return nil, errors.New("not suportted")
 }

@@ -54,7 +54,13 @@ func HandleSyncConn(syncConn SyncConn,recvChan chan []byte,sendChan chan []byte,
 					}else if old_notice.Recvmsg.oprationType==OprationTypeAck{
 						<-idChan
 					}
-					queueMsg.Check()
+					func(){
+						defer func() {
+							if err := recover(); err != nil {
+							}
+						}()
+						queueMsg.Check()
+					}()
 				}else {
 					goto endfor
 				}

@@ -4,7 +4,6 @@ import (
 	"math/rand"
 	"time"
 	"sync"
-	"fmt"
 )
 
 const (
@@ -21,7 +20,6 @@ func PacketFrame(priority uint8,id uint32,body []byte) []byte {
 
 func UnpackFrame(buffer []byte) (priority uint8,id uint32,body []byte,err error) {
 	if len(buffer)<FrameHeaderLength{
-		err=fmt.Errorf("buffer length %d",len(buffer))
 		return
 	}
 	priority=buffer[:1][0]
@@ -84,49 +82,46 @@ func (c *Multiplex)run() {
 	var startbit =uint(r.Intn(13))
 	id:=uint32(r.Int31n(int32(1<<startbit)))
 	max_id:=uint32(1<<32-1)
-	writeStop:=false
 	go func() {
 		for mr:=range c.requestChan{
-			c.mu.Lock()
-			func() {
-				defer func() {
-					if err := recover(); err != nil {
+			func(){
+				c.mu.Lock()
+				defer c.mu.Unlock()
+				func() {
+					defer func() {
+						if err := recover(); err != nil {
+						}
+					}()
+					for{
+						id=(id+1)%max_id
+						if !c.IsExisted(id){
+							break
+						}
+					}
+					c.idChan<-id
+					mr.id=id
+					frameBytes:=PacketFrame(mr.priority,id,mr.data)
+					c.writeChan<-frameBytes
+					if mr.noResponse==false{
+						if c.Length()<=c.maxRequests*2{
+							c.Set(id,mr)
+						}
+					}else {
+						if len(c.noResponseChan)>=c.maxRequests{
+							<-c.noResponseChan
+						}
+						c.noResponseChan<-mr
+						mr.cbChan<-[]byte("0")
 					}
 				}()
-				for{
-					id=(id+1)%max_id
-					if !c.IsExisted(id){
-						break
-					}
-				}
-				c.idChan<-id
-				mr.id=id
-				frameBytes:=PacketFrame(mr.priority,id,mr.data)
-				c.writeChan<-frameBytes
-				if mr.noResponse==false{
-					if c.Length()<=c.maxRequests*2{
-						c.Set(id,mr)
-					}
-				}else {
-					if len(c.noResponseChan)>=c.maxRequests{
-						<-c.noResponseChan
-					}
-					c.noResponseChan<-mr
-					mr.cbChan<-[]byte("0")
-				}
 			}()
-			c.mu.Unlock()
-			if writeStop{
-				goto endfor
-			}
 		}
-	endfor:
 	}()
 	go func() {
-		for{
-			select {
-			case b:=<-c.readChan:
+		for b:=range c.readChan{
+			func(){
 				c.mu.Lock()
+				defer c.mu.Unlock()
 				_,ID,body,err:=UnpackFrame(b)
 				if err!=nil{
 					return
@@ -139,16 +134,15 @@ func (c *Multiplex)run() {
 				if len(c.idChan)>0{
 					<-c.idChan
 				}
-				c.mu.Unlock()
-
-			}
+			}()
 		}
 	}()
 	ticker:=time.NewTicker(time.Second)
 	for{
 		select {
 		case <-c.closeChan:
-			writeStop=true
+			close(c.closeChan)
+			ticker.Stop()
 			goto endfor
 		case <-ticker.C:
 			c.deleteOld()
@@ -239,5 +233,12 @@ func(c *Multiplex)Length() int{
 	return len(c.cache)
 }
 func (c *Multiplex)Close() {
+	close(c.requestChan)
+	close(c.noResponseChan)
+	close(c.idChan)
+	c.readChan=nil
+	c.writeChan=nil
+	c.client=nil
+	c.cache=nil
 	c.closeChan<-true
 }

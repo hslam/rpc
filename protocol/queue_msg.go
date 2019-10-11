@@ -63,14 +63,16 @@ func(q *QueueMsg)SetValue(id uint16,data *Message) {
 	}
 	q.m[id].Recvmsg=data
 	if q.Length()>0{
-		pop_id,_:=q.Front()
-		if _,ok:=q.m[pop_id];ok{
-			if q.m[pop_id].Recvmsg!=nil{
-				min_msg:=q.m[pop_id]
-				delete(q.m,pop_id)
-				q.Dequeue()
-				q.pop<-min_msg
-				return
+		pop_id,err:=q.Front()
+		if err==nil{
+			if _,ok:=q.m[pop_id];ok{
+				if q.m[pop_id].Recvmsg!=nil{
+					min_msg:=q.m[pop_id]
+					delete(q.m,pop_id)
+					q.Dequeue()
+					q.pop<-min_msg
+					return
+				}
 			}
 		}
 	}
@@ -80,13 +82,16 @@ func(q *QueueMsg)Check(){
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	if q.Length()>0{
-		pop_id,_:=q.Front()
-		if _,ok:=q.m[pop_id];ok{
-			if q.m[pop_id].Recvmsg!=nil{
-				min_msg:=q.m[pop_id]
-				delete(q.m,pop_id)
-				q.Dequeue()
-				q.pop<-min_msg
+		pop_id,err:=q.Front()
+		if err==nil{
+			if _,ok:=q.m[pop_id];ok{
+				if q.m[pop_id].Recvmsg!=nil{
+					min_msg:=q.m[pop_id]
+					delete(q.m,pop_id)
+					q.Dequeue()
+					q.pop<-min_msg
+					return
+				}
 			}
 		}
 	}
