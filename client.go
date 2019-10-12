@@ -157,8 +157,11 @@ func (c *client)run(){
 			}()
 			close(c.closeChan)
 			ticker.Stop()
+			ticker=nil
 			retryTicker.Stop()
+			retryTicker=nil
 			heartbeatTicker.Stop()
+			heartbeatTicker=nil
 			goto endfor
 
 		case <-ticker.C:

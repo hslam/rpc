@@ -143,6 +143,7 @@ func (c *Multiplex)run() {
 		case <-c.closeChan:
 			close(c.closeChan)
 			ticker.Stop()
+			ticker=nil
 			goto endfor
 		case <-ticker.C:
 			c.deleteOld()

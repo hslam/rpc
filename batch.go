@@ -67,6 +67,7 @@ func (b *Batch)run() {
 		case <-b.closeChan:
 			close(b.closeChan)
 			tick.Stop()
+			tick=nil
 			goto endfor
 		case <-tick.C:
 			func(){
