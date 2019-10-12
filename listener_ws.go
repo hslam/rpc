@@ -75,9 +75,9 @@ func (l *WSListener)Serve() (error) {
 	 return l.address
  }
 func ServeWSConn(server *Server,conn *websocket.Conn)error {
-	readChan := make(chan []byte)
-	writeChan := make(chan []byte)
-	finishChan:= make(chan bool,1)
+	readChan := make(chan []byte,1)
+	writeChan := make(chan []byte,1)
+	finishChan:= make(chan bool,2)
 	stopReadConnChan := make(chan bool,1)
 	stopWriteConnChan := make(chan bool,1)
 	stopChan := make(chan bool,1)

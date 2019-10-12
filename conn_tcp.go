@@ -44,9 +44,9 @@ func (t *TCPConn)Handle(readChan chan []byte,writeChan chan []byte, stopChan cha
 }
 
 func (t *TCPConn)handle(){
-	readChan:=make(chan []byte)
-	writeChan:=make(chan []byte)
-	finishChan:= make(chan bool)
+	readChan:=make(chan []byte,1)
+	writeChan:=make(chan []byte,1)
+	finishChan:= make(chan bool,2)
 	stopReadStreamChan := make(chan bool,1)
 	stopWriteStreamChan := make(chan bool,1)
 	go protocol.ReadStream(t.conn, readChan, stopReadStreamChan,finishChan)

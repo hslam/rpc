@@ -25,7 +25,10 @@ func ReadConn(reader io.Reader, readChan chan []byte, stopChan chan bool,finishC
 		}
 	}
 finish:
-	finishChan<-true
+	func() {
+		defer func() {if err := recover(); err != nil {}}()
+		finishChan<-true
+	}()
 endfor:
 }
 
@@ -46,7 +49,10 @@ func WriteConn(writer io.Writer, writeChan chan []byte, stopChan chan bool,finis
 		}
 	}
 finish:
-	finishChan<-true
+	func() {
+		defer func() {if err := recover(); err != nil {}}()
+		finishChan<-true
+	}()
 endfor:
 
 }

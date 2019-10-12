@@ -71,7 +71,10 @@ func ReadStream(reader io.Reader, readChan chan []byte, stopChan chan bool,finis
 		}
 	}
 finish:
-	finishChan<-true
+	func() {
+		defer func() {if err := recover(); err != nil {}}()
+		finishChan<-true
+	}()
 endfor:
 }
 
@@ -93,6 +96,9 @@ func WriteStream(writer io.Writer, writeChan chan []byte, stopChan chan bool,fin
 		}
 	}
 finish:
-	finishChan<-true
+	func() {
+		defer func() {if err := recover(); err != nil {}}()
+		finishChan<-true
+	}()
 endfor:
 }

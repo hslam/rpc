@@ -140,7 +140,10 @@ func ReadMessage(reader io.Reader, readMessageChan chan *Message, stopChan chan 
 		}
 	}
 finish:
-	finishChan<-true
+	func() {
+		defer func() {if err := recover(); err != nil {}}()
+		finishChan<-true
+	}()
 endfor:
 }
 
@@ -163,7 +166,10 @@ func WriteMessage(writer io.Writer, writeMessageChan chan *Message, stopChan cha
 		}
 	}
 finish:
-	finishChan<-true
+	func() {
+		defer func() {if err := recover(); err != nil {}}()
+		finishChan<-true
+	}()
 endfor:
 }
 
@@ -183,7 +189,7 @@ func HandleMessage(readWriter io.ReadWriter,readChan chan []byte,writeChan chan 
 	lastRTO:=rto.updateRTT(SmoothedRTT)
 	readMessageChan := make(chan *Message,WindowSize)
 	writeMessageChan := make(chan *Message,WindowSize)
-	finishMessageChan:=make(chan bool)
+	finishMessageChan:=make(chan bool,2)
 	stopReadMessageChan := make(chan bool,1)
 	stopWriteMessageChan := make(chan bool,1)
 	go ReadMessage(readWriter, readMessageChan, stopReadMessageChan,finishMessageChan)

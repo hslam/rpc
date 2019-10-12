@@ -57,9 +57,9 @@ func (l *TCPListener)Addr() (string) {
 	return l.address
 }
 func ServeTCPConn(server *Server,conn net.Conn)error {
-	readChan := make(chan []byte)
-	writeChan := make(chan []byte)
-	finishChan:= make(chan bool,1)
+	readChan := make(chan []byte,1)
+	writeChan := make(chan []byte,1)
+	finishChan:= make(chan bool,2)
 	stopReadStreamChan := make(chan bool,1)
 	stopWriteStreamChan := make(chan bool,1)
 	stopChan := make(chan bool,1)

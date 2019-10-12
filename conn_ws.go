@@ -41,9 +41,9 @@ func (t *WSConn)Handle(readChan chan []byte,writeChan chan []byte, stopChan chan
 	t.handle()
 }
 func (t *WSConn)handle(){
-	readChan:=make(chan []byte)
-	writeChan:=make(chan []byte)
-	finishChan:= make(chan bool,1)
+	readChan:=make(chan []byte,1)
+	writeChan:=make(chan []byte,1)
+	finishChan:= make(chan bool,2)
 	stopReadConnChan := make(chan bool,1)
 	stopWriteConnChan := make(chan bool,1)
 	go protocol.ReadConn(t.conn, readChan, stopReadConnChan,finishChan)

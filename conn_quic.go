@@ -44,9 +44,9 @@ func (t *QUICConn)Handle(readChan chan []byte,writeChan chan []byte, stopChan ch
 	t.handle()
 }
 func (t *QUICConn)handle(){
-	readChan:=make(chan []byte)
-	writeChan:=make(chan []byte)
-	finishChan:= make(chan bool,1)
+	readChan:=make(chan []byte,1)
+	writeChan:=make(chan []byte,1)
+	finishChan:= make(chan bool,2)
 	stopReadStreamChan := make(chan bool,1)
 	stopWriteStreamChan := make(chan bool,1)
 	go protocol.ReadStream(t.conn, readChan, stopReadStreamChan,finishChan)

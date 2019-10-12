@@ -37,8 +37,8 @@ func (t *UDPConn)Handle(readChan chan []byte,writeChan chan []byte, stopChan cha
 	t.handle()
 }
 func (t *UDPConn)handle(){
-	readChan:=make(chan []byte)
-	writeChan:=make(chan []byte)
+	readChan:=make(chan []byte,1)
+	writeChan:=make(chan []byte,1)
 	finishChan:=make(chan bool,1)
 	stopChan:=make(chan bool,1)
 	go protocol.HandleMessage(t.conn,readChan,writeChan,stopChan,finishChan)
