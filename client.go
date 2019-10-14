@@ -611,8 +611,8 @@ func (c *client)call(name string, args interface{}, reply interface{}) ( err err
 		}()
 		select {
 		case <-ch:
-		//case <-time.After(time.Millisecond * time.Duration(c.timeout)):
-		//	err=ErrTimeOut
+		case <-time.After(time.Millisecond * time.Duration(c.timeout)):
+			err=ErrTimeOut
 		}
 		return err
 	}
@@ -655,10 +655,10 @@ func (c *client)batchCall(name string, args interface{}, reply interface{}) ( er
 			if ok{
 				return err
 			}
-		//case <-time.After(time.Millisecond * time.Duration(c.timeout)):
-		//	close(cr.reply_bytes)
-		//	close(cr.reply_error)
-		//	return ErrTimeOut
+		case <-time.After(time.Millisecond * time.Duration(c.timeout)):
+			close(cr.reply_bytes)
+			close(cr.reply_error)
+			return ErrTimeOut
 		}
 		return nil
 	}
