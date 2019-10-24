@@ -26,9 +26,16 @@ func HandleSyncConn(syncConn SyncConn,recvChan chan []byte,sendChan chan []byte,
 			select {
 			case revmsg,ok := <-readMessageChan:
 				if ok{
-					if _,ok:= queueMsg.IsExisted(revmsg.id);ok{
-						queueMsg.SetValue(revmsg.id,revmsg)
-					}
+					func(){
+						defer func() {
+							if err := recover(); err != nil {
+								fmt.Println(err)
+							}
+						}()
+						if _,ok:= queueMsg.IsExisted(revmsg.id);ok{
+							queueMsg.SetValue(revmsg.id,revmsg)
+						}
+					}()
 				}else {
 					goto endfor
 				}

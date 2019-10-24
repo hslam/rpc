@@ -8,7 +8,6 @@ import (
 
 func Dials(total int,network,address,codec string)(*Pool,error){
 	p :=  &Pool{
-		connPool:make(ClientPool,total),
 		conns:make([]Client,total),
 	}
 	for i := 0;i<total;i++{
@@ -16,7 +15,6 @@ func Dials(total int,network,address,codec string)(*Pool,error){
 		if err != nil {
 			return nil,err
 		}
-		p.connPool <- conn
 		p.conns[i]=conn
 	}
 	return p,nil
@@ -24,7 +22,6 @@ func Dials(total int,network,address,codec string)(*Pool,error){
 
 func DialsWithMaxRequests(total int,network,address,codec string,max int)(*Pool,error){
 	p :=  &Pool{
-		connPool:make(ClientPool,total),
 		conns:make([]Client,total),
 	}
 	for i := 0;i<total;i++{
@@ -32,32 +29,34 @@ func DialsWithMaxRequests(total int,network,address,codec string,max int)(*Pool,
 		if err != nil {
 			return nil,err
 		}
-		p.connPool <- conn
 		p.conns[i]=conn
 	}
 	return p,nil
 }
 
-
-type ClientPool chan Client
-
 type Pool struct {
 	mu 				sync.Mutex
-	connPool 		ClientPool
 	conns   		[]Client
 	pool_id			int64
 }
 
-func (p *Pool)Get()Client{
+func (p *Pool)conn() (Client) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	c:=<-p.connPool
-	return c
+	if len(p.conns) < 1 {
+		return nil
+	}
+	conn := p.conns[0]
+	p.conns = append(p.conns[1:], conn)
+	return conn
 }
-func (p *Pool)Put(c Client){
+func (p *Pool)head() (Client) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.connPool<-c
+	if len(p.conns) < 1 {
+		return nil
+	}
+	return p.conns[0]
 }
 func (p *Pool)All()[]Client{
 	p.mu.Lock()
@@ -264,11 +263,7 @@ func (p *Pool)Call(name string, args interface{}, reply interface{}) ( err error
 			log.Errorln("Call failed:", err)
 		}
 	}()
-	c:=<-p.connPool
-	defer func(c Client) {
-		p.connPool<-c
-	}(c)
-	return c.Call(name,args,reply)
+	return p.conn().Call(name,args,reply)
 }
 func (p *Pool)CallNoRequest(name string, reply interface{}) ( err error) {
 	defer func() {
@@ -276,11 +271,7 @@ func (p *Pool)CallNoRequest(name string, reply interface{}) ( err error) {
 			log.Errorln("CallNoRequest failed:", err)
 		}
 	}()
-	c:=<-p.connPool
-	defer func(c Client) {
-		p.connPool<-c
-	}(c)
-	return c.CallNoRequest(name,reply)
+	return p.conn().CallNoRequest(name,reply)
 }
 func (p *Pool)CallNoResponse(name string, args interface{}) ( err error) {
 	defer func() {
@@ -288,11 +279,7 @@ func (p *Pool)CallNoResponse(name string, args interface{}) ( err error) {
 			log.Errorln("CallNoResponse failed:", err)
 		}
 	}()
-	c:=<-p.connPool
-	defer func(c Client) {
-		p.connPool<-c
-	}(c)
-	return c.CallNoResponse(name,args)
+	return p.conn().CallNoResponse(name,args)
 }
 func (p *Pool)OnlyCall(name string) ( err error) {
 	defer func() {
@@ -300,11 +287,7 @@ func (p *Pool)OnlyCall(name string) ( err error) {
 			log.Errorln("OnlyCall failed:", err)
 		}
 	}()
-	c:=<-p.connPool
-	defer func(c Client) {
-		p.connPool<-c
-	}(c)
-	return c.OnlyCall(name)
+	return p.conn().OnlyCall(name)
 }
 func (p *Pool)Ping() bool {
 	defer func() {
@@ -312,11 +295,7 @@ func (p *Pool)Ping() bool {
 			log.Errorln("Ping failed:", err)
 		}
 	}()
-	c:=<-p.connPool
-	defer func(c Client) {
-		p.connPool<-c
-	}(c)
-	return c.Ping()
+	return p.head().Ping()
 }
 func (p *Pool)DisableRetry() {
 	p.mu.Lock()
