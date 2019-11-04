@@ -1,8 +1,8 @@
 package main
 
 import (
-	"hslam.com/mgit/Mort/rpc"
-	"hslam.com/mgit/Mort/rpc/examples/benchmark/bytes/service"
+	"hslam.com/git/x/rpc"
+	"hslam.com/git/x/rpc/examples/benchmark/bytes/service"
 	_ "net/http/pprof"
 	"net/http"
 	"strconv"

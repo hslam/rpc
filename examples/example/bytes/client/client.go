@@ -1,7 +1,7 @@
 package main
 
 import (
-	"hslam.com/mgit/Mort/rpc"
+	"hslam.com/git/x/rpc"
 	_ "net/http/pprof"
 	"math/rand"
 	"net/http"

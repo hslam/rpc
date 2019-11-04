@@ -1,8 +1,8 @@
 package rpc
 import (
-	"hslam.com/mgit/Mort/rpc/protocol"
+	"hslam.com/git/x/rpc/protocol"
 	"github.com/gorilla/websocket"
-	"hslam.com/mgit/Mort/rpc/log"
+	"hslam.com/git/x/rpc/log"
 	"net/url"
 )
 

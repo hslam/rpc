@@ -1,8 +1,8 @@
 package main
 
 import (
-	"hslam.com/mgit/Mort/rpc"
-	"hslam.com/mgit/Mort/rpc/examples/example/xml/service"
+	"hslam.com/git/x/rpc"
+	"hslam.com/git/x/rpc/examples/example/xml/service"
 	_ "net/http/pprof"
 	"net/http"
 	"strconv"

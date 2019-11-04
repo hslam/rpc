@@ -3,7 +3,7 @@ package rpc
 import (
 	"sync"
 	"errors"
-	"hslam.com/mgit/Mort/rpc/log"
+	"hslam.com/git/x/rpc/log"
 )
 
 func Dials(total int,network,address,codec string)(*Pool,error){

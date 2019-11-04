@@ -1,9 +1,9 @@
 package main
 
 import (
-	"hslam.com/mgit/Mort/rpc/examples/benchmark/pb/service"
-	"hslam.com/mgit/Mort/rpc"
-	"hslam.com/mgit/Mort/stats"
+	"hslam.com/git/x/rpc/examples/benchmark/pb/service"
+	"hslam.com/git/x/rpc"
+	"hslam.com/git/x/stats"
 	"math/rand"
 	"strconv"
 	"runtime"

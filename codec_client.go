@@ -1,7 +1,7 @@
 package rpc
 
 import (
-	"hslam.com/mgit/Mort/rpc/log"
+	"hslam.com/git/x/rpc/log"
 )
 type ClientCodec struct{
 	client_id int64

@@ -1,8 +1,8 @@
 package main
 
 import (
-	"hslam.com/mgit/Mort/rpc/examples/helloworld/bytes/service"
-	"hslam.com/mgit/Mort/rpc"
+	"hslam.com/git/x/rpc/examples/helloworld/bytes/service"
+	"hslam.com/git/x/rpc"
 	"strconv"
 	"flag"
 )

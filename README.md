@@ -225,8 +225,8 @@ func (this *Arith) Divide(req *ArithRequest, res *ArithResponse) error {
 ```go
 package main
 import (
-	"hslam.com/mgit/Mort/rpc/examples/helloworld/pb/service"
-	"hslam.com/mgit/Mort/rpc"
+	"hslam.com/git/x/rpc/examples/helloworld/pb/service"
+	"hslam.com/git/x/rpc"
 	"strconv"
 	"flag"
 )
@@ -249,8 +249,8 @@ func main()  {
 ```go
 package main
 import (
-	"hslam.com/mgit/Mort/rpc/examples/helloworld/pb/service"
-	"hslam.com/mgit/Mort/rpc"
+	"hslam.com/git/x/rpc/examples/helloworld/pb/service"
+	"hslam.com/git/x/rpc"
 	"strconv"
 	"flag"
 	"log"
@@ -297,8 +297,8 @@ func main()  {
 ```go
 package main
 import (
-	"hslam.com/mgit/Mort/rpc/examples/helloworld/json/service"
-	"hslam.com/mgit/Mort/rpc"
+	"hslam.com/git/x/rpc/examples/helloworld/json/service"
+	"hslam.com/git/x/rpc"
 	"strconv"
 	"flag"
 )

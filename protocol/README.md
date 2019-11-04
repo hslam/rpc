@@ -2,7 +2,7 @@
 ```
 goos: darwin
 goarch: amd64
-pkg: hslam.com/mgit/Mort/rpc/protocol
+pkg: hslam.com/git/x/rpc/protocol
 BenchmarkRTO-4             	300000000	        11.6 ns/op	       0 B/op	       0 allocs/op
 BenchmarkUint16ToBytes-4   	5000000000	         0.78 ns/op	       0 B/op	       0 allocs/op
 BenchmarkBytesToUint16-4   	1000000000	         8.10 ns/op	       0 B/op	       0 allocs/op
@@ -17,5 +17,5 @@ BenchmarkUnpack1500-4      	30000000	       165 ns/op	       0 B/op	       0 all
 BenchmarkPacket65536-4     	  300000	     14084 ns/op	   73728 B/op	       1 allocs/op
 BenchmarkUnpack65536-4     	30000000	       150 ns/op	       0 B/op	       0 allocs/op
 PASS
-ok  	hslam.com/mgit/Mort/rpc/protocol	68.890s
+ok  	hslam.com/git/x/rpc/protocol	68.890s
 ```

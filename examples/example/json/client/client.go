@@ -1,8 +1,8 @@
 package main
 
 import (
-	"hslam.com/mgit/Mort/rpc/examples/example/json/service"
-	"hslam.com/mgit/Mort/rpc"
+	"hslam.com/git/x/rpc/examples/example/json/service"
+	"hslam.com/git/x/rpc"
 	_ "net/http/pprof"
 	"math/rand"
 	"net/http"

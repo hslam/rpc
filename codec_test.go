@@ -2,7 +2,7 @@ package rpc
 
 //import (
 //	"testing"
-//	// "hslam.com/mgit/Mort/rpc/pb"
+//	// "hslam.com/git/x/rpc/pb"
 //	//"github.com/golang/protobuf/proto"
 //)
 
@@ -36,8 +36,8 @@ package rpc
 //go test -v -run="none" -bench=. -benchtime=3s
 //goos: darwin
 //goarch: amd64
-//pkg: hslam.com/mgit/Mort/mrpc
+//pkg: hslam.com/git/x/mrpc
 //BenchmarkMe-4      	20000000	       175 ns/op
 //BenchmarkProto-4   	10000000	       405 ns/op
 //PASS
-//ok  	hslam.com/mgit/Mort/mrpc	8.205s
+//ok  	hslam.com/git/x/mrpc	8.205s

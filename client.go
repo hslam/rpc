@@ -1,10 +1,10 @@
 package rpc
 import (
 	"sync"
-	"hslam.com/mgit/Mort/idgenerator"
+	"hslam.com/git/x/idgenerator"
 	"time"
 	"math/rand"
-	"hslam.com/mgit/Mort/rpc/log"
+	"hslam.com/git/x/rpc/log"
 )
 type Client interface {
 	SetMaxRequests(max int)

@@ -2,7 +2,7 @@ package rpc
 
 import (
 	"errors"
-	"hslam.com/mgit/Mort/rpc/log"
+	"hslam.com/git/x/rpc/log"
 )
 
 type Listener interface {

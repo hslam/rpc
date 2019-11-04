@@ -1,8 +1,8 @@
 package rpc
 
 import (
-	"hslam.com/mgit/Mort/funcs"
-	"hslam.com/mgit/Mort/rpc/log"
+	"hslam.com/git/x/funcs"
+	"hslam.com/git/x/rpc/log"
 	"fmt"
 	"time"
 	"sync"

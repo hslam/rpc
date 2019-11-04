@@ -2,8 +2,8 @@ package rpc
 
 import (
 	"github.com/lucas-clemente/quic-go"
-	"hslam.com/mgit/Mort/rpc/protocol"
-	"hslam.com/mgit/Mort/rpc/log"
+	"hslam.com/git/x/rpc/protocol"
+	"hslam.com/git/x/rpc/log"
 )
 
 type QUICListener struct {

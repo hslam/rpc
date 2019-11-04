@@ -1,7 +1,7 @@
 package rpc
 import (
 	"github.com/valyala/fasthttp"
-	"hslam.com/mgit/Mort/rpc/protocol"
+	"hslam.com/git/x/rpc/protocol"
 	"net/url"
 )
 type FASTHTTPConn struct {

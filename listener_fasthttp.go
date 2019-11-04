@@ -3,7 +3,7 @@ package rpc
 import (
 	"github.com/valyala/fasthttp"
 	"github.com/buaazp/fasthttprouter"
-	"hslam.com/mgit/Mort/rpc/log"
+	"hslam.com/git/x/rpc/log"
 )
 
 type FASTHTTPListener struct {

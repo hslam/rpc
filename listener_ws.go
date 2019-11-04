@@ -4,8 +4,8 @@ import (
 	"net"
 	"net/http"
 	"github.com/gorilla/websocket"
-	"hslam.com/mgit/Mort/rpc/protocol"
-	"hslam.com/mgit/Mort/rpc/log"
+	"hslam.com/git/x/rpc/protocol"
+	"hslam.com/git/x/rpc/log"
 )
 var (
 	upgrader = websocket.Upgrader{

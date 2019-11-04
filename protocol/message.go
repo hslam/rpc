@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 	"math/rand"
-	"hslam.com/mgit/Mort/rpc/log"
+	"hslam.com/git/x/rpc/log"
 )
 
 type  OprationType byte

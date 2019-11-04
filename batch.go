@@ -2,8 +2,8 @@ package rpc
 import (
 	"sync"
 	"time"
-	"hslam.com/mgit/Mort/rpc/pb"
-	"hslam.com/mgit/Mort/rpc/log"
+	"hslam.com/git/x/rpc/pb"
+	"hslam.com/git/x/rpc/log"
 )
 
 type BatchRequestChan chan *BatchRequest
