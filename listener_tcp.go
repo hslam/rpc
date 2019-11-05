@@ -77,13 +77,13 @@ func ServeTCPConn(server *Server,conn net.Conn)error {
 						<-jobChan
 					}()
 					jobChan<-true
-					priority,id,body,err:=UnpackFrame(data)
+					priority,id,body,err:=protocol.UnpackFrame(data)
 					if err!=nil{
 						return
 					}
 					_,res_bytes, _ := server.ServeRPC(body)
 					if res_bytes!=nil{
-						frameBytes:=PacketFrame(priority,id,res_bytes)
+						frameBytes:=protocol.PacketFrame(priority,id,res_bytes)
 						writeChan <- frameBytes
 					}
 				}(data,writeChan)

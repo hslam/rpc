@@ -1,7 +1,6 @@
 package protocol
 
 import (
-	"fmt"
 )
 
 
@@ -19,7 +18,6 @@ func PacketFrame(priority uint8,id uint32,body []byte) []byte {
 
 func UnpackFrame(buffer []byte) (priority uint8,id uint32,body []byte,err error) {
 	if len(buffer)<FrameHeaderLength{
-		err=fmt.Errorf("buffer length %d",len(buffer))
 		return
 	}
 	priority=buffer[:1][0]
@@ -27,7 +25,6 @@ func UnpackFrame(buffer []byte) (priority uint8,id uint32,body []byte,err error)
 	body=buffer[FrameHeaderLength:]
 	return
 }
-
 
 type Frame struct {
 	priority	uint8

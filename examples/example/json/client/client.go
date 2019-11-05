@@ -12,6 +12,7 @@ import (
 	"time"
 	"log"
 	"fmt"
+	"sync"
 )
 
 var countchan chan int
@@ -39,8 +40,8 @@ func init()  {
 	flag.StringVar(&network, "network", "tcp", "network: -network=tcp|ws|fast|http|http2|quic|udp")
 	flag.StringVar(&codec, "codec", "json", "codec: -codec=pb|json|xml|bytes")
 	flag.StringVar(&compress, "compress", "no", "compress: -compress=no|flate|zlib|gzip")
-	flag.BoolVar(&debug, "debug", false, "debug: -debug=false")
-	flag.IntVar(&debug_port, "dp", 6060, "debug_port: -dp=6060")
+	flag.BoolVar(&debug, "debug", true, "debug: -debug=false")
+	flag.IntVar(&debug_port, "dp", 6061, "debug_port: -dp=6060")
 	flag.StringVar(&host, "h", "localhost", "host: -h=localhost")
 	flag.IntVar(&port, "p", 9999, "port: -p=9999")
 	flag.BoolVar(&log_once, "log_once", false, "log_once: -log_once=false")
@@ -125,13 +126,16 @@ func run(conn rpc.Client)  {
 	if log_once{
 		fmt.Println("parallel - ",parallel)
 	}
+	wg :=&sync.WaitGroup{}
 	for i:=0;i<parallel;i++{
-		go work(conn,countchan)
+		go work(conn,countchan,wg)
 	}
+	wg.Wait()
 	defer conn.Close()
-	select {}
 }
-func work(conn rpc.Client, countchan chan int) {
+func work(conn rpc.Client, countchan chan int,wg *sync.WaitGroup) {
+	wg.Add(1)
+	defer wg.Done()
 	start_time:=time.Now().UnixNano()
 	var err error
 	for{
@@ -139,11 +143,11 @@ func work(conn rpc.Client, countchan chan int) {
 		B:= rand.Int31n(1000)
 		req := &service.ArithRequest{A:A,B:B}
 		if noresponse{
-			err = conn.CallNoResponse("Arith.Multiply", req)
+			conn.CallNoResponse("Arith.Multiply", req)
 			countchan<-1
 		}else {
 			var res service.ArithResponse
-			err = conn.Call("Arith.Multiply", req, &res)
+			err=conn.Call("Arith.Multiply", req, &res)
 			if res.Pro==A*B{
 				countchan<-1
 			}else {
@@ -151,7 +155,7 @@ func work(conn rpc.Client, countchan chan int) {
 			}
 		}
 		if err != nil {
-			log.Fatalln("arith error: ", err)
+			fmt.Println("arith error: ", err)
 		}
 		if time.Now().UnixNano()-start_time>run_time_second*1000000000{
 			break

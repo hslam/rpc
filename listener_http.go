@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"hslam.com/git/x/rpc/log"
+	"hslam.com/git/x/rpc/protocol"
 	"net/http"
 	"io/ioutil"
 	"io"
@@ -77,13 +78,13 @@ func (h *Handler)ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func ServeHTTP(server *Server,w io.Writer,data []byte)error {
 	if server.multiplexing{
-		priority,id,body,err:=UnpackFrame(data)
+		priority,id,body,err:=protocol.UnpackFrame(data)
 		if err!=nil{
 			return err
 		}
 		_,res_bytes, _ := server.ServeRPC(body)
 		if res_bytes!=nil{
-			frameBytes:=PacketFrame(priority,id,res_bytes)
+			frameBytes:=protocol.PacketFrame(priority,id,res_bytes)
 			_,err:=w.Write(frameBytes)
 			return err
 		}

@@ -4,29 +4,9 @@ import (
 	"math/rand"
 	"time"
 	"sync"
+	"hslam.com/git/x/rpc/protocol"
 )
 
-const (
-	FrameHeaderLength		= 5
-)
-
-func PacketFrame(priority uint8,id uint32,body []byte) []byte {
-	var buffer=make([]byte,FrameHeaderLength+len(body))
-	copy(buffer[0:], []byte{priority})
-	copy(buffer[1:], uint32ToBytes(id))
-	copy(buffer[FrameHeaderLength:],body)
-	return buffer
-}
-
-func UnpackFrame(buffer []byte) (priority uint8,id uint32,body []byte,err error) {
-	if len(buffer)<FrameHeaderLength{
-		return
-	}
-	priority=buffer[:1][0]
-	id = bytesToUint32(buffer[1:FrameHeaderLength])
-	body=buffer[FrameHeaderLength:]
-	return
-}
 
 type Multiplex struct {
 	mu 					sync.RWMutex
@@ -100,7 +80,7 @@ func (c *Multiplex)run() {
 					}
 					c.idChan<-id
 					mr.id=id
-					frameBytes:=PacketFrame(mr.priority,id,mr.data)
+					frameBytes:=protocol.PacketFrame(mr.priority,id,mr.data)
 					c.writeChan<-frameBytes
 					if mr.noResponse==false{
 						if c.Length()<=c.maxRequests*2{
@@ -122,7 +102,7 @@ func (c *Multiplex)run() {
 			func(){
 				c.mu.Lock()
 				defer c.mu.Unlock()
-				_,ID,body,err:=UnpackFrame(b)
+				_,ID,body,err:=protocol.UnpackFrame(b)
 				if err!=nil{
 					return
 				}
@@ -161,10 +141,19 @@ func (m *Multiplex)deleteOld() {
 					if err := recover(); err != nil {
 					}
 				}()
-				if mr.startTime.Add(time.Millisecond*time.Duration(m.client.timeout)).Before(time.Now()){
-					m.Delete(mr.id)
-					if len(m.idChan)>0{
-						<-m.idChan
+				if m.client.timeout>0{
+					if mr.startTime.Add(time.Millisecond*time.Duration(m.client.timeout)).Before(time.Now()){
+						m.Delete(mr.id)
+						if len(m.idChan)>0{
+							<-m.idChan
+						}
+					}
+				}else {
+					if mr.startTime.Add(time.Minute*5).Before(time.Now()){
+						m.Delete(mr.id)
+						if len(m.idChan)>0{
+							<-m.idChan
+						}
 					}
 				}
 			}()
@@ -189,7 +178,7 @@ func (c *Multiplex)Retry() {
 		for i:=0;i<len(c.noResponseChan);i++{
 			mr:=<-c.noResponseChan
 			c.idChan<-mr.id
-			frameBytes:=PacketFrame(mr.priority,mr.id,mr.data)
+			frameBytes:=protocol.PacketFrame(mr.priority,mr.id,mr.data)
 			c.writeChan<-frameBytes
 			c.noResponseChan<-mr
 		}
@@ -202,7 +191,7 @@ func (c *Multiplex)Retry() {
 					}
 				}()
 				c.idChan<-mr.id
-				frameBytes:=PacketFrame(mr.priority,mr.id,mr.data)
+				frameBytes:=protocol.PacketFrame(mr.priority,mr.id,mr.data)
 				c.writeChan<-frameBytes
 			}()
 		}

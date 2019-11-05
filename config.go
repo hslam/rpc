@@ -45,7 +45,7 @@ const (
 	DefaultServerTimeout	=-1
 
 
-	DefaultClientTimeout	=60000
+	DefaultClientTimeout	=-1
 	DefaultClientHearbeatTimeout	=1000
 	DefaultClientHearbeatTicker=1000
 	DefaultClientRetryTicker=10000

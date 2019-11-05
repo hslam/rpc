@@ -79,13 +79,13 @@ func ServeQUICConn(server *Server,sess quic.Session)error {
 			case data := <-readChan:
 				go func(data []byte ,writeChan chan []byte) {
 					jobChan<-true
-					priority,id,body,err:=UnpackFrame(data)
+					priority,id,body,err:=protocol.UnpackFrame(data)
 					if err!=nil{
 						return
 					}
 					_,res_bytes, _ := server.ServeRPC(body)
 					if res_bytes!=nil{
-						frameBytes:=PacketFrame(priority,id,res_bytes)
+						frameBytes:=protocol.PacketFrame(priority,id,res_bytes)
 						writeChan <- frameBytes
 					}
 					<-jobChan

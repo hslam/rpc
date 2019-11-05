@@ -70,13 +70,13 @@ func (l *UDPListener)Addr() (string) {
 }
 func ServeUDPConn(server *Server,udp_msg *protocol.UDPMsg,writeChan chan *protocol.UDPMsg)error {
 	if server.multiplexing{
-		priority,id,body,err:=UnpackFrame(udp_msg.Data)
+		priority,id,body,err:=protocol.UnpackFrame(udp_msg.Data)
 		if err!=nil{
 			return ErrConnExit
 		}
 		ok,res_bytes, _ := server.ServeRPC(body)
 		if res_bytes!=nil{
-			frameBytes:=PacketFrame(priority,id,res_bytes)
+			frameBytes:=protocol.PacketFrame(priority,id,res_bytes)
 			writeChan <- &protocol.UDPMsg{udp_msg.ID,frameBytes,udp_msg.RemoteAddr}
 		}else if ok{
 			writeChan <- &protocol.UDPMsg{udp_msg.ID,nil,udp_msg.RemoteAddr}

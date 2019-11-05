@@ -151,6 +151,7 @@ func (b *Batch)Ticker(crs []*BatchRequest){
 						}
 					}
 				}
+				batch=nil
 			}
 		}else {
 			_=b.client.RemoteCallNoResponse(msg_bytes)

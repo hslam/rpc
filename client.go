@@ -599,24 +599,30 @@ func (c *client)call(name string, args interface{}, reply interface{}) ( err err
 		ch := make(chan int)
 		go func() {
 			var data []byte
-			data,err=c.RemoteCall(rpc_req_bytes)
+			data, err = c.RemoteCall(rpc_req_bytes)
 			if err != nil {
 				log.Errorln("Write error: ", err)
-				ch<-1
+				ch <- 1
 				return
 			}
-			clientCodec.reply=reply
-			err=clientCodec.Decode(data)
-			ch<-1
+			clientCodec.reply = reply
+			err = clientCodec.Decode(data)
+			ch <- 1
 		}()
-		select {
-		case <-ch:
-		case <-time.After(time.Millisecond * time.Duration(c.timeout)):
-			err=ErrTimeOut
+		if c.timeout > 0 {
+			select {
+			case <-ch:
+			case <-time.After(time.Millisecond * time.Duration(c.timeout)):
+				err = ErrTimeOut
+			}
+			return err
+		} else {
+			select {
+			case <-ch:
+			}
+			return nil
 		}
-		return err
 	}
-
 }
 func (c *client)batchCall(name string, args interface{}, reply interface{}) ( err error) {
 	cr:=&BatchRequest{
@@ -646,21 +652,34 @@ func (c *client)batchCall(name string, args interface{}, reply interface{}) ( er
 	if cr.noResponse{
 		return nil
 	}else{
-		select {
-		case bytes ,ok:= <- cr.reply_bytes:
-			if ok{
-				return ReplyDecode(bytes,reply,c.funcsCodecType)
+		if c.timeout>0{
+			select {
+			case bytes ,ok:= <- cr.reply_bytes:
+				if ok{
+					return ReplyDecode(bytes,reply,c.funcsCodecType)
+				}
+			case err ,ok:= <- cr.reply_error:
+				if ok{
+					return err
+				}
+			case <-time.After(time.Millisecond * time.Duration(c.timeout)):
+				close(cr.reply_bytes)
+				close(cr.reply_error)
+				return ErrTimeOut
 			}
-		case err ,ok:= <- cr.reply_error:
-			if ok{
-				return err
+			return nil
+		}else {
+			select {
+			case bytes ,ok:= <- cr.reply_bytes:
+				if ok{
+					return ReplyDecode(bytes,reply,c.funcsCodecType)
+				}
+			case err ,ok:= <- cr.reply_error:
+				if ok{
+					return err
+				}
 			}
-		case <-time.After(time.Millisecond * time.Duration(c.timeout)):
-			close(cr.reply_bytes)
-			close(cr.reply_error)
-			return ErrTimeOut
+			return nil
 		}
-		return nil
 	}
-
 }
