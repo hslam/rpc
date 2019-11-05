@@ -74,7 +74,7 @@ func main()  {
 		if batch_async{pool.EnableBatchAsync()}
 		if multiplexing{pool.EnableMultiplexing()}
 		for i:=0;i<clients;i++{
-			go run(pool.Get())
+			go run(pool.All()[i])
 		}
 
 	}else if clients==1 {
