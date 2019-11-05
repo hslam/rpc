@@ -4,7 +4,7 @@
 * Pipelining async/sync
 * Multiplexing
 ## Client Feature
-* Network tcp/ws/fast/http/http2/quic/udp
+* Network tcp/ws/http/http2/quic/udp
 * Codec json/protobuf/xml
 * Compress flate/zlib/gzip/no
 * Pipelining
