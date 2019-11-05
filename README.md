@@ -1,18 +1,18 @@
 # rpc
 
-## server feature
-* pipelining async/sync
-* multiplexing
-## client feature
-* network tcp/ws/fast/http/http2/quic/udp
-* codec json/protobuf/xml
-* compress flate/zlib/gzip/no
-* pipelining
-* multiplexing
-* batch async/sync
-* call/callnorequest/callnoresponse/onlycall
-* protocal stream/message/frame/conn
-* pool
+## Server Feature
+* Pipelining async/sync
+* Multiplexing
+## Client Feature
+* Network tcp/ws/fast/http/http2/quic/udp
+* Codec json/protobuf/xml
+* Compress flate/zlib/gzip/no
+* Pipelining
+* Multiplexing
+* Batch async/sync
+* Call/CallNoRequest/CallNoResponse/OnlyCall
+* Protocal stream/message/frame/conn
+* Pool
 
 ## example benchmark
 ### ENV
