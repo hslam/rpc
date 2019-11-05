@@ -16,7 +16,7 @@ var port int
 var addr string
 
 func init()  {
-	flag.StringVar(&network, "network", "tcp", "network: -network=tcp|ws|fast|http|http2|quic|udp")
+	flag.StringVar(&network, "network", "tcp", "network: -network=tcp|ws|http|http2|quic|udp")
 	flag.StringVar(&codec, "codec", "xml", "codec: -codec=pb|json|xml|bytes")
 	flag.StringVar(&host, "h", "localhost", "host: -h=localhost")
 	flag.IntVar(&port, "p", 9999, "port: -p=9999")

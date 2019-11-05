@@ -17,7 +17,6 @@ const (
 	UDP						= "udp"
 	QUIC  					= "quic"
 	WS   					= "ws"
-	FASTHTTP   				= "fast"
 	HTTP   					= "http"
 	HTTP2   				= "http2"
 

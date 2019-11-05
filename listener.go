@@ -22,8 +22,6 @@ func Listen(network,address string,server *Server) (Listener, error) {
 		return ListenQUIC(address,server)
 	case WS:
 		return ListenWS(address,server)
-	case FASTHTTP:
-		return ListenFASTHTTP(address,server)
 	case HTTP:
 		return ListenHTTP(address,server)
 	case HTTP2:

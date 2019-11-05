@@ -24,8 +24,6 @@ func dial(network,address string) (Conn, error) {
 		return DialQUIC(address)
 	case WS:
 		return DialWS(address)
-	case FASTHTTP:
-		return DialFASTHTTP(address)
 	case HTTP:
 		return DialHTTP(address)
 	case HTTP2:
