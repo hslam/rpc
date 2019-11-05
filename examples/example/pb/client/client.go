@@ -49,7 +49,7 @@ func init()  {
 	flag.BoolVar(&batch, "batch", true, "batch: -batch=false")
 	flag.BoolVar(&batch_async, "batch_async", true, "batch_async: -batch_async=false")
 	flag.BoolVar(&multiplexing, "multiplexing", true, "multiplexing: -multiplexing=false")
-	flag.BoolVar(&noresponse, "noresponse", true, "noresponse: -noresponse=false")
+	flag.BoolVar(&noresponse, "noresponse", false, "noresponse: -noresponse=false")
 	flag.IntVar(&clients, "clients", 1, "num: -clients=1")
 	log.SetFlags(0)
 	flag.Parse()

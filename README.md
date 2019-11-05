@@ -24,41 +24,62 @@ Mac 4 CPU 8 GiB
 
 ./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=1
 ```
-==========================BENCHMARK==========================
-Used Connections:			1
-Concurrent Calls Per Connection:	512
-Total Number Of Calls:			1000001
+Summary:
+	Conns:	1
+	Parallels:	512
+	Total Calls:	1000000
+	Total time:	5.14s
+	Requests per second:	194445.05
+	Fastest time for request:	0.66ms
+	Average time per request:	2.63ms
+	Slowest time for request:	18.49ms
 
-===========================TIMINGS===========================
-Total time passed:			5.67s
-Avg time per request:			2.90ms
-Requests per second:			176233.27
-Median time per request:		2.52ms
-99th percentile time:			11.44ms
-Slowest time for request:		31.00ms
+Time:
+	0.1%	time for request:	0.85ms
+	1%	time for request:	1.21ms
+	5%	time for request:	1.38ms
+	10%	time for request:	1.49ms
+	25%	time for request:	1.99ms
+	50%	time for request:	2.36ms
+	75%	time for request:	3.05ms
+	90%	time for request:	3.82ms
+	95%	time for request:	4.60ms
+	99%	time for request:	6.99ms
+	99.9%	time for request:	11.20ms
 
-==========================RESPONSES==========================
-ResponseOk:				1000001 (100.00%)
-Errors:					0 (0.00%)
+Result:
+	ResponseOk:	1000000 (100.00%)
+	Errors:	0 (0.00%)
 ```
-./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=8
+./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=2
 ```
-==========================BENCHMARK==========================
-Used Connections:			8
-Concurrent Calls Per Connection:	512
-Total Number Of Calls:			1000000
+Summary:
+	Conns:	2
+	Parallels:	512
+	Total Calls:	1000000
+	Total time:	3.34s
+	Requests per second:	299385.87
+	Fastest time for request:	0.46ms
+	Average time per request:	3.41ms
+	Slowest time for request:	20.43ms
 
-===========================TIMINGS===========================
-Total time passed:			3.69s
-Avg time per request:			14.93ms
-Requests per second:			270968.64
-Median time per request:		11.66ms
-99th percentile time:			93.65ms
-Slowest time for request:		214.00ms
+Time:
+	0.1%	time for request:	0.88ms
+	1%	time for request:	1.21ms
+	5%	time for request:	1.53ms
+	10%	time for request:	1.85ms
+	25%	time for request:	2.62ms
+	50%	time for request:	3.22ms
+	75%	time for request:	3.92ms
+	90%	time for request:	4.85ms
+	95%	time for request:	6.02ms
+	99%	time for request:	8.97ms
+	99.9%	time for request:	13.53ms
 
-==========================RESPONSES==========================
-ResponseOk:				1000000 (100.00%)
-Errors:					0 (0.00%)
+Result:
+	ResponseOk:	1000000 (100.00%)
+	Errors:	0 (0.00%)
+
 ```
 
 ### def

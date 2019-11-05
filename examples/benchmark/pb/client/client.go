@@ -39,7 +39,7 @@ func init()  {
 	flag.BoolVar(&pipelining, "pipelining", false, "pipelining: -pipelining=false")
 	flag.BoolVar(&multiplexing, "multiplexing", true, "pipelining: -pipelining=false")
 	flag.BoolVar(&noresponse, "noresponse", false, "noresponse: -noresponse=false")
-	flag.IntVar(&clients, "clients", 1, "num: -clients=1")
+	flag.IntVar(&clients, "clients", 2, "num: -clients=1")
 	flag.BoolVar(&bar, "bar", false, "bar: -bar=true")
 	log.SetFlags(0)
 	flag.Parse()

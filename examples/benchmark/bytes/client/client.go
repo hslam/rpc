@@ -36,7 +36,7 @@ func init()  {
 	flag.StringVar(&compress, "compress", "no", "compress: -compress=no|flate|zlib|gzip")
 	flag.StringVar(&host, "h", "127.0.0.1", "host: -h=127.0.0.1")
 	flag.IntVar(&port, "p", 9999, "port: -p=9999")
-	flag.IntVar(&total_calls, "total", 10000000, "total_calls: -total=10000")
+	flag.IntVar(&total_calls, "total", 1000000, "total_calls: -total=10000")
 	flag.BoolVar(&batch, "batch", true, "batch: -batch=false")
 	flag.BoolVar(&batch_async, "batch_async", true, "batch_async: -batch_async=false")
 	flag.BoolVar(&pipelining, "pipelining", false, "pipelining: -pipelining=false")
