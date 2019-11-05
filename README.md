@@ -81,6 +81,36 @@ Result:
 	Errors:	0 (0.00%)
 
 ```
+./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false multiplexing=true -batch=true -batch_async=false -noresponse=true -clients=1
+```
+Summary:
+	Conns:	1
+	Parallels:	512
+	Total Calls:	1000000
+	Total time:	1.99s
+	Requests per second:	503315.84
+	Fastest time for request:	0.00ms
+	Average time per request:	1.01ms
+	Slowest time for request:	29.70ms
+
+Time:
+	0.1%	time for request:	0.00ms
+	1%	time for request:	0.00ms
+	5%	time for request:	0.00ms
+	10%	time for request:	0.00ms
+	25%	time for request:	0.00ms
+	50%	time for request:	0.00ms
+	75%	time for request:	0.81ms
+	90%	time for request:	3.78ms
+	95%	time for request:	5.98ms
+	99%	time for request:	9.80ms
+	99.9%	time for request:	17.37ms
+
+Result:
+	ResponseOk:	1000000 (100.00%)
+	Errors:	0 (0.00%)
+```
+
 
 ### def
 ```
