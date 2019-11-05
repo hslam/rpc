@@ -28,7 +28,7 @@ func NewMultiplex(c *client,maxRequests int,readChan  chan []byte,writeChan  cha
 		requestChan:make(chan *IORequest,maxRequests),
 		cache:make(map[uint32]*IORequest,maxRequests*2),
 		noResponseChan:make(chan *IORequest,maxRequests*2),
-		idChan:make(chan uint32,maxRequests*2),
+		idChan:make(chan uint32,maxRequests),
 		readChan :readChan,
 		writeChan :writeChan,
 		maxRequests:maxRequests,
@@ -78,14 +78,12 @@ func (c *Multiplex)run() {
 							break
 						}
 					}
-					c.idChan<-id
 					mr.id=id
 					frameBytes:=protocol.PacketFrame(mr.priority,id,mr.data)
 					c.writeChan<-frameBytes
 					if mr.noResponse==false{
-						if c.Length()<=c.maxRequests*2{
-							c.Set(id,mr)
-						}
+						c.idChan<-id
+						c.Set(id,mr)
 					}else {
 						if len(c.noResponseChan)>=c.maxRequests{
 							<-c.noResponseChan

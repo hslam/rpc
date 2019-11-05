@@ -147,7 +147,6 @@ func (b *Batch)Ticker(crs []*BatchRequest){
 									v.reply_bytes<-res.data
 								}
 							}()
-
 						}
 					}
 				}
