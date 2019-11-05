@@ -13,6 +13,7 @@ import (
 	"log"
 	"fmt"
 	"bytes"
+	"sync"
 )
 
 var countchan chan int
@@ -133,13 +134,16 @@ func run(conn rpc.Client)  {
 	if log_once{
 		fmt.Println("parallel - ",parallel)
 	}
+	wg :=&sync.WaitGroup{}
 	for i:=0;i<parallel;i++{
-		go work(conn,countchan)
+		go work(conn,countchan,wg)
 	}
+	wg.Wait()
 	defer conn.Close()
-	select {}
 }
-func work(conn rpc.Client, countchan chan int) {
+func work(conn rpc.Client, countchan chan int,wg *sync.WaitGroup) {
+	wg.Add(1)
+	defer wg.Done()
 	start_time:=time.Now().UnixNano()
 	var err error
 	len:=10

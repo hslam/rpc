@@ -94,7 +94,7 @@ func main()  {
 		time.Sleep(time.Second)
 		fmt.Println(i,count/i,count)
 	}
-	time.Sleep(time.Hour*3)
+	time.Sleep(time.Second*3)
 	fmt.Println(count/int(run_time_second),int(run_time_second*1000000000)/count)
 }
 func run(conn rpc.Client)  {
