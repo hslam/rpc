@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"sync"
-	"errors"
 	"hslam.com/git/x/rpc/log"
 )
 
@@ -303,12 +302,6 @@ func (p *Pool)DisableRetry() {
 	for _,c:= range p.conns{
 		c.DisableRetry()
 	}
-}
-func (p *Pool)RemoteCall(b []byte)([]byte,error){
-	return nil, errors.New("not suportted")
-}
-func (p *Pool)RemoteCallNoResponse(b []byte)(error){
-	return errors.New("not suportted")
 }
 func (p *Pool)Close() ( err error) {
 	for _,c:= range p.conns{
