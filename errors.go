@@ -18,4 +18,5 @@ var (
 	ErrTimeOut=errors.New("time out")
 	ErrReqId=errors.New("req_id err")
 	ErrClientId=errors.New("client_id err")
+	ErrShutdown = errors.New("connection is shut down")
 )
