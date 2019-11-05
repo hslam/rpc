@@ -30,6 +30,7 @@ type Client interface {
 	GetMaxErrHeartbeat()int
 	CodecName()string
 	CodecType()CodecType
+	Go(name string, args interface{}, reply interface{}, done chan *Call) *Call
 	Call(name string, args interface{}, reply interface{}) ( err error)
 	CallNoRequest(name string, reply interface{}) ( err error)
 	CallNoResponse(name string, args interface{}) ( err error)

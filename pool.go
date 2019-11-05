@@ -256,6 +256,14 @@ func (p *Pool)CodecType()CodecType {
 	}
 	return FUNCS_CODEC_INVALID
 }
+func (p *Pool)Go(name string, args interface{}, reply interface{}, done chan *Call) *Call{
+	defer func() {
+		if err := recover(); err != nil {
+			log.Errorln("Go failed:", err)
+		}
+	}()
+	return p.conn().Go(name,args,reply,done)
+}
 func (p *Pool)Call(name string, args interface{}, reply interface{}) ( err error) {
 	defer func() {
 		if err := recover(); err != nil {
