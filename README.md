@@ -1,70 +1,18 @@
 # rpc
 
 ## server feature
-#### pipelining
-```
-async
-sync
-```
-#### multiplexing
-
-#### worker pool
-
+* pipelining async/sync
+* multiplexing
 ## client feature
-#### network
-```
-tcp
-ws
-fast
-http
-http2
-quic
-udp
-```
-
-#### codec
-```
-json
-protobuf
-xml
-```
-
-#### compress
-```
-flate
-zlib
-gzip
-no
-```
-
-#### pipelining
-
-#### multiplexing
-
-#### batch
-```
-async
-sync
-```
-
-#### call
-```
-call
-callnorequest
-callnoresponse
-onlycall
-```
-
-
-#### protocal
-```
-stream
-message
-frame
-conn
-```
-
-#### pool
+* network tcp/ws/fast/http/http2/quic/udp
+* codec json/protobuf/xml
+* compress flate/zlib/gzip/no
+* pipelining
+* multiplexing
+* batch async/sync
+* call/callnorequest/callnoresponse/onlycall
+* protocal stream/message/frame/conn
+* pool
 
 ## example benchmark
 ### ENV
