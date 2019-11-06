@@ -38,13 +38,13 @@ func init()  {
 	flag.BoolVar(&batch_async, "batch_async", false, "batch_async: -batch_async=false")
 	flag.BoolVar(&pipelining, "pipelining", false, "pipelining: -pipelining=false")
 	flag.BoolVar(&multiplexing, "multiplexing", true, "pipelining: -pipelining=false")
-	flag.BoolVar(&noresponse, "noresponse", true, "noresponse: -noresponse=false")
+	flag.BoolVar(&noresponse, "noresponse", false, "noresponse: -noresponse=false")
 	flag.IntVar(&clients, "clients", 1, "num: -clients=1")
 	flag.BoolVar(&bar, "bar", false, "bar: -bar=true")
 	log.SetFlags(0)
 	flag.Parse()
 	addr=host+":"+strconv.Itoa(port)
-	stats.SetLog(bar)
+	stats.SetBar(bar)
 }
 
 func main()  {

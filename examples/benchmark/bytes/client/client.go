@@ -49,7 +49,7 @@ func init()  {
 	log.SetFlags(0)
 	flag.Parse()
 	addr=host+":"+strconv.Itoa(port)
-	stats.SetLog(bar)
+	stats.SetBar(bar)
 }
 
 func main()  {
