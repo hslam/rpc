@@ -42,15 +42,6 @@ go tool pprof -alloc_space -cum -svg http://127.0.0.1:6060/debug/pprof/heap > mr
 go-torch -u http://localhost:6060/debug/pprof/ -p > mrpc-ws-pb-32-profile-framegraph.svg
 go-torch -u http://localhost:6060/debug/pprof/heap -p > mrpc-ws-pb-32-heap-framegraph.svg
 go tool pprof -alloc_space -cum -svg http://127.0.0.1:6060/debug/pprof/heap > mrpc-ws-pb-32-heap.svg
-
-
-go-torch -u http://localhost:6060/debug/pprof/ -p > mrpc-fast-pb-1-profile-framegraph.svg
-go-torch -u http://localhost:6060/debug/pprof/heap -p > mrpc-fast-pb-1-heap-framegraph.svg
-go tool pprof -alloc_space -cum -svg http://127.0.0.1:6060/debug/pprof/heap > mrpc-fast-pb-1-heap.svg
-
-go-torch -u http://localhost:6060/debug/pprof/ -p > mrpc-fast-pb-32-profile-framegraph.svg
-go-torch -u http://localhost:6060/debug/pprof/heap -p > mrpc-fast-pb-32-heap-framegraph.svg
-go tool pprof -alloc_space -cum -svg http://127.0.0.1:6060/debug/pprof/heap > mrpc-fast-pb-32-heap.svg
 ```
 
 
