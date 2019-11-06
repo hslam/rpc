@@ -7,6 +7,7 @@ enum MsgType{
      res = 1;
      hea = 2;
 }
+
 enum CodecType{
      invalid    = 0;
      json       = 1;
@@ -15,12 +16,14 @@ enum CodecType{
      gob        = 4;
      bytes      = 5;
 }
+
 enum CompressType{
      nocom = 0;
      flate = 1;
      zlib = 2;
      gzip = 3;
 }
+
 enum CompressLevel{
      noCompression = 0;
      bestSpeed = 1;
