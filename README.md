@@ -25,73 +25,72 @@ Mac 4 CPU 8 GiB
 ./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=1
 ```
 Summary:
-	Conns:	1
-	Parallels:	512
-	Total Calls:	1000000
-	Total time:	5.14s
-	Requests per second:	194445.05
-	Fastest time for request:	0.66ms
-	Average time per request:	2.63ms
-	Slowest time for request:	18.49ms
-
-Time:
-	0.1%	time for request:	0.85ms
-	1%	time for request:	1.21ms
-	5%	time for request:	1.38ms
-	10%	time for request:	1.49ms
-	25%	time for request:	1.99ms
-	50%	time for request:	2.36ms
-	75%	time for request:	3.05ms
-	90%	time for request:	3.82ms
-	95%	time for request:	4.60ms
-	99%	time for request:	6.99ms
-	99.9%	time for request:	11.20ms
-
-Result:
-	ResponseOk:	1000000 (100.00%)
-	Errors:	0 (0.00%)
-```
-./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=2
-```
-Summary:
-	Conns:	2
-	Parallels:	512
-	Total Calls:	1000000
-	Total time:	3.34s
-	Requests per second:	299385.87
-	Fastest time for request:	0.46ms
-	Average time per request:	3.41ms
-	Slowest time for request:	20.43ms
+	Clients:	1
+	Parallel calls per client:	512
+	Total calls:	1000000
+	Total time:	5.13s
+	Requests per second:	194881.33
+	Fastest time for request:	0.69ms
+	Average time per request:	2.62ms
+	Slowest time for request:	15.55ms
 
 Time:
 	0.1%	time for request:	0.88ms
-	1%	time for request:	1.21ms
-	5%	time for request:	1.53ms
-	10%	time for request:	1.85ms
-	25%	time for request:	2.62ms
-	50%	time for request:	3.22ms
-	75%	time for request:	3.92ms
-	90%	time for request:	4.85ms
-	95%	time for request:	6.02ms
-	99%	time for request:	8.97ms
-	99.9%	time for request:	13.53ms
+	1%	time for request:	1.24ms
+	5%	time for request:	1.39ms
+	10%	time for request:	1.49ms
+	25%	time for request:	1.95ms
+	50%	time for request:	2.31ms
+	75%	time for request:	2.98ms
+	90%	time for request:	3.71ms
+	95%	time for request:	4.78ms
+	99%	time for request:	8.03ms
+	99.9%	time for request:	12.51ms
 
 Result:
-	ResponseOk:	1000000 (100.00%)
+	Response ok:	1000000 (100.00%)
 	Errors:	0 (0.00%)
+```
+./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=8
+```
+Summary:
+	Clients:	8
+	Parallel calls per client:	512
+	Total calls:	1000000
+	Total time:	3.27s
+	Requests per second:	306081.85
+	Fastest time for request:	0.86ms
+	Average time per request:	13.28ms
+	Slowest time for request:	97.11ms
 
+Time:
+	0.1%	time for request:	1.72ms
+	1%	time for request:	3.36ms
+	5%	time for request:	5.75ms
+	10%	time for request:	6.84ms
+	25%	time for request:	8.66ms
+	50%	time for request:	11.37ms
+	75%	time for request:	15.59ms
+	90%	time for request:	22.68ms
+	95%	time for request:	27.97ms
+	99%	time for request:	40.22ms
+	99.9%	time for request:	58.74ms
+
+Result:
+	Response ok:	1000000 (100.00%)
+	Errors:	0 (0.00%)
 ```
 ./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false multiplexing=true -batch=true -batch_async=false -noresponse=true -clients=1
 ```
 Summary:
-	Conns:	1
-	Parallels:	512
-	Total Calls:	1000000
-	Total time:	1.99s
-	Requests per second:	503315.84
+	Clients:	1
+	Parallel calls per client:	512
+	Total calls:	1000000
+	Total time:	1.92s
+	Requests per second:	521845.22
 	Fastest time for request:	0.00ms
-	Average time per request:	1.01ms
-	Slowest time for request:	29.70ms
+	Average time per request:	0.98ms
+	Slowest time for request:	30.47ms
 
 Time:
 	0.1%	time for request:	0.00ms
@@ -100,15 +99,16 @@ Time:
 	10%	time for request:	0.00ms
 	25%	time for request:	0.00ms
 	50%	time for request:	0.00ms
-	75%	time for request:	0.81ms
-	90%	time for request:	3.78ms
-	95%	time for request:	5.98ms
-	99%	time for request:	9.80ms
-	99.9%	time for request:	17.37ms
+	75%	time for request:	0.78ms
+	90%	time for request:	3.71ms
+	95%	time for request:	5.89ms
+	99%	time for request:	9.15ms
+	99.9%	time for request:	15.02ms
 
 Result:
-	ResponseOk:	1000000 (100.00%)
+	Response ok:	1000000 (100.00%)
 	Errors:	0 (0.00%)
+
 ```
 
 
