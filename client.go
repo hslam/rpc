@@ -580,6 +580,7 @@ func (c *client)Closed()bool{
 }
 
 func (c *client)heartbeat() ( err error) {
+	return nil
 	uid:=c.idgenerator.GenUniqueIDInt64()
 	msg:=&Msg{}
 	msg.id=uid
