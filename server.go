@@ -117,22 +117,22 @@ func (s *Server)ServeRPC(b []byte) (bool,[]byte,error) {
 		batchCodec:=&BatchCodec{}
 		batchCodec.Decode(msg.data)
 		res_bytes_s:=make([][]byte,len(batchCodec.data))
-		NoResponseCnt:=0
+		NoResponseCnt:=&Count{}
 		if s.async||batchCodec.async{
 			waitGroup :=sync.WaitGroup{}
 			for i,v:=range batchCodec.data{
 				waitGroup.Add(1)
-				go func(i int,v []byte,msg Msg,res_bytes_s[][]byte,NoResponseCnt *int,waitGroup *sync.WaitGroup) {
+				go func(i int,v []byte,msg Msg,res_bytes_s[][]byte,NoResponseCnt *Count,waitGroup *sync.WaitGroup) {
 					defer waitGroup.Done()
 					msg.data=v
 					res_bytes,nr:=s.Handler(&msg)
 					if nr==true{
-						*NoResponseCnt++
+						NoResponseCnt.add(1)
 						res_bytes_s[i]=[]byte("")
 					}else {
 						res_bytes_s[i]=res_bytes
 					}
-				}(i,v,*msg,res_bytes_s,&NoResponseCnt,&waitGroup)
+				}(i,v,*msg,res_bytes_s,NoResponseCnt,&waitGroup)
 			}
 			waitGroup.Wait()
 		}else {
@@ -140,14 +140,14 @@ func (s *Server)ServeRPC(b []byte) (bool,[]byte,error) {
 				msg.data=v
 				res_bytes,nr:=s.Handler(msg)
 				if nr==true{
-					NoResponseCnt++
+					NoResponseCnt.add(1)
 					res_bytes_s[i]=[]byte("")
 				}else {
 					res_bytes_s[i]=res_bytes
 				}
 			}
 		}
-		if NoResponseCnt==len(batchCodec.data){
+		if NoResponseCnt.load()==int64(len(batchCodec.data)){
 			noResponse=true
 		}else {
 			batchCodec:=&BatchCodec{data:res_bytes_s}
