@@ -1,31 +1,12 @@
 package main
-
 import (
 	"hslam.com/git/x/rpc/examples/helloworld/xml/service"
 	"hslam.com/git/x/rpc"
-	"strconv"
-	"flag"
 	"log"
 	"fmt"
 )
-
-var network string
-var codec string
-var host string
-var port int
-var addr string
-
-func init()  {
-	flag.StringVar(&network, "network", "tcp", "network: -network=tcp|ws|http|http2|quic|udp")
-	flag.StringVar(&codec, "codec", "xml", "codec: -codec=pb|json|xml|bytes")
-	flag.StringVar(&host, "h", "localhost", "host: -h=localhost")
-	flag.IntVar(&port, "p", 9999, "port: -p=9999")
-	flag.Parse()
-	addr=host+":"+strconv.Itoa(port)
-}
-
 func main()  {
-	conn, err:= rpc.Dial(network,addr,codec)
+	conn, err:= rpc.Dial("tcp","127.0.0.1:9999","xml")//tcp|ws|http|http2|quic|udp
 	if err != nil {
 		log.Fatalln("dailing error: ", err)
 	}

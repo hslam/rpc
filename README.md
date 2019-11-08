@@ -194,21 +194,10 @@ package main
 import (
 	"hslam.com/git/x/rpc/examples/helloworld/pb/service"
 	"hslam.com/git/x/rpc"
-	"strconv"
-	"flag"
 )
-var network string
-var port int
-var saddr string
-func init()  {
-	flag.StringVar(&network, "network", "tcp", "network: -network=tcp|ws|http|http2|quic|udp")
-	flag.IntVar(&port, "p", 9999, "port: -p=9999")
-	flag.Parse()
-	saddr = ":"+strconv.Itoa(port)
-}
 func main()  {
 	rpc.Register(new(service.Arith))
-	rpc. (network,saddr)
+	rpc.ListenAndServe("tcp",":9999")//tcp|ws|http|http2|quic|udp
 }
 ```
 
@@ -218,26 +207,11 @@ package main
 import (
 	"hslam.com/git/x/rpc/examples/helloworld/pb/service"
 	"hslam.com/git/x/rpc"
-	"strconv"
-	"flag"
-	"log"
 	"fmt"
+	"log"
 )
-var network string
-var codec string
-var host string
-var port int
-var addr string
-func init()  {
-	flag.StringVar(&network, "network", "tcp", "network: -network=tcp|ws|http|http2|quic|udp")
-	flag.StringVar(&codec, "codec", "pb", "codec: -codec=pb|json|xml|bytes")
-	flag.StringVar(&host, "h", "localhost", "host: -h=localhost")
-	flag.IntVar(&port, "p", 9999, "port: -p=9999")
-	flag.Parse()
-	addr=host+":"+strconv.Itoa(port)
-}
 func main()  {
-	conn, err:= rpc.Dial(network,addr,codec)
+	conn, err:= rpc.Dial("tcp","127.0.0.1:9999","pb")//tcp|ws|http|http2|quic|udp
 	if err != nil {
 		log.Fatalln("dailing error: ", err)
 	}
@@ -249,7 +223,6 @@ func main()  {
 		log.Fatalln("arith error: ", err)
 	}
 	fmt.Printf("%d * %d = %d\n", req.A, req.B, res.Pro)
-
 	err = conn.Call("Arith.Divide", req, &res)
 	if err != nil {
 		log.Fatalln("arith error: ", err)
@@ -266,21 +239,10 @@ package main
 import (
 	"hslam.com/git/x/rpc/examples/helloworld/json/service"
 	"hslam.com/git/x/rpc"
-	"strconv"
-	"flag"
 )
-var network string
-var port int
-var saddr string
-func init()  {
-	flag.StringVar(&network, "network", "http", "network: -network=tcp|ws|http|http2|quic|udp")
-	flag.IntVar(&port, "p", 9999, "port: -p=9999")
-	flag.Parse()
-	saddr = ":"+strconv.Itoa(port)
-}
 func main()  {
 	rpc.Register(new(service.Arith))
-	rpc.ListenAndServe(network,saddr)
+	rpc.ListenAndServe("http",":9999")
 }
 ```
 ### http-json-client-javascript
