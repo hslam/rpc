@@ -270,4 +270,4 @@ This package is licenced under a MIT licence (Copyright (c) 2019 Mort Huang)
 
 
 ### Authors
-workerpool was written by Mort Huang.
+rpc was written by Mort Huang.
