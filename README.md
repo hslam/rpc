@@ -15,8 +15,10 @@ A RPC implementation written in Golang over TCP UDP QUIC WS HTTP HTTP2
 * Protocal stream/message/frame/conn
 * Pool
 
-## example benchmark
-### ENV
+## Benchmark
+Batch is only useful when there are multiple goroutines calling it.
+
+### Env
 
 ```
 Mac 4 CPU 8 GiB
@@ -110,69 +112,35 @@ Result:
 	Errors:	0 (0.00%)
 ```
 
+### Define
+* c Client
+* p Pipeline
+* m Multiplex
+* b Batch
+* n No Response
 
-### def
-```
-t   Thread
-mt  Multi Thread
-p   Pipeline
-b   Batch
-n   Noresponse
-```
-
-Batch is only useful when there are multiple goroutines calling it.
 
 ### Mac 4 CPU 8 GiB Localhost  qps
 ```
-package     transport   codec       1t      mt      1t_pipe 2t_pipe 1t_bat  2t_bat  1t_no   2t_no   1t_pb   2t_pb   1t_bn   2t_bn   1t_pn   2t_pn   1t_pbn  2t_pbn
-MRPC        UDP         protobuf    7219    30725   35001   34850   34671   66934   47850   44730   33035   65859   31548   38715   43091   43378   29318   43364
-MRPC        TCP         protobuf    9090    32303   40862   51109   201106  279069  91044   87044   209760  267739  496407  635820  76158   83042   486769  632212
-MRPC        WS          protobuf    8041    28174   34658   39505   186921  270323  71917   77072   200805  245743  480326  606449  73493   76328   479299  621587
-MRPC        QUIC        protobuf    4127    11258   13207   13445   24557   49931   26405   26531   24425   47796   140531  170448  25867   26912   155083  170559
-net/rpc     TCP         gob         9623    31480   44996   51807
-net/rpc     HTTP        gob         9602    24343   33435   43911
-JSONRPC     TCP         json        9099    28999   43981   48143
-GRPC        HTTP2       protobuf    6008    21172   44233   50994
+package     transport   codec       1c      2c      1c_p    2c_p    1c_n    2c_n    1c_pb   2c_pb   1c_m    2c_m    1c_mb   2c_mb   1c_mbn  2c_mbn
+RPC         TCP         protobuf    7640    14899   38460   40417   62296   68947   142992  165612  35846   37042   201432  302815  517066  534081
+RPC         WS          protobuf    7084    13762   36852   38483   58523   68162   147906  189202  32265   35351   201778  295464  541553  538206
+RPC         UDP         protobuf    5136    9739    19807   17739   23525   18901   21351   45916   19731   18831   28739   51115   19513   35540
+RPC         QUIC        protobuf    3959    7879    13673   12980   27098   26474   22274   46708   13333   12960   23503   51506   152819  151515
+RPC         HTTP        protobuf    3694    7530    4953    8470    5348    8908    130125  163166  4962    8107    149764  228230  301091  690483
+RPC         HTTP2       protobuf    2536    4304    5933    6575    7213    6215    109387  146322  6707    6695    154804  189480  380008  351820
 ```
 
 ### Mac 4 CPU 8 GiB Localhost 99th percentile time (ms)
 ```
-package     transport   codec       1t      mt      1t_pipe 2t_pipe 1t_bat  2t_bat  1t_no   2t_no   1t_pb   2t_pb   1t_bn   2t_bn   1t_pn   2t_pn   1t_pbn  2t_pbn
-MRPC        UDP         protobuf    0.21    3.33    1.82    4.13    0.47    0.59    0.33    0.62    0.51    0.63    0.81    0.83    4.57    10.35   0.83    0.88
-MRPC        TCP         protobuf    0.17    3.85    1.46    2.83    11.29   21.44   0.13    0.21    8.95    22.15   13.23   27.19   1.29    2.25    13.57   27.40
-MRPC        WS          protobuf    0.20    4.88    1.97    4.99    12.67   21.48   0.16    0.24    9.49    24.22   14.16   26.74   0.93    2.25    13.38   26.57
-MRPC        QUIC        protobuf    0.42    13.42   5.64    9.23    0.64    0.76    0.21    0.43    0.65    0.92    0.45    0.84    2.52    7.34    0.37    0.90
-net/rpc     TCP         gob         0.18    3.78    1.52    3.22
-net/rpc     HTTP        gob         0.18    7.76    4.38    5.51
-JSONRPC     TCP         json        0.17    4.32    1.58    3.40
-GRPC        HTTP2       protobuf    0.27    5.61    2.14    3.92
+package     transport   codec       1c      2c      1c_p    2c_p    1c_n    2c_n    1c_pb   2c_pb   1c_m    2c_m    1c_mb   2c_mb   1c_mbn  2c_mbn
+RPC         TCP         protobuf    0.22    0.22    1.91    4.22    0.09    0.21    7.00    13.53   1.66    4.52    5.35    7.92    9.23    22.31
+RPC         WS          protobuf    0.25    0.31    1.71    3.95    0.09    0.18    6.59    10.98   1.96    4.35    5.40    8.04    7.62    29.04
+RPC         UDP         protobuf    0.31    0.42    4.70    17.67   0.42    1.17    1.35    0.93    5.56    14.92   0.59    0.75    0.77    3.48
+RPC         QUIC        protobuf    0.38    0.58    3.54    8.92    0.19    0.50    0.65    0.65    3.73    8.28    0.64    0.60    0.36    1.04
+RPC         HTTP        protobuf    0.47    0.53    8.73    10.30   0.38    0.56    7.73    13.27   9.30    11.75   7.48    13.02   7.91    31.05
+RPC         HTTP2       protobuf    0.68    1.07    13.63   19.82   3.07    8.64    9.81    14.35   9.65    20.36   7.70    11.72   22.76   87.47
 ```
-### Linux 12 vCPU 12 GiB Localhost  qps
-```
-package     transport   codec       1t      mt      1t_pipe 2t_pipe 1t_bat  12t_bat 1t_no  12t_no   1t_bn   2t_bn
-MRPC        UDP         protobuf    12452   177727  70023   158784  51998   296501  181198  159354  610008  363127
-MRPC        TCP         protobuf    15188   259303  55518   314560  243115  446229  197284  740138  568227  821322
-MRPC        WS          protobuf    28583   280422  73847   259468  270826  582654  222924  821275  623432  839396
-MRPC        QUIC        protobuf    8848    39362
-net/rpc     TCP         gob         20935   275122
-net/rpc     HTTP        gob         21415   283631
-JSONRPC     TCP         json        19160   224116
-GRPC        HTTP2       protobuf    12059   113275
-```
-
-### Linux 12 vCPU 12 GiB Between  qps
-```
-package     transport   codec       1t      mt      1t_pipe 2t_pipe 1t_bat  12t_bat 1t_no   12t_no  1t_bn   2t_bn
-MRPC        UDP         protobuf    8456    207902  42920   195943  38454   310601  177132  143414  771688  572685
-MRPC        TCP         protobuf    9015    351772  45942   374813  247619  616358  384285  1234356 638546  649993
-MRPC        WS          protobuf    8815    381351  51022   298416  259927  640804  279694  832946  734921  892733
-MRPC        QUIC        protobuf    5476    49323
-net/rpc     TCP         gob         8166    270813
-net/rpc     HTTP        gob         8247    293821
-JSONRPC     TCP         json        7915    239660
-GRPC        HTTP2       protobuf    6325    163704
-```
-
 
 ## Example
 ### arith.proto
