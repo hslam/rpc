@@ -11,7 +11,7 @@ A RPC implementation written in Golang over TCP UDP QUIC WS HTTP HTTP2
 * Pipelining
 * Multiplexing
 * Batch async/sync
-* Call/CallNoRequest/CallNoResponse/OnlyCall
+* Go/Call/CallNoRequest/CallNoResponse/OnlyCall
 * Protocal stream/message/frame/conn
 * Pool
 
