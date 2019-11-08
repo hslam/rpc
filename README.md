@@ -117,11 +117,11 @@ Result:
 
 ### Define
 
-* c     Client
-* p     Pipeline
-* m     Multiplex
-* b     Batch
-* n     No Response
+* c     client
+* p     pipeline
+* m     multiplex
+* b     batch
+* n     no response
 * trans transport
 * pkg   package
 
