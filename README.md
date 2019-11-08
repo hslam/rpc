@@ -160,8 +160,6 @@ message ArithRequest {
 
 message ArithResponse {
     int32 pro = 1;
-    int32 quo = 2;
-    int32 rem = 3;
 }
 ```
 
@@ -179,14 +177,6 @@ import (
 type Arith struct {}
 func (this *Arith) Multiply(req *ArithRequest, res *ArithResponse) error {
 	res.Pro = req.A * req.B
-	return nil
-}
-func (this *Arith) Divide(req *ArithRequest, res *ArithResponse) error {
-	if req.B == 0 {
-		return errors.New("divide by zero")
-	}
-	res.Quo = req.A / req.B
-	res.Rem = req.A % req.B
 	return nil
 }
 ```
@@ -226,11 +216,6 @@ func main()  {
 		log.Fatalln("arith error: ", err)
 	}
 	fmt.Printf("%d * %d = %d\n", req.A, req.B, res.Pro)
-	err = conn.Call("Arith.Divide", req, &res)
-	if err != nil {
-		log.Fatalln("arith error: ", err)
-	}
-	fmt.Printf("%d / %d, quo is %d, rem is %d\n", req.A, req.B, res.Quo, res.Rem)
 }
 ```
 
@@ -260,8 +245,6 @@ func main()  {
     var req = new ArithRequest(9,2)
     var reply=client.Call("Arith.Multiply",req)
     console.log(req.a.toString()+" * "+req.b.toString()+" = "+reply.pro.toString());
-    var reply=client.Call("Arith.Divide",req)
-    console.log(req.a.toString()+" / "+req.b.toString()+", quo is "+reply.quo.toString()+", rem is "+reply.rem.toString());
 </script>
 ```
 
