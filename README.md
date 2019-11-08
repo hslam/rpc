@@ -22,75 +22,75 @@ A RPC implementation written in Golang over TCP UDP QUIC WS HTTP HTTP2
 Mac 4 CPU 8 GiB
 ```
 
-./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=1
+./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=1
 ```
 Summary:
 	Clients:	1
 	Parallel calls per client:	512
 	Total calls:	1000000
-	Total time:	5.13s
-	Requests per second:	194881.33
-	Fastest time for request:	0.69ms
-	Average time per request:	2.62ms
-	Slowest time for request:	15.55ms
+	Total time:	4.75s
+	Requests per second:	210329.36
+	Fastest time for request:	0.70ms
+	Average time per request:	2.43ms
+	Slowest time for request:	14.70ms
 
 Time:
-	0.1%	time for request:	0.88ms
-	1%	time for request:	1.24ms
-	5%	time for request:	1.39ms
-	10%	time for request:	1.49ms
-	25%	time for request:	1.95ms
-	50%	time for request:	2.31ms
-	75%	time for request:	2.98ms
-	90%	time for request:	3.71ms
-	95%	time for request:	4.78ms
-	99%	time for request:	8.03ms
-	99.9%	time for request:	12.51ms
+	0.1%	time for request:	0.94ms
+	1%	time for request:	1.26ms
+	5%	time for request:	1.41ms
+	10%	time for request:	1.53ms
+	25%	time for request:	1.92ms
+	50%	time for request:	2.29ms
+	75%	time for request:	2.86ms
+	90%	time for request:	3.38ms
+	95%	time for request:	3.73ms
+	99%	time for request:	5.11ms
+	99.9%	time for request:	6.20ms
 
 Result:
 	Response ok:	1000000 (100.00%)
 	Errors:	0 (0.00%)
 ```
-./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=8
+./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=8
 ```
 Summary:
 	Clients:	8
 	Parallel calls per client:	512
 	Total calls:	1000000
-	Total time:	3.27s
-	Requests per second:	306081.85
-	Fastest time for request:	0.86ms
-	Average time per request:	13.28ms
-	Slowest time for request:	97.11ms
+	Total time:	3.30s
+	Requests per second:	303380.20
+	Fastest time for request:	0.70ms
+	Average time per request:	13.39ms
+	Slowest time for request:	72.79ms
 
 Time:
-	0.1%	time for request:	1.72ms
-	1%	time for request:	3.36ms
-	5%	time for request:	5.75ms
-	10%	time for request:	6.84ms
-	25%	time for request:	8.66ms
-	50%	time for request:	11.37ms
-	75%	time for request:	15.59ms
-	90%	time for request:	22.68ms
-	95%	time for request:	27.97ms
-	99%	time for request:	40.22ms
-	99.9%	time for request:	58.74ms
+	0.1%	time for request:	1.79ms
+	1%	time for request:	3.80ms
+	5%	time for request:	5.98ms
+	10%	time for request:	7.03ms
+	25%	time for request:	8.92ms
+	50%	time for request:	11.74ms
+	75%	time for request:	16.04ms
+	90%	time for request:	21.95ms
+	95%	time for request:	26.25ms
+	99%	time for request:	37.58ms
+	99.9%	time for request:	60.24ms
 
 Result:
 	Response ok:	1000000 (100.00%)
 	Errors:	0 (0.00%)
 ```
-./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false multiplexing=true -batch=true -batch_async=false -noresponse=true -clients=1
+./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=true -clients=8
 ```
 Summary:
-	Clients:	1
+	Clients:	8
 	Parallel calls per client:	512
 	Total calls:	1000000
-	Total time:	1.92s
-	Requests per second:	521845.22
+	Total time:	1.75s
+	Requests per second:	570064.98
 	Fastest time for request:	0.00ms
-	Average time per request:	0.98ms
-	Slowest time for request:	30.47ms
+	Average time per request:	6.77ms
+	Slowest time for request:	290.49ms
 
 Time:
 	0.1%	time for request:	0.00ms
@@ -99,16 +99,15 @@ Time:
 	10%	time for request:	0.00ms
 	25%	time for request:	0.00ms
 	50%	time for request:	0.00ms
-	75%	time for request:	0.78ms
-	90%	time for request:	3.71ms
-	95%	time for request:	5.89ms
-	99%	time for request:	9.15ms
-	99.9%	time for request:	15.02ms
+	75%	time for request:	2.37ms
+	90%	time for request:	17.91ms
+	95%	time for request:	45.54ms
+	99%	time for request:	105.99ms
+	99.9%	time for request:	206.51ms
 
 Result:
 	Response ok:	1000000 (100.00%)
 	Errors:	0 (0.00%)
-
 ```
 
 

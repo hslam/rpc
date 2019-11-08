@@ -29,7 +29,7 @@ func ListenUDP(address string,server *Server) (Listener, error) {
 }
 
 func (l *UDPListener)Serve() (error) {
-	log.Allf( "%s", "Waiting for clients")
+	log.Allf( "%s\n", "Waiting for clients")
 	workerChan := make(chan bool,l.maxConnNum)
 	connChange := make(chan int)
 	go func() {
@@ -53,9 +53,9 @@ func (l *UDPListener)Serve() (error) {
 				}()
 				connChange <- 1
 				var RemoteAddr=udp_msg.RemoteAddr.String()
-				log.AllInfof("new client %s comming",RemoteAddr)
+				log.AllInfof("new client %s comming\n",RemoteAddr)
 				ServeUDPConn(l.server,udp_msg,writeChan)
-				log.Infof("client %s exiting",RemoteAddr)
+				log.Infof("client %s exiting\n",RemoteAddr)
 				connChange <- -1
 			}()
 		}

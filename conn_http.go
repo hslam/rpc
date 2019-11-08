@@ -6,6 +6,7 @@ import (
 	"io"
 	"bytes"
 	"io/ioutil"
+	"runtime"
 	"time"
 )
 type HTTPConn struct {
@@ -42,12 +43,15 @@ func (t *HTTPConn)BatchFactor()(int){
 	return 64
 }
 func (t *HTTPConn)Retry()(error){
+	Transport:= &http.Transport{
+		DisableKeepAlives:false,
+		MaxIdleConnsPerHost: runtime.NumCPU(),
+	}
+	if DefaultClientTimeout>0{
+		Transport.IdleConnTimeout=time.Duration(DefaultClientTimeout) * time.Millisecond
+	}
 	t.conn=&http.Client{
-		Transport: &http.Transport{
-			DisableKeepAlives:false,
-			MaxConnsPerHost:1,
-			IdleConnTimeout: time.Duration(DefaultClientTimeout) * time.Millisecond,
-		},
+		Transport:Transport,
 	}
 	return nil
 }

@@ -1,3 +1,3 @@
 #!/bin/sh
 
-nohup sh ./command.sh > tcp.log.out 2>&1 &
+nohup sh ./command.sh >> http2.log.out 2>&1 &

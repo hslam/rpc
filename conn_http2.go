@@ -9,6 +9,7 @@ import (
 	"crypto/tls"
 	"time"
 	"golang.org/x/net/http2"
+	"runtime"
 )
 type HTTP2Conn struct {
 	conn 			*http.Client
@@ -24,9 +25,11 @@ func DialHTTP2(address string)  (Conn, error)  {
 	tlsConfig=&tls.Config{InsecureSkipVerify: true}
 	transport := &http.Transport{
 		TLSClientConfig: tlsConfig,
-		IdleConnTimeout: time.Duration(DefaultClientTimeout) * time.Millisecond,
 		DisableKeepAlives:false,
-		MaxConnsPerHost:1,
+		MaxIdleConnsPerHost: runtime.NumCPU(),
+	}
+	if DefaultClientTimeout>0{
+		transport.IdleConnTimeout=time.Duration(DefaultClientTimeout) * time.Millisecond
 	}
 	http2.ConfigureTransport(transport)
 	t:=&HTTP2Conn{

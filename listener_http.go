@@ -21,7 +21,7 @@ func ListenHTTP(address string,server *Server) (Listener, error) {
 
 
 func (l *HTTPListener)Serve() (error) {
-	log.Allf( "%s", "Waiting for clients")
+	log.Allf( "%s\n", "Waiting for clients")
 	handler:=new(Handler)
 	handler.server=l.server
 	handler.workerChan = make(chan bool,l.maxConnNum)
@@ -69,9 +69,9 @@ func (h *Handler)ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			<-h.workerChan
 		}()
 		h.connChange <- 1
-		log.AllInfof("new client %s comming",RemoteAddr)
+		log.AllInfof("new client %s comming\n",RemoteAddr)
 		ServeHTTP(h.server,w,data)
-		log.Infof("client %s exiting",RemoteAddr)
+		log.Infof("client %s exiting\n",RemoteAddr)
 		h.connChange <- -1
 	}()
 }

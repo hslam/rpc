@@ -23,7 +23,7 @@ func ListenTCP(address string,server *Server) (Listener, error) {
 	return listener,nil
 }
 func (l *TCPListener)Serve() (error) {
-	log.Allf( "%s", "Waiting for clients")
+	log.Allf( "%s\n", "Waiting for clients")
 	workerChan := make(chan bool,l.maxConnNum)
 	connChange := make(chan int)
 	go func() {
@@ -34,7 +34,7 @@ func (l *TCPListener)Serve() (error) {
 	for {
 		conn, err := l.netListener.Accept()
 		if err != nil {
-			log.Warnf("Accept: %s", err)
+			log.Warnf("Accept: %s\n", err)
 			continue
 		}
 		workerChan<-true
@@ -45,9 +45,9 @@ func (l *TCPListener)Serve() (error) {
 				<-workerChan
 			}()
 			connChange <- 1
-			log.Infof("new client %s comming",conn.RemoteAddr())
+			log.Infof("new client %s comming\n",conn.RemoteAddr())
 			ServeTCPConn(l.server,conn)
-			log.Infof("client %s exiting",conn.RemoteAddr())
+			log.Infof("client %s exiting\n",conn.RemoteAddr())
 			connChange <- -1
 		}()
 	}

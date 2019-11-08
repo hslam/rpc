@@ -23,7 +23,7 @@ func ListenQUIC(address string,server *Server) (Listener, error) {
 	return listener,nil
 }
 func (l *QUICListener)Serve() (error) {
-	log.Allf( "%s", "Waiting for clients")
+	log.Allf( "%s\n", "Waiting for clients")
 	workerChan := make(chan bool,l.maxConnNum)
 	connChange := make(chan int)
 	go func() {
@@ -34,7 +34,7 @@ func (l *QUICListener)Serve() (error) {
 	for{
 		sess, err := l.quicListener.Accept()
 		if err != nil {
-			log.Warnf("Accept: %s", err)
+			log.Warnf("Accept: %s\n", err)
 			continue
 		}else{
 			workerChan<-true
@@ -45,9 +45,9 @@ func (l *QUICListener)Serve() (error) {
 					<-workerChan
 				}()
 				connChange <- 1
-				log.Infof("new client %s comming",sess.RemoteAddr())
+				log.Infof("new client %s comming\n",sess.RemoteAddr())
 				ServeQUICConn(l.server,sess)
-				log.Infof("client %s exiting",sess.RemoteAddr())
+				log.Infof("client %s exiting\n",sess.RemoteAddr())
 				connChange <- -1
 			}()
 		}

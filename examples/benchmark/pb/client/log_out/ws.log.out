@@ -1,306 +1,392 @@
-./client -network=ws -codec=pb -h=127.0.0.1 -p=9999 -total=1000000 -concurrent=false -batch=false -noresponse=false -clients=1
-==========================BENCHMARK==========================
-Used Connections:		1
-Used Parallel Calls:		1
-Total Number Of Calls:		1000000
+./client -network=ws -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=100000 -pipelining=false -multiplexing=false -batch=false -batch_async=false -noresponse=false -clients=1
+Summary:
+	Clients:	1
+	Parallel calls per client:	1
+	Total calls:	100000
+	Total time:	14.12s
+	Requests per second:	7084.22
+	Fastest time for request:	0.10ms
+	Average time per request:	0.14ms
+	Slowest time for request:	22.15ms
 
-===========================TIMINGS===========================
-Total time passed:		124.36s
-Avg time per request:		0.12ms
-Requests per second:		8041.15
-Median time per request:	0.12ms
-99th percentile time:		0.20ms
-Slowest time for request:	20.00ms
+Time:
+	0.1%	time for request:	0.11ms
+	1%	time for request:	0.11ms
+	5%	time for request:	0.12ms
+	10%	time for request:	0.12ms
+	25%	time for request:	0.12ms
+	50%	time for request:	0.13ms
+	75%	time for request:	0.15ms
+	90%	time for request:	0.17ms
+	95%	time for request:	0.18ms
+	99%	time for request:	0.25ms
+	99.9%	time for request:	0.48ms
 
-==========================RESPONSES==========================
-ResponseOk:			1000000 (100.00%)
-Errors:				0 (0.00%)
-./client -network=ws -codec=pb -h=127.0.0.1 -p=9999 -total=1000000 -concurrent=false -batch=false -noresponse=false -clients=12
-==========================BENCHMARK==========================
-Used Connections:		12
-Used Parallel Calls:		1
-Total Number Of Calls:		1000000
+Result:
+	Response ok:	100000 (100.00%)
+	Errors:	0 (0.00%)
 
-===========================TIMINGS===========================
-Total time passed:		37.69s
-Avg time per request:		0.45ms
-Requests per second:		26532.75
-Median time per request:	0.41ms
-99th percentile time:		1.32ms
-Slowest time for request:	27.00ms
+./client -network=ws -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=100000 -pipelining=false -multiplexing=false -batch=false -batch_async=false -noresponse=false -clients=2
+Summary:
+	Clients:	2
+	Parallel calls per client:	1
+	Total calls:	100000
+	Total time:	7.27s
+	Requests per second:	13762.72
+	Fastest time for request:	0.09ms
+	Average time per request:	0.14ms
+	Slowest time for request:	1.93ms
 
-==========================RESPONSES==========================
-ResponseOk:			1000000 (100.00%)
-Errors:				0 (0.00%)
-./client -network=ws -codec=pb -h=127.0.0.1 -p=9999 -total=1000000 -concurrent=false -batch=false -noresponse=false -clients=48
-==========================BENCHMARK==========================
-Used Connections:		48
-Used Parallel Calls:		1
-Total Number Of Calls:		1000000
+Time:
+	0.1%	time for request:	0.10ms
+	1%	time for request:	0.11ms
+	5%	time for request:	0.12ms
+	10%	time for request:	0.12ms
+	25%	time for request:	0.13ms
+	50%	time for request:	0.14ms
+	75%	time for request:	0.15ms
+	90%	time for request:	0.17ms
+	95%	time for request:	0.19ms
+	99%	time for request:	0.31ms
+	99.9%	time for request:	0.53ms
 
-===========================TIMINGS===========================
-Total time passed:		35.49s
-Avg time per request:		1.70ms
-Requests per second:		28174.44
-Median time per request:	1.55ms
-99th percentile time:		4.88ms
-Slowest time for request:	47.00ms
+Result:
+	Response ok:	100000 (100.00%)
+	Errors:	0 (0.00%)
 
-==========================RESPONSES==========================
-ResponseOk:			1000000 (100.00%)
-Errors:				0 (0.00%)
-./client -network=ws -codec=pb -h=127.0.0.1 -p=9999 -total=1000000 -concurrent=false -batch=false -noresponse=false -clients=192
-==========================BENCHMARK==========================
-Used Connections:		192
-Used Parallel Calls:		1
-Total Number Of Calls:		1000000
+./client -network=ws -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=true -multiplexing=false -batch=false -batch_async=false -noresponse=false -clients=1
+Summary:
+	Clients:	1
+	Parallel calls per client:	32
+	Total calls:	1000000
+	Total time:	27.13s
+	Requests per second:	36852.96
+	Fastest time for request:	0.11ms
+	Average time per request:	0.87ms
+	Slowest time for request:	5.63ms
 
-===========================TIMINGS===========================
-Total time passed:		37.29s
-Avg time per request:		7.16ms
-Requests per second:		26815.98
-Median time per request:	6.81ms
-99th percentile time:		17.82ms
-Slowest time for request:	108.00ms
+Time:
+	0.1%	time for request:	0.22ms
+	1%	time for request:	0.35ms
+	5%	time for request:	0.50ms
+	10%	time for request:	0.58ms
+	25%	time for request:	0.71ms
+	50%	time for request:	0.85ms
+	75%	time for request:	0.99ms
+	90%	time for request:	1.15ms
+	95%	time for request:	1.27ms
+	99%	time for request:	1.71ms
+	99.9%	time for request:	2.70ms
 
-==========================RESPONSES==========================
-ResponseOk:			1000000 (100.00%)
-Errors:				0 (0.00%)
-./client -network=ws -codec=pb -h=127.0.0.1 -p=9999 -total=1000000 -concurrent=true -batch=false -noresponse=false -clients=1
-==========================BENCHMARK==========================
-Used Connections:		1
-Used Parallel Calls:		32
-Total Number Of Calls:		1000000
+Result:
+	Response ok:	1000000 (100.00%)
+	Errors:	0 (0.00%)
 
-===========================TIMINGS===========================
-Total time passed:		28.85s
-Avg time per request:		0.92ms
-Requests per second:		34658.86
-Median time per request:	0.86ms
-99th percentile time:		1.97ms
-Slowest time for request:	20.00ms
+./client -network=ws -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=true -multiplexing=false -batch=false -batch_async=false -noresponse=false -clients=2
+Summary:
+	Clients:	2
+	Parallel calls per client:	32
+	Total calls:	1000000
+	Total time:	25.99s
+	Requests per second:	38483.70
+	Fastest time for request:	0.11ms
+	Average time per request:	1.66ms
+	Slowest time for request:	17.81ms
 
-==========================RESPONSES==========================
-ResponseOk:			1000000 (100.00%)
-Errors:				0 (0.00%)
-./client -network=ws -codec=pb -h=127.0.0.1 -p=9999 -total=1000000 -concurrent=true -batch=false -noresponse=false -clients=2
-==========================BENCHMARK==========================
-Used Connections:		2
-Used Parallel Calls:		32
-Total Number Of Calls:		1000000
+Time:
+	0.1%	time for request:	0.27ms
+	1%	time for request:	0.47ms
+	5%	time for request:	0.71ms
+	10%	time for request:	0.87ms
+	25%	time for request:	1.19ms
+	50%	time for request:	1.58ms
+	75%	time for request:	2.01ms
+	90%	time for request:	2.50ms
+	95%	time for request:	2.87ms
+	99%	time for request:	3.95ms
+	99.9%	time for request:	6.17ms
 
-===========================TIMINGS===========================
-Total time passed:		25.31s
-Avg time per request:		1.62ms
-Requests per second:		39505.98
-Median time per request:	1.45ms
-99th percentile time:		4.99ms
-Slowest time for request:	61.00ms
+Result:
+	Response ok:	1000000 (100.00%)
+	Errors:	0 (0.00%)
 
-==========================RESPONSES==========================
-ResponseOk:			1000000 (100.00%)
-Errors:				0 (0.00%)
-./client -network=ws -codec=pb -h=127.0.0.1 -p=9999 -total=1000000 -concurrent=false -batch=true -noresponse=false -clients=1
-==========================BENCHMARK==========================
-Used Connections:		1
-Used Parallel Calls:		512
-Total Number Of Calls:		1000000
+./client -network=ws -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false -multiplexing=false -batch=false -batch_async=false -noresponse=true -clients=1
+Summary:
+	Clients:	1
+	Parallel calls per client:	1
+	Total calls:	1000000
+	Total time:	17.09s
+	Requests per second:	58523.95
+	Fastest time for request:	0.00ms
+	Average time per request:	0.02ms
+	Slowest time for request:	1.65ms
 
-===========================TIMINGS===========================
-Total time passed:		5.35s
-Avg time per request:		2.73ms
-Requests per second:		186921.02
-Median time per request:	2.34ms
-99th percentile time:		12.67ms
-Slowest time for request:	92.00ms
+Time:
+	0.1%	time for request:	0.00ms
+	1%	time for request:	0.00ms
+	5%	time for request:	0.00ms
+	10%	time for request:	0.00ms
+	25%	time for request:	0.01ms
+	50%	time for request:	0.01ms
+	75%	time for request:	0.02ms
+	90%	time for request:	0.03ms
+	95%	time for request:	0.04ms
+	99%	time for request:	0.09ms
+	99.9%	time for request:	0.33ms
 
-==========================RESPONSES==========================
-ResponseOk:			1000000 (100.00%)
-Errors:				0 (0.00%)
-./client -network=ws -codec=pb -h=127.0.0.1 -p=9999 -total=1000000 -concurrent=false -batch=true -noresponse=false -clients=2
-==========================BENCHMARK==========================
-Used Connections:		2
-Used Parallel Calls:		512
-Total Number Of Calls:		1000000
+Result:
+	Response ok:	1000000 (100.00%)
+	Errors:	0 (0.00%)
 
-===========================TIMINGS===========================
-Total time passed:		3.70s
-Avg time per request:		3.78ms
-Requests per second:		270323.02
-Median time per request:	3.15ms
-99th percentile time:		21.48ms
-Slowest time for request:	54.00ms
+./client -network=ws -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false -multiplexing=false -batch=false -batch_async=false -noresponse=true -clients=2
+Summary:
+	Clients:	2
+	Parallel calls per client:	1
+	Total calls:	1000000
+	Total time:	14.67s
+	Requests per second:	68162.95
+	Fastest time for request:	0.00ms
+	Average time per request:	0.03ms
+	Slowest time for request:	8.71ms
 
-==========================RESPONSES==========================
-ResponseOk:			1000000 (100.00%)
-Errors:				0 (0.00%)
-./client -network=ws -codec=pb -h=127.0.0.1 -p=9999 -total=1000000 -concurrent=false -batch=false -noresponse=true -clients=1
-==========================BENCHMARK==========================
-Used Connections:		1
-Used Parallel Calls:		1
-Total Number Of Calls:		1000000
+Time:
+	0.1%	time for request:	0.00ms
+	1%	time for request:	0.00ms
+	5%	time for request:	0.00ms
+	10%	time for request:	0.00ms
+	25%	time for request:	0.01ms
+	50%	time for request:	0.02ms
+	75%	time for request:	0.03ms
+	90%	time for request:	0.05ms
+	95%	time for request:	0.08ms
+	99%	time for request:	0.18ms
+	99.9%	time for request:	0.72ms
 
-===========================TIMINGS===========================
-Total time passed:		13.90s
-Avg time per request:		0.01ms
-Requests per second:		71917.51
-Median time per request:	0.00ms
-99th percentile time:		0.16ms
-Slowest time for request:	7.00ms
+Result:
+	Response ok:	1000000 (100.00%)
+	Errors:	0 (0.00%)
 
-==========================RESPONSES==========================
-ResponseOk:			1000000 (100.00%)
-Errors:				0 (0.00%)
-./client -network=ws -codec=pb -h=127.0.0.1 -p=9999 -total=1000000 -concurrent=false -batch=false -noresponse=true -clients=2
-==========================BENCHMARK==========================
-Used Connections:		2
-Used Parallel Calls:		1
-Total Number Of Calls:		1000000
+./client -network=ws -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=true -multiplexing=false -batch=true -batch_async=false -noresponse=false -clients=1
+Summary:
+	Clients:	1
+	Parallel calls per client:	512
+	Total calls:	1000000
+	Total time:	6.76s
+	Requests per second:	147906.74
+	Fastest time for request:	0.26ms
+	Average time per request:	3.46ms
+	Slowest time for request:	18.58ms
 
-===========================TIMINGS===========================
-Total time passed:		12.97s
-Avg time per request:		0.03ms
-Requests per second:		77072.72
-Median time per request:	0.02ms
-99th percentile time:		0.24ms
-Slowest time for request:	8.00ms
+Time:
+	0.1%	time for request:	1.20ms
+	1%	time for request:	1.54ms
+	5%	time for request:	2.01ms
+	10%	time for request:	2.41ms
+	25%	time for request:	2.90ms
+	50%	time for request:	3.34ms
+	75%	time for request:	3.94ms
+	90%	time for request:	4.61ms
+	95%	time for request:	5.04ms
+	99%	time for request:	6.59ms
+	99.9%	time for request:	8.25ms
 
-==========================RESPONSES==========================
-ResponseOk:			1000000 (100.00%)
-Errors:				0 (0.00%)
-./client -network=ws -codec=pb -h=127.0.0.1 -p=9999 -total=1000000 -concurrent=true -batch=true -noresponse=false -clients=1
-==========================BENCHMARK==========================
-Used Connections:		1
-Used Parallel Calls:		512
-Total Number Of Calls:		1000000
+Result:
+	Response ok:	1000000 (100.00%)
+	Errors:	0 (0.00%)
 
-===========================TIMINGS===========================
-Total time passed:		4.98s
-Avg time per request:		2.55ms
-Requests per second:		200805.11
-Median time per request:	2.29ms
-99th percentile time:		9.49ms
-Slowest time for request:	39.00ms
+./client -network=ws -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=true -multiplexing=false -batch=true -batch_async=false -noresponse=false -clients=2
+Summary:
+	Clients:	2
+	Parallel calls per client:	512
+	Total calls:	1000000
+	Total time:	5.29s
+	Requests per second:	189202.41
+	Fastest time for request:	0.29ms
+	Average time per request:	5.40ms
+	Slowest time for request:	17.26ms
 
-==========================RESPONSES==========================
-ResponseOk:			1000000 (100.00%)
-Errors:				0 (0.00%)
-./client -network=ws -codec=pb -h=127.0.0.1 -p=9999 -total=1000000 -concurrent=true -batch=true -noresponse=false -clients=2
-==========================BENCHMARK==========================
-Used Connections:		2
-Used Parallel Calls:		512
-Total Number Of Calls:		1000000
+Time:
+	0.1%	time for request:	1.34ms
+	1%	time for request:	1.74ms
+	5%	time for request:	2.87ms
+	10%	time for request:	3.50ms
+	25%	time for request:	4.43ms
+	50%	time for request:	5.27ms
+	75%	time for request:	6.20ms
+	90%	time for request:	7.32ms
+	95%	time for request:	8.41ms
+	99%	time for request:	10.98ms
+	99.9%	time for request:	13.51ms
 
-===========================TIMINGS===========================
-Total time passed:		4.07s
-Avg time per request:		4.16ms
-Requests per second:		245743.96
-Median time per request:	3.46ms
-99th percentile time:		24.22ms
-Slowest time for request:	61.00ms
+Result:
+	Response ok:	1000000 (100.00%)
+	Errors:	0 (0.00%)
 
-==========================RESPONSES==========================
-ResponseOk:			1000000 (100.00%)
-Errors:				0 (0.00%)
-./client -network=ws -codec=pb -h=127.0.0.1 -p=9999 -total=1000000 -concurrent=false -batch=true -noresponse=true -clients=1
-==========================BENCHMARK==========================
-Used Connections:		1
-Used Parallel Calls:		512
-Total Number Of Calls:		1000000
+./client -network=ws -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false -multiplexing=true -batch=false -batch_async=false -noresponse=false -clients=1
+Summary:
+	Clients:	1
+	Parallel calls per client:	32
+	Total calls:	1000000
+	Total time:	30.99s
+	Requests per second:	32265.99
+	Fastest time for request:	0.11ms
+	Average time per request:	0.99ms
+	Slowest time for request:	9.65ms
 
-===========================TIMINGS===========================
-Total time passed:		2.08s
-Avg time per request:		1.06ms
-Requests per second:		480326.08
-Median time per request:	0.40ms
-99th percentile time:		14.16ms
-Slowest time for request:	28.00ms
+Time:
+	0.1%	time for request:	0.24ms
+	1%	time for request:	0.40ms
+	5%	time for request:	0.58ms
+	10%	time for request:	0.67ms
+	25%	time for request:	0.81ms
+	50%	time for request:	0.96ms
+	75%	time for request:	1.13ms
+	90%	time for request:	1.32ms
+	95%	time for request:	1.48ms
+	99%	time for request:	1.96ms
+	99.9%	time for request:	2.87ms
 
-==========================RESPONSES==========================
-ResponseOk:			1000000 (100.00%)
-Errors:				0 (0.00%)
-./client -network=ws -codec=pb -h=127.0.0.1 -p=9999 -total=1000000 -concurrent=false -batch=true -noresponse=true -clients=2
-==========================BENCHMARK==========================
-Used Connections:		2
-Used Parallel Calls:		512
-Total Number Of Calls:		1000000
+Result:
+	Response ok:	1000000 (100.00%)
+	Errors:	0 (0.00%)
 
-===========================TIMINGS===========================
-Total time passed:		1.65s
-Avg time per request:		1.64ms
-Requests per second:		606449.84
-Median time per request:	0.00ms
-99th percentile time:		26.74ms
-Slowest time for request:	58.00ms
+./client -network=ws -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false -multiplexing=true -batch=false -batch_async=false -noresponse=false -clients=2
+Summary:
+	Clients:	2
+	Parallel calls per client:	32
+	Total calls:	1000000
+	Total time:	28.29s
+	Requests per second:	35351.91
+	Fastest time for request:	0.12ms
+	Average time per request:	1.81ms
+	Slowest time for request:	17.45ms
 
-==========================RESPONSES==========================
-ResponseOk:			1000000 (100.00%)
-Errors:				0 (0.00%)
-./client -network=ws -codec=pb -h=127.0.0.1 -p=9999 -total=1000000 -concurrent=true -batch=false -noresponse=true -clients=1
-==========================BENCHMARK==========================
-Used Connections:		1
-Used Parallel Calls:		32
-Total Number Of Calls:		1000000
+Time:
+	0.1%	time for request:	0.28ms
+	1%	time for request:	0.52ms
+	5%	time for request:	0.82ms
+	10%	time for request:	0.99ms
+	25%	time for request:	1.32ms
+	50%	time for request:	1.72ms
+	75%	time for request:	2.16ms
+	90%	time for request:	2.67ms
+	95%	time for request:	3.10ms
+	99%	time for request:	4.35ms
+	99.9%	time for request:	6.63ms
 
-===========================TIMINGS===========================
-Total time passed:		13.61s
-Avg time per request:		0.43ms
-Requests per second:		73493.42
-Median time per request:	0.43ms
-99th percentile time:		0.93ms
-Slowest time for request:	9.00ms
+Result:
+	Response ok:	1000000 (100.00%)
+	Errors:	0 (0.00%)
 
-==========================RESPONSES==========================
-ResponseOk:			1000000 (100.00%)
-Errors:				0 (0.00%)
-./client -network=ws -codec=pb -h=127.0.0.1 -p=9999 -total=1000000 -concurrent=true -batch=false -noresponse=true -clients=2
-==========================BENCHMARK==========================
-Used Connections:		2
-Used Parallel Calls:		32
-Total Number Of Calls:		1000000
+./client -network=ws -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=1
+Summary:
+	Clients:	1
+	Parallel calls per client:	512
+	Total calls:	1000000
+	Total time:	4.96s
+	Requests per second:	201778.35
+	Fastest time for request:	0.57ms
+	Average time per request:	2.53ms
+	Slowest time for request:	8.54ms
 
-===========================TIMINGS===========================
-Total time passed:		13.10s
-Avg time per request:		0.84ms
-Requests per second:		76328.31
-Median time per request:	0.80ms
-99th percentile time:		2.25ms
-Slowest time for request:	54.00ms
+Time:
+	0.1%	time for request:	0.83ms
+	1%	time for request:	1.30ms
+	5%	time for request:	1.47ms
+	10%	time for request:	1.55ms
+	25%	time for request:	1.95ms
+	50%	time for request:	2.39ms
+	75%	time for request:	3.00ms
+	90%	time for request:	3.53ms
+	95%	time for request:	3.97ms
+	99%	time for request:	5.40ms
+	99.9%	time for request:	7.25ms
 
-==========================RESPONSES==========================
-ResponseOk:			1000000 (100.00%)
-Errors:				0 (0.00%)
-./client -network=ws -codec=pb -h=127.0.0.1 -p=9999 -total=1000000 -concurrent=true -batch=true -noresponse=true -clients=1
-==========================BENCHMARK==========================
-Used Connections:		1
-Used Parallel Calls:		512
-Total Number Of Calls:		1000000
+Result:
+	Response ok:	1000000 (100.00%)
+	Errors:	0 (0.00%)
 
-===========================TIMINGS===========================
-Total time passed:		2.09s
-Avg time per request:		1.06ms
-Requests per second:		479299.30
-Median time per request:	0.45ms
-99th percentile time:		13.38ms
-Slowest time for request:	21.00ms
+./client -network=ws -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=2
+Summary:
+	Clients:	2
+	Parallel calls per client:	512
+	Total calls:	1000000
+	Total time:	3.38s
+	Requests per second:	295464.09
+	Fastest time for request:	0.66ms
+	Average time per request:	3.46ms
+	Slowest time for request:	12.47ms
 
-==========================RESPONSES==========================
-ResponseOk:			1000000 (100.00%)
-Errors:				0 (0.00%)
-./client -network=ws -codec=pb -h=127.0.0.1 -p=9999 -total=1000000 -concurrent=true -batch=true -noresponse=true -clients=2
-==========================BENCHMARK==========================
-Used Connections:		2
-Used Parallel Calls:		512
-Total Number Of Calls:		1000000
+Time:
+	0.1%	time for request:	1.00ms
+	1%	time for request:	1.31ms
+	5%	time for request:	1.63ms
+	10%	time for request:	1.94ms
+	25%	time for request:	2.74ms
+	50%	time for request:	3.36ms
+	75%	time for request:	4.05ms
+	90%	time for request:	4.77ms
+	95%	time for request:	5.54ms
+	99%	time for request:	8.04ms
+	99.9%	time for request:	9.47ms
 
-===========================TIMINGS===========================
-Total time passed:		1.61s
-Avg time per request:		1.62ms
-Requests per second:		621587.48
-Median time per request:	0.19ms
-99th percentile time:		26.57ms
-Slowest time for request:	41.00ms
+Result:
+	Response ok:	1000000 (100.00%)
+	Errors:	0 (0.00%)
 
-==========================RESPONSES==========================
-ResponseOk:			1000000 (100.00%)
-Errors:				0 (0.00%)
+./client -network=ws -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=true -clients=1
+Summary:
+	Clients:	1
+	Parallel calls per client:	512
+	Total calls:	1000000
+	Total time:	1.85s
+	Requests per second:	541553.69
+	Fastest time for request:	0.00ms
+	Average time per request:	0.94ms
+	Slowest time for request:	16.14ms
+
+Time:
+	0.1%	time for request:	0.00ms
+	1%	time for request:	0.00ms
+	5%	time for request:	0.00ms
+	10%	time for request:	0.00ms
+	25%	time for request:	0.00ms
+	50%	time for request:	0.00ms
+	75%	time for request:	0.99ms
+	90%	time for request:	2.93ms
+	95%	time for request:	4.85ms
+	99%	time for request:	7.62ms
+	99.9%	time for request:	12.48ms
+
+Result:
+	Response ok:	1000000 (100.00%)
+	Errors:	0 (0.00%)
+
+./client -network=ws -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=true -clients=2
+Summary:
+	Clients:	2
+	Parallel calls per client:	512
+	Total calls:	1000000
+	Total time:	1.86s
+	Requests per second:	538206.76
+	Fastest time for request:	0.00ms
+	Average time per request:	1.88ms
+	Slowest time for request:	62.99ms
+
+Time:
+	0.1%	time for request:	0.00ms
+	1%	time for request:	0.00ms
+	5%	time for request:	0.00ms
+	10%	time for request:	0.00ms
+	25%	time for request:	0.00ms
+	50%	time for request:	0.00ms
+	75%	time for request:	1.08ms
+	90%	time for request:	3.41ms
+	95%	time for request:	13.03ms
+	99%	time for request:	29.04ms
+	99.9%	time for request:	41.33ms
+
+Result:
+	Response ok:	1000000 (100.00%)
+	Errors:	0 (0.00%)
+

@@ -20,7 +20,7 @@ func ListenHTTP2(address string,server *Server) (Listener, error) {
 	var httpServer http.Server
 
 	httpServer.Addr = address
-	httpServer.TLSConfig=DefalutTLSConfig()
+	httpServer.TLSConfig=generateTLSConfig()
 	s2 := &http2.Server{}
 	http2.ConfigureServer(&httpServer, s2)
 	var netListener net.Listener
@@ -33,7 +33,7 @@ func ListenHTTP2(address string,server *Server) (Listener, error) {
 }
 
 func (l *HTTP2Listener)Serve() (error) {
-	log.Allf( "%s", "Waiting for clients")
+	log.Allf( "%s\n", "Waiting for clients")
 	handler:=new(Handler)
 	handler.server=l.server
 	handler.workerChan = make(chan bool,l.maxConnNum)
@@ -46,7 +46,7 @@ func (l *HTTP2Listener)Serve() (error) {
 	l.httpServer.Handler=handler
 	err:=l.httpServer.ServeTLS(l.netListener,"","")
 	if err!=nil{
-		log.Errorf("fatal error: %s", err)
+		log.Errorf("fatal error: %s\n", err)
 		return err
 	}
 	return nil

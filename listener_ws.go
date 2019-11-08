@@ -35,7 +35,7 @@ func ListenWS(address string,server *Server) (Listener, error) {
 	return l,nil
 }
 func (l *WSListener)Serve() (error) {
-	log.Allf( "%s", "Waiting for clients")
+	log.Allf( "%s\n", "Waiting for clients")
 	workerChan := make(chan bool,l.maxConnNum)
 	connChange := make(chan int)
 	go func() {
@@ -47,7 +47,7 @@ func (l *WSListener)Serve() (error) {
 		r.Header.Del("Origin")
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
-			log.Warnf("upgrade : %s", err)
+			log.Warnf("upgrade : %s\n", err)
 			return
 		}
 		workerChan<-true
@@ -58,9 +58,9 @@ func (l *WSListener)Serve() (error) {
 				<-workerChan
 			}()
 			connChange <- 1
-			log.Infof("new client %s comming",conn.RemoteAddr())
+			log.Infof("new client %s comming\n",conn.RemoteAddr())
 			ServeWSConn(l.server,conn)
-			log.Infof("client %s exiting",conn.RemoteAddr())
+			log.Infof("client %s exiting\n",conn.RemoteAddr())
 			connChange <- -1
 		}()
 	})

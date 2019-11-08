@@ -1,32 +1,46 @@
 #!/bin/sh
 
-net="tcp"
+net="http2"
 host="127.0.0.1"
 pbar="false"
+cod="pb"
+com="no"
+p="9999"
+t="100000"
 
-./client -network=$net -h=$host -total=1000000 -concurrent=false -batch=false -noresponse=false -clients=1 -bar=$pbar
-./client -network=$net -h=$host -total=1000000 -concurrent=false -batch=false -noresponse=false -clients=12 -bar=$pbar
-./client -network=$net -h=$host -total=1000000 -concurrent=false -batch=false -noresponse=false -clients=48 -bar=$pbar
-./client -network=$net -h=$host -total=1000000 -concurrent=false -batch=false -noresponse=false -clients=192 -bar=$pbar
+# ./client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t -pipelining=false -multiplexing=false -batch=false -batch_async=false -noresponse=false -clients=1
+# sleep 10s
+# ./client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t -pipelining=false -multiplexing=false -batch=false -batch_async=false -noresponse=false -clients=2
 
-./client -network=$net -h=$host -total=1000000 -concurrent=true -batch=false -noresponse=false -clients=1 -bar=$pbar
-./client -network=$net -h=$host -total=1000000 -concurrent=true -batch=false -noresponse=false -clients=2 -bar=$pbar
+# sleep 10s
+# ./client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t -pipelining=true -multiplexing=false -batch=false -batch_async=false -noresponse=false -clients=1
+# sleep 10s
+# ./client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t -pipelining=true -multiplexing=false -batch=false -batch_async=false -noresponse=false -clients=2
 
-./client -network=$net -h=$host -total=1000000 -concurrent=false -batch=true -noresponse=false -clients=1 -bar=$pbar
-./client -network=$net -h=$host -total=1000000 -concurrent=false -batch=true -noresponse=false -clients=2 -bar=$pbar
+# sleep 10s
+# ./client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t -pipelining=false -multiplexing=false -batch=false -batch_async=false -noresponse=true -clients=1
+# sleep 10s
+# ./client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t -pipelining=false -multiplexing=false -batch=false -batch_async=false -noresponse=true -clients=2
 
-./client -network=$net -h=$host -total=1000000 -concurrent=false -batch=false -noresponse=true -clients=1 -bar=$pbar
-./client -network=$net -h=$host -total=1000000 -concurrent=false -batch=false -noresponse=true -clients=2 -bar=$pbar
+# sleep 10s
+# ./client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t -pipelining=true -multiplexing=false -batch=true -batch_async=false -noresponse=false -clients=1
+# sleep 10s
+# ./client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t -pipelining=true -multiplexing=false -batch=true -batch_async=false -noresponse=false -clients=2
 
-./client -network=$net -h=$host -total=1000000 -concurrent=true -batch=true -noresponse=false -clients=1 -bar=$pbar
-./client -network=$net -h=$host -total=1000000 -concurrent=true -batch=true -noresponse=false -clients=2 -bar=$pbar
+# sleep 10s
+# ./client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t -pipelining=false -multiplexing=true -batch=false -batch_async=false -noresponse=false -clients=1
+# sleep 10s
+# ./client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t -pipelining=false -multiplexing=true -batch=false -batch_async=false -noresponse=false -clients=2
 
-./client -network=$net -h=$host -total=1000000 -concurrent=false -batch=true -noresponse=true -clients=1 -bar=$pbar
-./client -network=$net -h=$host -total=1000000 -concurrent=false -batch=true -noresponse=true -clients=2 -bar=$pbar
+# sleep 10s
+# ./client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=1
+# sleep 10s
+# ./client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=2
 
-./client -network=$net -h=$host -total=1000000 -concurrent=true -batch=false -noresponse=true -clients=1 -bar=$pbar
-./client -network=$net -h=$host -total=1000000 -concurrent=true -batch=false -noresponse=true -clients=2 -bar=$pbar
+# sleep 10s
+# ./client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=true -clients=1
+# sleep 10s
+# ./client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=true -clients=2
+# sleep 10s
 
-./client -network=$net -h=$host -total=1000000 -concurrent=true -batch=true -noresponse=true -clients=1 -bar=$pbar
-./client -network=$net -h=$host -total=1000000 -concurrent=true -batch=true -noresponse=true -clients=2 -bar=$pbar
 
