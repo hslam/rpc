@@ -152,17 +152,14 @@ RPC     HTTP2   pb      0.68    1.07    13.63   19.82   3.07    8.64    9.81    
 ```
 syntax = "proto3";
 package service;
-
 message ArithRequest {
     int32 a = 1;
     int32 b = 2;
 }
-
 message ArithResponse {
     int32 pro = 1;
 }
 ```
-
 ### arith.pb.go
 ```
 protoc ./arith.proto --go_out=./
