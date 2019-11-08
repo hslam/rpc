@@ -2,6 +2,7 @@
 A RPC implementation written in Golang over TCP UDP QUIC WS HTTP HTTP2
 
 ## Server Feature
+* Network tcp/ws/http/http2/quic/udp
 * Pipelining async/sync
 * Multiplexing
 ## Client Feature
@@ -237,7 +238,7 @@ func main()  {
 ```go
 package main
 import (
-	"hslam.com/git/x/rpc/examples/helloworld/json/service"
+	"hslam.com/git/x/rpc/examples/helloworld/json_js/service"
 	"hslam.com/git/x/rpc"
 )
 func main()  {

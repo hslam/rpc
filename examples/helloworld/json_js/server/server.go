@@ -1,6 +1,6 @@
 package main
 import (
-	"hslam.com/git/x/rpc/examples/helloworld/json/service"
+	"hslam.com/git/x/rpc/examples/helloworld/json_js/service"
 	"hslam.com/git/x/rpc"
 )
 func main()  {
