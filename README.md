@@ -21,7 +21,7 @@ A RPC implementation written in Golang over TCP UDP QUIC WS HTTP HTTP2
 ## Benchmark
 Batch is only useful when there are multiple goroutines calling it.
 
-### Env
+### Environment
 
 ```
 Mac 4 CPU 8 GiB
