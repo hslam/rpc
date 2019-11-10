@@ -1,7 +1,6 @@
 package rpc
 import (
 	"sync"
-	"hslam.com/git/x/idgenerator"
 	"time"
 	"math/rand"
 	"hslam.com/git/x/rpc/log"
@@ -57,7 +56,6 @@ func DialWithMaxRequests(network,address,codec string,max int) (Client, error) {
 type client struct {
 	mu 					sync.RWMutex
 	mutex				sync.RWMutex
-	reqMutex 			sync.Mutex // protects following
 	conn				Conn
 	seq 				int64
 	pending  			map[int64]*Call
@@ -80,7 +78,6 @@ type client struct {
 	funcsCodecType 		CodecType
 	compressType 		CompressType
 	compressLevel 		CompressLevel
-	idgenerator			*idgenerator.IDGen
 	client_id			int64
 	timeout 			int64
 	heartbeatTimeout	int64
@@ -102,7 +99,6 @@ func NewClientWithMaxRequests(conn	Conn,codec string,max int)  (*client, error) 
 	var client_id int64=1
 	c :=  &client{
 		client_id:client_id,
-		idgenerator:idgenerator.NewSnowFlake(client_id),
 		conn:conn,
 		pending: make(map[int64]*Call),
 		finishChan:make(chan bool,1),
@@ -184,7 +180,6 @@ func (c *client)run(){
 			}
 			c.errCnt=0
 		}
-
 	}
 endfor:
 }
@@ -292,13 +287,7 @@ func (c *client)SetCompressLevel(compress,level string){
 func (c *client)SetID(id int64)error{
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if id<0{
-		return ErrSetClientID
-	}else if id>1023{
-		return ErrSetClientID
-	}
 	c.client_id=id
-	c.idgenerator=idgenerator.NewSnowFlake(id)
 	return nil
 }
 func (c *client)GetID()int64{
@@ -372,11 +361,11 @@ func (c *client)CodecType()CodecType {
 func (c *client) Go(name string, args interface{}, reply interface{}, done chan *Call) *Call {
 	defer func() {
 		if err := recover(); err != nil {
-			log.Errorln("Call failed:", err)
+			log.Errorln("Go failed:", err)
 		}
 	}()
 	call := new(Call)
-	call.start=time.Now()
+	//call.start=time.Now()
 	call.ServiceMethod = name
 	call.Args = args
 	call.Reply = reply
@@ -572,7 +561,6 @@ func (c *client)Close() ( err error) {
 	close(c.finishChan)
 	close(c.errCntChan)
 	close(c.requestChan)
-	c.idgenerator=nil
 	return c.conn.Close()
 }
 func (c *client)Closed()bool{
@@ -580,7 +568,7 @@ func (c *client)Closed()bool{
 }
 
 func (c *client)heartbeat() ( err error) {
-	uid:=c.idgenerator.GenUniqueIDInt64()
+	uid:=c.Seq()
 	msg:=&Msg{}
 	msg.id=uid
 	msg.msgType=MsgType(MsgTypeHea)
@@ -614,7 +602,7 @@ func (c *client)heartbeat() ( err error) {
 func (c *client)call(name string, args interface{}, reply interface{}) ( err error) {
 	if c.batchEnabled{
 		cr:=&BatchRequest{
-			id:uint64(c.idgenerator.GenUniqueIDInt64()),
+			id:uint64(c.Seq()),
 			name:name,
 			noResponse:false,
 		}
@@ -673,7 +661,7 @@ func (c *client)call(name string, args interface{}, reply interface{}) ( err err
 	}else {
 		clientCodec:=&ClientCodec{}
 		clientCodec.client_id=c.client_id
-		clientCodec.req_id=uint64(c.idgenerator.GenUniqueIDInt64())
+		clientCodec.req_id=uint64(c.Seq())
 		clientCodec.name=name
 		if args!=nil{
 			clientCodec.args=args
@@ -732,8 +720,6 @@ func (c *client)Seq()int64{
 	return seq
 }
 func (c *client) send(call *Call) {
-	c.reqMutex.Lock()
-	defer c.reqMutex.Unlock()
 	// Register this call.
 	if c.closed || c.closing {
 		call.Error = ErrShutdown
@@ -778,9 +764,9 @@ func (c *client) send(call *Call) {
 			}
 			return
 		}else {
-			c.mutex.Lock()
-			c.pending[seq] = call
-			c.mutex.Unlock()
+			//c.mutex.Lock()
+			//c.pending[seq] = call
+			//c.mutex.Unlock()
 			go func(c *client,rpc_req_bytes []byte,call *Call) {
 				var data []byte
 				data, err = c.RemoteCall(rpc_req_bytes)
@@ -790,12 +776,12 @@ func (c *client) send(call *Call) {
 				}
 				clientCodec.reply = call.Reply
 				err = clientCodec.Decode(data)
-				c.mutex.Lock()
-				var ok bool
-				if call ,ok= c.pending[seq];ok{
-					delete(c.pending, seq)
-				}
-				c.mutex.Unlock()
+				//c.mutex.Lock()
+				//var ok bool
+				//if call ,ok= c.pending[seq];ok{
+				//	delete(c.pending, seq)
+				//}
+				//c.mutex.Unlock()
 				if err != nil {
 					if call != nil {
 						call.Error = err
@@ -812,7 +798,7 @@ func (c *client) send(call *Call) {
 		}
 	}else {
 		cr:=&BatchRequest{
-			id:uint64(c.idgenerator.GenUniqueIDInt64()),
+			id:uint64(c.Seq()),
 			name:call.ServiceMethod,
 			noResponse:false,
 		}
@@ -841,20 +827,20 @@ func (c *client) send(call *Call) {
 			}
 			return
 		}else{
-			c.mutex.Lock()
-			c.pending[seq] = call
-			c.mutex.Unlock()
+			//c.mutex.Lock()
+			//c.pending[seq] = call
+			//c.mutex.Unlock()
 			go func(cr *BatchRequest,call *Call) {
 				select {
 				case bytes ,ok:= <- cr.reply_bytes:
 					if ok{
 						err:= ReplyDecode(bytes,call.Reply,c.funcsCodecType)
-						c.mutex.Lock()
-						var ok bool
-						if call ,ok= c.pending[seq];ok{
-							delete(c.pending, seq)
-						}
-						c.mutex.Unlock()
+						//c.mutex.Lock()
+						//var ok bool
+						//if call ,ok= c.pending[seq];ok{
+						//	delete(c.pending, seq)
+						//}
+						//c.mutex.Unlock()
 						if err != nil {
 							if call != nil {
 								call.Error = err
@@ -868,12 +854,12 @@ func (c *client) send(call *Call) {
 				case err ,ok:= <- cr.reply_error:
 					if ok{
 						if err != nil {
-							c.mutex.Lock()
-							var ok bool
-							if call ,ok= c.pending[seq];ok{
-								delete(c.pending, seq)
-							}
-							c.mutex.Unlock()
+							//c.mutex.Lock()
+							//var ok bool
+							//if call ,ok= c.pending[seq];ok{
+							//	delete(c.pending, seq)
+							//}
+							//c.mutex.Unlock()
 							if call != nil {
 								call.Error = err
 								call.done()
