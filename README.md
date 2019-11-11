@@ -215,7 +215,7 @@ Result:
 * **trans** transport
 * **pkg**   package
 
-### Mac 4 CPU 2.9 GHz 8 GiB Localhost  qps
+### Mac 4 CPU 2.9 GHz 8 GiB Requests per second
 ```
 pkg     trans   codec   1c      2c      1c_p    2c_p    1c_n    2c_n    1c_pb   2c_pb   1c_m    2c_m    1c_mb   2c_mb   1c_mbn  2c_mbn
 RPC     TCP     pb      7640    14899   38460   40417   62296   68947   142992  165612  35846   37042   201432  302815  517066  534081
@@ -226,7 +226,7 @@ RPC     HTTP    pb      3694    7530    4953    8470    5348    8908    130125  
 RPC     HTTP2   pb      2536    4304    5933    6575    7213    6215    109387  146322  6707    6695    154804  189480  380008  351820
 ```
 
-### Mac 4 CPU 2.9 GHz 8 GiB Localhost 99th percentile time (ms)
+### Mac 4 CPU 2.9 GHz 8 GiB 99th percentile time (ms)
 ```
 pkg     trans   codec   1c      2c      1c_p    2c_p    1c_n    2c_n    1c_pb   2c_pb   1c_m    2c_m    1c_mb   2c_mb   1c_mbn  2c_mbn
 RPC     TCP     pb      0.22    0.22    1.91    4.22    0.09    0.21    7.00    13.53   1.66    4.52    5.35    7.92    9.23    22.31
@@ -237,7 +237,7 @@ RPC     HTTP    pb      0.47    0.53    8.73    10.30   0.38    0.56    7.73    
 RPC     HTTP2   pb      0.68    1.07    13.63   19.82   3.07    8.64    9.81    14.35   9.65    20.36   7.70    11.72   22.76   87.47
 ```
 
-### Linux 12 CPU 3.1 GHz 24 GiB Localhost  qps
+### Linux 12 CPU 3.1 GHz 24 GiB Requests per second
 ```
 pkg     trans   codec   1c      8c      1c_p    8c_p    1c_n    8c_n    1c_pb   8c_pb   1c_m    8c_m    1c_mb   8c_mb   1c_mbn  8c_mbn
 RPC     TCP     pb      22509   118317  105188  314515  213503  975411  286945  581101  100365  269593  304154  763328  1029544 1150087
@@ -248,7 +248,7 @@ RPC     HTTP    pb      10665   54212   13395   52496   15519   63847   263006  
 RPC     HTTP2   pb      5940    29049   18884   47305   22652   64481   241620  546947  17792   53155   253349  723360  941024  967815
 ```
 
-### Linux 12 CPU 3.1 GHz 24 GiB Localhost 99th percentile time (ms)
+### Linux 12 CPU 3.1 GHz 24 GiB 99th percentile time (ms)
 ```
 pkg     trans   codec   1c      8c      1c_p    8c_p    1c_n    8c_n    1c_pb   8c_pb   1c_m    8c_m    1c_mb   8c_mb   1c_mbn  8c_mbn
 RPC     TCP     pb      0.05    0.12    0.51    2.83    0.05    0.03    3.16    23.19   0.59    3.48    2.92    12.86   6.68    57.54
