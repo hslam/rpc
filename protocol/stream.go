@@ -3,6 +3,8 @@ package protocol
 import (
 	"io"
 	"errors"
+	"time"
+	"sync"
 )
 
 const (
@@ -83,16 +85,65 @@ func WriteStream(writer io.Writer, writeChan chan []byte, stopChan chan bool,fin
 		if err := recover(); err != nil {
 		}
 	}()
-	for send_data:= range writeChan{
-		dataPacket:=PacketStream(send_data)
-		_, err := writer.Write(dataPacket)
-		if err != nil {
-			goto finish
+	useBuffer:=false
+	var ticker *time.Ticker
+	var ch chan bool
+	if useBuffer{
+		ticker =time.NewTicker(time.Microsecond)
+		buf:=make([]byte,0)
+		var mu sync.Mutex
+		ch=make(chan bool,1)
+		go func() {
+			for send_data:= range writeChan{
+				dataPacket:=PacketStream(send_data)
+				func(){
+					mu.Lock()
+					defer mu.Unlock()
+					buf=append(buf,dataPacket...)
+					if len(buf)>1024{
+						writer.Write(buf)
+						buf=make([]byte,0)
+					}
+				}()
+			}
+		}()
+		for range ticker.C{
+			select {
+			case <-ch:
+				goto endfor
+			default:
+			}
+			err:=func()error{
+				mu.Lock()
+				defer mu.Unlock()
+				if len(buf)>0{
+					_, err := writer.Write(buf)
+					buf=make([]byte,0)
+					return err
+				}
+				return nil
+			}()
+			if err != nil {
+				goto finish
+			}
+			select {
+			case <-stopChan:
+				goto endfor
+			default:
+			}
 		}
-		select {
-		case <-stopChan:
-			goto endfor
-		default:
+	}else {
+		for send_data:= range writeChan{
+			dataPacket:=PacketStream(send_data)
+			_, err := writer.Write(dataPacket)
+			if err != nil {
+				goto finish
+			}
+			select {
+			case <-stopChan:
+				goto endfor
+			default:
+			}
 		}
 	}
 finish:
@@ -101,4 +152,9 @@ finish:
 		finishChan<-true
 	}()
 endfor:
+	if useBuffer{
+		ticker.Stop()
+		ticker=nil
+		ch<-true
+	}
 }
