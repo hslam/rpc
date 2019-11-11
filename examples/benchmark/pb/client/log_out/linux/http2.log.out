@@ -1,0 +1,392 @@
+./client -network=http2 -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=50000 -pipelining=false -multiplexing=false -batch=false -batch_async=false -noresponse=false -clients=1
+Summary:
+	Clients:	1
+	Parallel calls per client:	1
+	Total calls:	50000
+	Total time:	8.42s
+	Requests per second:	5940.13
+	Fastest time for request:	0.11ms
+	Average time per request:	0.17ms
+	Slowest time for request:	2.39ms
+
+Time:
+	0.1%	time for request:	0.12ms
+	1%	time for request:	0.13ms
+	5%	time for request:	0.14ms
+	10%	time for request:	0.14ms
+	25%	time for request:	0.15ms
+	50%	time for request:	0.17ms
+	75%	time for request:	0.18ms
+	90%	time for request:	0.19ms
+	95%	time for request:	0.20ms
+	99%	time for request:	0.22ms
+	99.9%	time for request:	0.48ms
+
+Result:
+	Response ok:	50000 (100.00%)
+	Errors:	0 (0.00%)
+
+./client -network=http2 -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=100000 -pipelining=false -multiplexing=false -batch=false -batch_async=false -noresponse=false -clients=8
+Summary:
+	Clients:	8
+	Parallel calls per client:	1
+	Total calls:	100000
+	Total time:	3.44s
+	Requests per second:	29049.94
+	Fastest time for request:	0.12ms
+	Average time per request:	0.27ms
+	Slowest time for request:	3.09ms
+
+Time:
+	0.1%	time for request:	0.14ms
+	1%	time for request:	0.16ms
+	5%	time for request:	0.18ms
+	10%	time for request:	0.19ms
+	25%	time for request:	0.21ms
+	50%	time for request:	0.25ms
+	75%	time for request:	0.30ms
+	90%	time for request:	0.36ms
+	95%	time for request:	0.41ms
+	99%	time for request:	0.75ms
+	99.9%	time for request:	1.04ms
+
+Result:
+	Response ok:	100000 (100.00%)
+	Errors:	0 (0.00%)
+
+./client -network=http2 -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=500000 -pipelining=true -multiplexing=false -batch=false -batch_async=false -noresponse=false -clients=1
+Summary:
+	Clients:	1
+	Parallel calls per client:	32
+	Total calls:	500000
+	Total time:	26.48s
+	Requests per second:	18884.96
+	Fastest time for request:	0.16ms
+	Average time per request:	1.69ms
+	Slowest time for request:	91.56ms
+
+Time:
+	0.1%	time for request:	0.30ms
+	1%	time for request:	0.49ms
+	5%	time for request:	0.83ms
+	10%	time for request:	1.06ms
+	25%	time for request:	1.40ms
+	50%	time for request:	1.71ms
+	75%	time for request:	1.98ms
+	90%	time for request:	2.27ms
+	95%	time for request:	2.48ms
+	99%	time for request:	2.87ms
+	99.9%	time for request:	3.38ms
+
+Result:
+	Response ok:	500000 (100.00%)
+	Errors:	0 (0.00%)
+
+./client -network=http2 -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=true -multiplexing=false -batch=false -batch_async=false -noresponse=false -clients=8
+Summary:
+	Clients:	8
+	Parallel calls per client:	32
+	Total calls:	1000000
+	Total time:	21.14s
+	Requests per second:	47305.44
+	Fastest time for request:	0.16ms
+	Average time per request:	5.41ms
+	Slowest time for request:	52.77ms
+
+Time:
+	0.1%	time for request:	0.37ms
+	1%	time for request:	0.87ms
+	5%	time for request:	1.70ms
+	10%	time for request:	2.24ms
+	25%	time for request:	3.49ms
+	50%	time for request:	5.13ms
+	75%	time for request:	6.88ms
+	90%	time for request:	8.87ms
+	95%	time for request:	10.26ms
+	99%	time for request:	13.19ms
+	99.9%	time for request:	17.18ms
+
+Result:
+	Response ok:	1000000 (100.00%)
+	Errors:	0 (0.00%)
+
+./client -network=http2 -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=100000 -pipelining=false -multiplexing=false -batch=false -batch_async=false -noresponse=true -clients=1
+Summary:
+	Clients:	1
+	Parallel calls per client:	1
+	Total calls:	100000
+	Total time:	4.41s
+	Requests per second:	22652.78
+	Fastest time for request:	0.00ms
+	Average time per request:	0.04ms
+	Slowest time for request:	33.33ms
+
+Time:
+	0.1%	time for request:	0.00ms
+	1%	time for request:	0.00ms
+	5%	time for request:	0.00ms
+	10%	time for request:	0.00ms
+	25%	time for request:	0.00ms
+	50%	time for request:	0.00ms
+	75%	time for request:	0.00ms
+	90%	time for request:	0.01ms
+	95%	time for request:	0.20ms
+	99%	time for request:	1.11ms
+	99.9%	time for request:	2.11ms
+
+Result:
+	Response ok:	100000 (100.00%)
+	Errors:	0 (0.00%)
+
+./client -network=http2 -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=500000 -pipelining=false -multiplexing=false -batch=false -batch_async=false -noresponse=true -clients=8
+Summary:
+	Clients:	8
+	Parallel calls per client:	1
+	Total calls:	500000
+	Total time:	7.75s
+	Requests per second:	64481.84
+	Fastest time for request:	0.00ms
+	Average time per request:	0.12ms
+	Slowest time for request:	24.88ms
+
+Time:
+	0.1%	time for request:	0.00ms
+	1%	time for request:	0.00ms
+	5%	time for request:	0.00ms
+	10%	time for request:	0.00ms
+	25%	time for request:	0.00ms
+	50%	time for request:	0.00ms
+	75%	time for request:	0.00ms
+	90%	time for request:	0.01ms
+	95%	time for request:	0.22ms
+	99%	time for request:	4.13ms
+	99.9%	time for request:	8.92ms
+
+Result:
+	Response ok:	500000 (100.00%)
+	Errors:	0 (0.00%)
+
+./client -network=http2 -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=500000 -pipelining=true -multiplexing=false -batch=true -batch_async=false -noresponse=false -clients=1
+Summary:
+	Clients:	1
+	Parallel calls per client:	512
+	Total calls:	500000
+	Total time:	2.07s
+	Requests per second:	241620.95
+	Fastest time for request:	0.68ms
+	Average time per request:	2.11ms
+	Slowest time for request:	6.14ms
+
+Time:
+	0.1%	time for request:	0.86ms
+	1%	time for request:	1.02ms
+	5%	time for request:	1.26ms
+	10%	time for request:	1.41ms
+	25%	time for request:	1.67ms
+	50%	time for request:	2.02ms
+	75%	time for request:	2.48ms
+	90%	time for request:	2.91ms
+	95%	time for request:	3.19ms
+	99%	time for request:	3.79ms
+	99.9%	time for request:	4.88ms
+
+Result:
+	Response ok:	500000 (100.00%)
+	Errors:	0 (0.00%)
+
+./client -network=http2 -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=true -multiplexing=false -batch=true -batch_async=false -noresponse=false -clients=8
+Summary:
+	Clients:	8
+	Parallel calls per client:	512
+	Total calls:	1000000
+	Total time:	1.83s
+	Requests per second:	546947.51
+	Fastest time for request:	0.45ms
+	Average time per request:	7.42ms
+	Slowest time for request:	52.22ms
+
+Time:
+	0.1%	time for request:	1.12ms
+	1%	time for request:	2.07ms
+	5%	time for request:	3.39ms
+	10%	time for request:	4.07ms
+	25%	time for request:	5.25ms
+	50%	time for request:	6.84ms
+	75%	time for request:	8.76ms
+	90%	time for request:	11.61ms
+	95%	time for request:	13.86ms
+	99%	time for request:	18.37ms
+	99.9%	time for request:	26.04ms
+
+Result:
+	Response ok:	1000000 (100.00%)
+	Errors:	0 (0.00%)
+
+./client -network=http2 -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=500000 -pipelining=false -multiplexing=true -batch=false -batch_async=false -noresponse=false -clients=1
+Summary:
+	Clients:	1
+	Parallel calls per client:	32
+	Total calls:	500000
+	Total time:	28.10s
+	Requests per second:	17792.58
+	Fastest time for request:	0.17ms
+	Average time per request:	1.80ms
+	Slowest time for request:	9.56ms
+
+Time:
+	0.1%	time for request:	0.29ms
+	1%	time for request:	0.51ms
+	5%	time for request:	0.86ms
+	10%	time for request:	1.11ms
+	25%	time for request:	1.47ms
+	50%	time for request:	1.81ms
+	75%	time for request:	2.12ms
+	90%	time for request:	2.46ms
+	95%	time for request:	2.67ms
+	99%	time for request:	3.08ms
+	99.9%	time for request:	3.66ms
+
+Result:
+	Response ok:	500000 (100.00%)
+	Errors:	0 (0.00%)
+
+./client -network=http2 -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false -multiplexing=true -batch=false -batch_async=false -noresponse=false -clients=8
+Summary:
+	Clients:	8
+	Parallel calls per client:	32
+	Total calls:	1000000
+	Total time:	18.81s
+	Requests per second:	53155.63
+	Fastest time for request:	0.18ms
+	Average time per request:	4.81ms
+	Slowest time for request:	33.56ms
+
+Time:
+	0.1%	time for request:	0.37ms
+	1%	time for request:	0.84ms
+	5%	time for request:	1.59ms
+	10%	time for request:	2.07ms
+	25%	time for request:	3.11ms
+	50%	time for request:	4.58ms
+	75%	time for request:	6.06ms
+	90%	time for request:	7.81ms
+	95%	time for request:	9.09ms
+	99%	time for request:	12.01ms
+	99.9%	time for request:	15.97ms
+
+Result:
+	Response ok:	1000000 (100.00%)
+	Errors:	0 (0.00%)
+
+./client -network=http2 -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=500000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=1
+Summary:
+	Clients:	1
+	Parallel calls per client:	512
+	Total calls:	500000
+	Total time:	1.97s
+	Requests per second:	253349.02
+	Fastest time for request:	0.61ms
+	Average time per request:	2.02ms
+	Slowest time for request:	5.68ms
+
+Time:
+	0.1%	time for request:	0.75ms
+	1%	time for request:	0.97ms
+	5%	time for request:	1.28ms
+	10%	time for request:	1.46ms
+	25%	time for request:	1.69ms
+	50%	time for request:	1.85ms
+	75%	time for request:	2.28ms
+	90%	time for request:	2.78ms
+	95%	time for request:	3.06ms
+	99%	time for request:	3.69ms
+	99.9%	time for request:	4.73ms
+
+Result:
+	Response ok:	500000 (100.00%)
+	Errors:	0 (0.00%)
+
+./client -network=http2 -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=8
+Summary:
+	Clients:	8
+	Parallel calls per client:	512
+	Total calls:	1000000
+	Total time:	1.38s
+	Requests per second:	723360.27
+	Fastest time for request:	0.52ms
+	Average time per request:	5.61ms
+	Slowest time for request:	23.20ms
+
+Time:
+	0.1%	time for request:	0.96ms
+	1%	time for request:	1.70ms
+	5%	time for request:	2.54ms
+	10%	time for request:	2.96ms
+	25%	time for request:	3.83ms
+	50%	time for request:	5.20ms
+	75%	time for request:	6.79ms
+	90%	time for request:	8.87ms
+	95%	time for request:	10.47ms
+	99%	time for request:	13.28ms
+	99.9%	time for request:	16.84ms
+
+Result:
+	Response ok:	1000000 (100.00%)
+	Errors:	0 (0.00%)
+
+./client -network=http2 -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=true -clients=1
+Summary:
+	Clients:	1
+	Parallel calls per client:	512
+	Total calls:	1000000
+	Total time:	1.06s
+	Requests per second:	941024.14
+	Fastest time for request:	0.00ms
+	Average time per request:	0.54ms
+	Slowest time for request:	26.22ms
+
+Time:
+	0.1%	time for request:	0.00ms
+	1%	time for request:	0.00ms
+	5%	time for request:	0.00ms
+	10%	time for request:	0.00ms
+	25%	time for request:	0.04ms
+	50%	time for request:	0.47ms
+	75%	time for request:	0.56ms
+	90%	time for request:	0.74ms
+	95%	time for request:	1.48ms
+	99%	time for request:	4.32ms
+	99.9%	time for request:	9.64ms
+
+Result:
+	Response ok:	1000000 (100.00%)
+	Errors:	0 (0.00%)
+
+./client -network=http2 -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=true -clients=8
+Summary:
+	Clients:	8
+	Parallel calls per client:	512
+	Total calls:	1000000
+	Total time:	1.03s
+	Requests per second:	967815.30
+	Fastest time for request:	0.00ms
+	Average time per request:	4.11ms
+	Slowest time for request:	162.01ms
+
+Time:
+	0.1%	time for request:	0.00ms
+	1%	time for request:	0.00ms
+	5%	time for request:	0.00ms
+	10%	time for request:	0.00ms
+	25%	time for request:	0.00ms
+	50%	time for request:	0.00ms
+	75%	time for request:	0.00ms
+	90%	time for request:	16.26ms
+	95%	time for request:	28.82ms
+	99%	time for request:	55.87ms
+	99.9%	time for request:	90.29ms
+
+Result:
+	Response ok:	1000000 (100.00%)
+	Errors:	0 (0.00%)
+
