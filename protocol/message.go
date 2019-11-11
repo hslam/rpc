@@ -178,7 +178,7 @@ func HandleMessage(readWriter io.ReadWriter,readChan chan []byte,writeChan chan 
 		if err := recover(); err != nil {
 		}
 	}()
-	WindowSize:=1024
+	WindowSize:=512
 	idChan := make(chan uint16,WindowSize)
 	queueMsg:=NewQueueMsg(WindowSize)
 	var startbit =uint(rand.Intn(13))
@@ -230,7 +230,12 @@ func HandleMessage(readWriter io.ReadWriter,readChan chan []byte,writeChan chan 
 	endfor:
 	}(idChan,queueMsg,readChan)
 	for send_data:= range writeChan{
-		id=(id+1)%max_id
+		for{
+			id=(id+1)%max_id
+			if _,ok:= queueMsg.IsExisted(id);!ok{
+				break
+			}
+		}
 		idChan<-id
 		recvChan:=make(chan bool,1)
 		notice:=&Notice{Id:id,RecvChan:recvChan}

@@ -77,7 +77,12 @@ func HandleSyncConn(syncConn SyncConn,recvChan chan []byte,sendChan chan []byte,
 	}(idChan,queueMsg,recvChan)
 	for send_data:= range sendChan{
 		pipelineChan<-true
-		id=(id+1)%max_id
+		for{
+			id=(id+1)%max_id
+			if _,ok:= queueMsg.IsExisted(id);!ok{
+				break
+			}
+		}
 		idChan<-id
 		notice:=&Notice{Id:id,}
 		queueMsg.Push(notice)
