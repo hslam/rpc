@@ -9,7 +9,7 @@ A RPC implementation written in Golang over TCP UDP QUIC WS HTTP HTTP2
 
 ## Client Feature
 * Network tcp/ws/http/http2/quic/udp
-* Codec json/protobuf/xml
+* Codec json/protobuf/xml/gob/bytes
 * Compress flate/zlib/gzip/no
 * Pipelining
 * Multiplexing
