@@ -207,13 +207,13 @@ Result:
 
 ### Define
 
-* c     client
-* p     pipeline
-* m     multiplex
-* b     batch
-* n     no response
-* trans transport
-* pkg   package
+* **c**     client
+* **p**     pipeline
+* **m**     multiplex
+* **b**     batch
+* **n**     no response
+* **trans** transport
+* **pkg**   package
 
 ### Mac 4 CPU 2.9 GHz 8 GiB Localhost  qps
 ```
