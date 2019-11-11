@@ -22,7 +22,7 @@ A RPC implementation written in Golang over TCP UDP QUIC WS HTTP HTTP2
 Batch is only useful when there are multiple goroutines calling it.
 
 ### Mac Environment
-* **CPU** 4 Cores,2.9 GHz
+* **CPU** 4 Cores 2.9 GHz
 * **Memory** 8 GiB
 
 ./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=1
@@ -113,7 +113,7 @@ Result:
 	Errors:	0 (0.00%)
 ```
 ### Linux Environment
-* **CPU** 12 Cores,2.8 GHz
+* **CPU** 12 Cores 3.1 GHz
 * **Memory** 24 GiB
 
 ./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=1
