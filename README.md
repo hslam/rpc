@@ -215,7 +215,7 @@ Result:
 * **trans** transport
 * **pkg**   package
 
-### Mac 4 Cores 2.9 GHz 8 GiB Requests per second
+### Mac 4 CPU 2.9 GHz 8 GiB Requests per second
 ```
 pkg     trans   codec   1c      2c      1c_p    2c_p    1c_m    2c_m    1c_pb   2c_pb   1c_mb   2c_mb   1c_mbn
 RPC     TCP     pb      7934    15615   67812   88667   60650   86423   165944  217441  214634  323449  589337
@@ -229,7 +229,7 @@ JSONRPC HTTP    json    8101    14661   -       -       39201   43342   -       
 GRPC    HTTP2   pb      5877    9814    -       -       45546   54089   -       -       -       -       -
 ```
 
-### Mac 4 Cores 2.9 GHz 8 GiB 99th percentile time (ms)
+### Mac 4 CPU 2.9 GHz 8 GiB 99th percentile time (ms)
 ```
 pkg     trans   codec   1c      2c      1c_p    2c_p    1c_m    2c_m    1c_pb   2c_pb   1c_mb   2c_mb   1c_mbn
 RPC     TCP     pb      0.21    0.20    1.10    1.69    1.29    1.56    5.68    10.18   4.72    7.58    10.66
@@ -243,7 +243,7 @@ JSONRPC HTTP    json    0.21    0.28    -       -       2.15    4.45    -       
 GRPC    HTTP2   pb      0.29    0.51    -       -       1.65    2.90    -       -       -       -       -
 ```
 
-### Linux 12 Cores 3.1 GHz 24 GiB Requests per second
+### Linux 12 CPU 3.1 GHz 24 GiB Requests per second
 ```
 pkg     trans   codec   1c      8c      1c_p    8c_p    1c_m    8c_m    1c_pb   8c_pb   1c_mb   8c_mb   1c_mbn
 RPC     TCP     pb      22080   119183  163335  361216  154558  313828  288621  578407  305782  777963  1181147
@@ -257,7 +257,7 @@ JSONRPC HTTP    json    26664   123223  -       -       92579   294136  -       
 GRPC    HTTP2   pb      15386   61854   -       -       89989   145862  -       -       -       -       -
 ```
 
-### Linux 12 Cores 3.1 GHz 24 GiB 99th percentile time (ms)
+### Linux 12 CPU 3.1 GHz 24 GiB 99th percentile time (ms)
 ```
 pkg     trans   codec   1c      8c      1c_p    8c_p    1c_m    8c_m    1c_pb   8c_pb   1c_mb   8c_mb   1c_mbn
 RPC     TCP     pb      0.06    0.12    0.45    1.94    0.51    2.04    3.31    25.40   2.92    13.04   7.62
