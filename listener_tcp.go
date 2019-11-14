@@ -64,7 +64,11 @@ func ServeTCPConn(server *Server,conn net.Conn)error {
 	stopWriteStreamChan := make(chan bool,1)
 	stopChan := make(chan bool,1)
 	go protocol.ReadStream(conn, readChan, stopReadStreamChan,finishChan)
-	go protocol.WriteStream(conn, writeChan, stopWriteStreamChan,finishChan)
+	var useBuffer bool
+	if !server.batch&&!server.lowDelay&&(server.pipelining||server.multiplexing){
+		useBuffer=true
+	}
+	go protocol.WriteStream(conn, writeChan, stopWriteStreamChan,finishChan,useBuffer)
 	if server.multiplexing{
 		jobChan := make(chan bool,server.asyncMax)
 		for {

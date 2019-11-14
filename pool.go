@@ -19,12 +19,12 @@ func Dials(total int,network,address,codec string)(*Pool,error){
 	return p,nil
 }
 
-func DialsWithMaxRequests(total int,network,address,codec string,max int)(*Pool,error){
+func DialsWithOptions(total int,network,address,codec string,opts *Options)(*Pool,error){
 	p :=  &Pool{
 		conns:make([]Client,total),
 	}
 	for i := 0;i<total;i++{
-		conn,err:=DialWithMaxRequests(network,address,codec,max)
+		conn,err:=DialWithOptions(network,address,codec,opts)
 		if err != nil {
 			return nil,err
 		}
@@ -62,13 +62,6 @@ func (p *Pool)All()[]Client{
 	defer p.mu.Unlock()
 	return p.conns
 }
-func (p *Pool)SetMaxRequests(max int){
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	for _,c:= range p.conns{
-		c.SetMaxRequests(max)
-	}
-}
 func (p *Pool)GetMaxRequests()(int){
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -77,45 +70,7 @@ func (p *Pool)GetMaxRequests()(int){
 	}
 	return -1
 }
-func (p *Pool)EnablePipelining(){
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	for _,c:= range p.conns{
-		c.EnablePipelining()
-	}
-}
-func (p *Pool)EnableMultiplexing(){
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	for _,c:= range p.conns{
-		c.EnableMultiplexing()
-	}
-}
-func (p *Pool)EnableBatch(){
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	for _,c:= range p.conns{
-		c.EnableBatch()
-	}
-}
-func (p *Pool)EnableBatchAsync(){
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	for _,c:= range p.conns{
-		c.EnableBatchAsync()
-	}
-}
-func (p *Pool)SetMaxBatchRequest(maxBatchRequest int) error{
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	for _,c:= range p.conns{
-		err:=c.SetMaxBatchRequest(maxBatchRequest)
-		if err!=nil{
-			return err
-		}
-	}
-	return nil
-}
+
 func (p *Pool)GetMaxBatchRequest()int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -125,51 +80,12 @@ func (p *Pool)GetMaxBatchRequest()int {
 	return -1
 }
 
-func (p *Pool)SetCompressType(compress string){
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	for _,c:= range p.conns{
-		c.SetCompressType(compress)
-	}
-}
-func (p *Pool)SetCompressLevel(compress,level string){
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	for _,c:= range p.conns{
-		c.SetCompressLevel(compress,level)
-	}
-}
-
-func (p *Pool)SetID(id int64)error{
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	var i int64=0
-	p.pool_id=id
-	for _,c:= range p.conns{
-		err:=c.SetID(id+i)
-		if err!=nil{
-			return err
-		}
-		i++
-	}
-	return nil
-}
 func (p *Pool)GetID()int64{
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.pool_id
 }
-func (p *Pool)SetTimeout(timeout int64)error{
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	for _,c:= range p.conns{
-		err:=c.SetTimeout(timeout)
-		if err!=nil{
-			return err
-		}
-	}
-	return nil
-}
+
 func (p *Pool)GetTimeout()int64{
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -179,17 +95,6 @@ func (p *Pool)GetTimeout()int64{
 	return -1
 }
 
-func (p *Pool)SetHeartbeatTimeout(timeout int64)error{
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	for _,c:= range p.conns{
-		err:=c.SetHeartbeatTimeout(timeout)
-		if err!=nil{
-			return err
-		}
-	}
-	return nil
-}
 func (p *Pool)GetHeartbeatTimeout()int64{
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -199,18 +104,6 @@ func (p *Pool)GetHeartbeatTimeout()int64{
 	return -1
 }
 
-
-func (p *Pool)SetMaxErrHeartbeat(maxErrHeartbeat int)error{
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	for _,c:= range p.conns{
-		err:=c.SetMaxErrHeartbeat(maxErrHeartbeat)
-		if err!=nil{
-			return err
-		}
-	}
-	return nil
-}
 func (p *Pool)GetMaxErrHeartbeat()int{
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -220,17 +113,6 @@ func (p *Pool)GetMaxErrHeartbeat()int{
 	return -1
 }
 
-func (p *Pool)SetMaxErrPerSecond(maxErrPerSecond int)error{
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	for _,c:= range p.conns{
-		err:=c.SetMaxErrPerSecond(maxErrPerSecond)
-		if err!=nil{
-			return err
-		}
-	}
-	return nil
-}
 func (p *Pool)GetMaxErrPerSecond()int{
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -304,13 +186,7 @@ func (p *Pool)Ping() bool {
 	}()
 	return p.head().Ping()
 }
-func (p *Pool)DisableRetry() {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	for _,c:= range p.conns{
-		c.DisableRetry()
-	}
-}
+
 func (p *Pool)Close() ( err error) {
 	for _,c:= range p.conns{
 		err=c.Close()

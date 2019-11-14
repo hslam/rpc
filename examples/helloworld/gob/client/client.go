@@ -1,12 +1,12 @@
 package main
 import (
-	"hslam.com/git/x/rpc/examples/helloworld/json/service"
+	"hslam.com/git/x/rpc/examples/helloworld/gob/service"
 	"hslam.com/git/x/rpc"
 	"log"
 	"fmt"
 )
 func main()  {
-	conn, err:= rpc.Dial("tcp","127.0.0.1:9999","json")//tcp|ws|http|http2|quic
+	conn, err:= rpc.Dial("tcp","127.0.0.1:9999","gob")//tcp|ws|http|http2|quic
 	if err != nil {
 		log.Fatalln("dailing error: ", err)
 	}
@@ -24,4 +24,5 @@ func main()  {
 		log.Fatalln("arith error: ", err)
 	}
 	fmt.Printf("%d / %d, quo is %d, rem is %d\n", req.A, req.B, res.Quo, res.Rem)
+
 }

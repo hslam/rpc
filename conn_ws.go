@@ -32,7 +32,8 @@ func DialWS(address string)  (Conn, error)  {
 
 	return t, nil
 }
-
+func (t *WSConn)Buffer(enable bool){
+}
 func (t *WSConn)Handle(readChan chan []byte,writeChan chan []byte, stopChan chan bool,finishChan chan bool){
 	t.readChan=readChan
 	t.writeChan=writeChan
@@ -97,7 +98,7 @@ func (t *WSConn)TickerFactor()(int){
 	return 100
 }
 func (t *WSConn)BatchFactor()(int){
-	return 64
+	return 512
 }
 func (t *WSConn)Retry()(error){
 	u := url.URL{Scheme: "ws", Host: t.address, Path: "/"}

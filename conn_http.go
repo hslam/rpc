@@ -32,7 +32,8 @@ func DialHTTP(address string)  (Conn, error)  {
 	}
 	return t, nil
 }
-
+func (t *HTTPConn)Buffer(enable bool){
+}
 func (t *HTTPConn)Handle(readChan chan []byte,writeChan chan []byte, stopChan chan bool,finishChan chan bool){
 	go protocol.HandleSyncConn(t, readChan,writeChan,stopChan,64)
 }
@@ -40,7 +41,7 @@ func (t *HTTPConn)TickerFactor()(int){
 	return 100
 }
 func (t *HTTPConn)BatchFactor()(int){
-	return 64
+	return 512
 }
 func (t *HTTPConn)Retry()(error){
 	Transport:= &http.Transport{

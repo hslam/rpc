@@ -1,4 +1,5 @@
 package rpc
+
 import (
 	"sync"
 	"time"
@@ -26,12 +27,12 @@ type Batch struct {
 	maxDelayNanoSecond	int
 	closeChan 			chan bool
 }
-func NewBatch(c *client,maxDelayNanoSecond int) *Batch {
+func NewBatch(c *client,maxDelayNanoSecond int,maxBatchRequest int) *Batch {
 	b:= &Batch{
 		reqChan:make(chan *BatchRequest,DefaultMaxCacheRequest),
 		client:c,
 		readyRequests:make([]*BatchRequest,0),
-		maxBatchRequest:DefaultMaxBatchRequest,
+		maxBatchRequest:maxBatchRequest,
 		maxDelayNanoSecond:maxDelayNanoSecond,
 		closeChan:make(chan bool,1),
 	}

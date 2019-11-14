@@ -18,4 +18,3 @@ func (this *Arith) Divide(req *ArithRequest, res *ArithResponse) error {
 	res.Rem = req.A % req.B
 	return nil
 }
-

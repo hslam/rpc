@@ -1,0 +1,112 @@
+./client -h=127.0.0.1 -p=9999 -total=100000 -concurrent=false -clients=1
+Summary:
+	Clients:	1
+	Parallel calls per client:	1
+	Total calls:	100000
+	Total time:	12.34s
+	Requests per second:	8101.01
+	Fastest time for request:	0.09ms
+	Average time per request:	0.12ms
+	Slowest time for request:	3.60ms
+
+Time:
+	0.1%	time for request:	0.10ms
+	1%	time for request:	0.10ms
+	5%	time for request:	0.10ms
+	10%	time for request:	0.10ms
+	25%	time for request:	0.11ms
+	50%	time for request:	0.11ms
+	75%	time for request:	0.13ms
+	90%	time for request:	0.15ms
+	95%	time for request:	0.16ms
+	99%	time for request:	0.21ms
+	99.9%	time for request:	0.44ms
+
+Result:
+	Response ok:	100000 (100.00%)
+	Errors:	0 (0.00%)
+
+./client -h=127.0.0.1 -p=9999 -total=100000 -concurrent=false -clients=2
+Summary:
+	Clients:	2
+	Parallel calls per client:	1
+	Total calls:	100000
+	Total time:	6.82s
+	Requests per second:	14661.47
+	Fastest time for request:	0.08ms
+	Average time per request:	0.13ms
+	Slowest time for request:	2.94ms
+
+Time:
+	0.1%	time for request:	0.09ms
+	1%	time for request:	0.10ms
+	5%	time for request:	0.11ms
+	10%	time for request:	0.11ms
+	25%	time for request:	0.12ms
+	50%	time for request:	0.13ms
+	75%	time for request:	0.14ms
+	90%	time for request:	0.16ms
+	95%	time for request:	0.18ms
+	99%	time for request:	0.28ms
+	99.9%	time for request:	0.59ms
+
+Result:
+	Response ok:	100000 (100.00%)
+	Errors:	0 (0.00%)
+
+./client -h=127.0.0.1 -p=9999 -total=1000000 -concurrent=true -clients=1
+Summary:
+	Clients:	1
+	Parallel calls per client:	32
+	Total calls:	1000000
+	Total time:	25.51s
+	Requests per second:	39201.72
+	Fastest time for request:	0.08ms
+	Average time per request:	0.81ms
+	Slowest time for request:	32.14ms
+
+Time:
+	0.1%	time for request:	0.13ms
+	1%	time for request:	0.20ms
+	5%	time for request:	0.35ms
+	10%	time for request:	0.44ms
+	25%	time for request:	0.59ms
+	50%	time for request:	0.76ms
+	75%	time for request:	0.96ms
+	90%	time for request:	1.21ms
+	95%	time for request:	1.42ms
+	99%	time for request:	2.15ms
+	99.9%	time for request:	4.85ms
+
+Result:
+	Response ok:	1000000 (100.00%)
+	Errors:	0 (0.00%)
+
+./client -h=127.0.0.1 -p=9999 -total=1000000 -concurrent=true -clients=2
+Summary:
+	Clients:	2
+	Parallel calls per client:	32
+	Total calls:	1000000
+	Total time:	23.07s
+	Requests per second:	43342.51
+	Fastest time for request:	0.10ms
+	Average time per request:	1.47ms
+	Slowest time for request:	31.56ms
+
+Time:
+	0.1%	time for request:	0.16ms
+	1%	time for request:	0.27ms
+	5%	time for request:	0.49ms
+	10%	time for request:	0.64ms
+	25%	time for request:	0.95ms
+	50%	time for request:	1.34ms
+	75%	time for request:	1.78ms
+	90%	time for request:	2.35ms
+	95%	time for request:	2.85ms
+	99%	time for request:	4.45ms
+	99.9%	time for request:	9.04ms
+
+Result:
+	Response ok:	1000000 (100.00%)
+	Errors:	0 (0.00%)
+

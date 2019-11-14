@@ -17,15 +17,19 @@ var debug_port int
 var port int
 var async bool
 var multiplexing bool
+var pipelining bool
+var batch bool
 var saddr string
 func init()  {
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	flag.StringVar(&network, "network", "tcp", "network: -network=tcp|ws|http|http2|quic|udp")
+	flag.StringVar(&network, "network", "tcp", "network: -network=tcp|ws|http|http2|quic")
 	flag.BoolVar(&debug, "debug", true, "debug: -debug=false")
 	flag.IntVar(&debug_port, "dp", 6060, "debug_port: -dp=6060")
 	flag.IntVar(&port, "p", 9999, "port: -p=9999")
+	flag.BoolVar(&pipelining, "pipelining", false, "pipelining: -pipelining=false")
 	flag.BoolVar(&async, "async", false, "async: -async=false")
 	flag.BoolVar(&multiplexing, "multiplexing", true, "multiplexing: -multiplexing=false")
+	flag.BoolVar(&batch, "batch", false, "batch: -batch=false")
 	flag.Parse()
 	saddr = ":"+strconv.Itoa(port)
 }
@@ -36,8 +40,14 @@ func main()  {
 	if async{
 		rpc.EnableAsyncHandle()
 	}
+	if pipelining{
+		rpc.EnablePipelining()
+	}
 	if multiplexing{
 		rpc.EnableMultiplexing()
+	}
+	if batch{
+		rpc.EnableBatch()
 	}
 	rpc.ListenAndServe(network,saddr)
 }

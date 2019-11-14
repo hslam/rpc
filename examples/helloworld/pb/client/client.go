@@ -6,7 +6,7 @@ import (
 	"log"
 )
 func main()  {
-	conn, err:= rpc.Dial("tcp","127.0.0.1:9999","pb")//tcp|ws|http|http2|quic|udp
+	conn, err:= rpc.Dial("tcp","127.0.0.1:9999","pb")//tcp|ws|http|http2|quic
 	if err != nil {
 		log.Fatalln("dailing error: ", err)
 	}

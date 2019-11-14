@@ -18,14 +18,34 @@ type Server struct {
 	listener 					Listener
 	Funcs 						*funcs.Funcs
 	timeout 					int64
+	batch 						bool
+	pipelining 					bool
 	multiplexing				bool
 	async						bool
 	asyncMax					int
+	lowDelay 					bool
 }
 func NewServer() *Server {
 	return &Server{Funcs:funcs.New(),timeout:DefaultServerTimeout,asyncMax:DefaultMaxAsyncPerConn}
 }
-
+func EnableBatch()  {
+	DefaultServer.EnableBatch()
+}
+func (s *Server) EnableBatch() {
+	s.batch=true
+}
+func SetLowDelay(enabled bool)  {
+	DefaultServer.SetLowDelay(enabled)
+}
+func (s *Server) SetLowDelay(enabled bool)  {
+	s.lowDelay=enabled
+}
+func EnablePipelining()  {
+	DefaultServer.EnablePipelining()
+}
+func (s *Server) EnablePipelining() {
+	s.pipelining=true
+}
 func EnableMultiplexing()  {
 	DefaultServer.EnableMultiplexing()
 }

@@ -71,7 +71,11 @@ func ServeQUICConn(server *Server,sess quic.Session)error {
 	stopWriteStreamChan := make(chan bool,1)
 	stopChan := make(chan bool,1)
 	go protocol.ReadStream(stream, readChan, stopReadStreamChan,finishChan)
-	go protocol.WriteStream(stream, writeChan, stopWriteStreamChan,finishChan)
+	var useBuffer bool
+	if !server.batch&&!server.lowDelay&&(server.pipelining||server.multiplexing){
+		useBuffer=true
+	}
+	go protocol.WriteStream(stream, writeChan, stopWriteStreamChan,finishChan,useBuffer)
 	if server.multiplexing{
 		jobChan := make(chan bool,server.asyncMax)
 		for {

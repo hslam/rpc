@@ -28,7 +28,7 @@ var bar bool
 
 func init()  {
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	flag.StringVar(&network, "network", "tcp", "network: -network=tcp|ws|http|http2|quic|udp")
+	flag.StringVar(&network, "network", "quic", "network: -network=tcp|ws|http|http2|quic")
 	flag.StringVar(&codec, "codec", "pb", "codec: -codec=pb|json|xml|bytes")
 	flag.StringVar(&compress, "compress", "no", "compress: -compress=no|flate|zlib|gzip")
 	flag.StringVar(&host, "h", "127.0.0.1", "host: -h=127.0.0.1")
@@ -38,7 +38,7 @@ func init()  {
 	flag.BoolVar(&batch_async, "batch_async", false, "batch_async: -batch_async=false")
 	flag.BoolVar(&pipelining, "pipelining", false, "pipelining: -pipelining=false")
 	flag.BoolVar(&multiplexing, "multiplexing", true, "pipelining: -pipelining=false")
-	flag.BoolVar(&noresponse, "noresponse", true, "noresponse: -noresponse=false")
+	flag.BoolVar(&noresponse, "noresponse", false, "noresponse: -noresponse=false")
 	flag.IntVar(&clients, "clients", 1, "num: -clients=1")
 	flag.BoolVar(&bar, "bar", false, "bar: -bar=true")
 	log.SetFlags(0)
@@ -50,42 +50,50 @@ func init()  {
 func main()  {
 	fmt.Printf("./client -network=%s -codec=%s -compress=%s -h=%s -p=%d -total=%d -pipelining=%t -multiplexing=%t -batch=%t -batch_async=%t -noresponse=%t -clients=%d\n",network,codec,compress,host,port,total_calls,pipelining,multiplexing,batch,batch_async,noresponse,clients)
 	var wrkClients []stats.Client
+	opts:=rpc.DefaultOptions()
+	opts.SetCompressType(compress)
+	opts.SetBatch(batch)
+	opts.SetBatchAsync(batch_async)
+	opts.SetPipelining(pipelining)
+	opts.SetMultiplexing(multiplexing)
 	parallel:=1
 	if clients>1{
-		pool,err := rpc.Dials(clients,network,addr,codec)
+		pool,err := rpc.DialsWithOptions(clients,network,addr,codec,opts)
 		if err != nil {
 			log.Fatalln("dailing error: ", err)
 		}
-		pool.SetCompressType(compress)
-		if batch {pool.EnableBatch()}
-		if batch_async{pool.EnableBatchAsync()}
-		if multiplexing{pool.EnableMultiplexing()}
 		wrkClients=make([]stats.Client,len(pool.All()))
 		for i:=0; i<len(pool.All());i++  {
 			wrkClients[i]=&WrkClient{pool.All()[i]}
 		}
 		if batch{
 			parallel=pool.GetMaxBatchRequest()
-		}else if pipelining{
-			parallel=pool.GetMaxRequests()
+		}
+		if pipelining{
+			if pool.GetMaxRequests()>parallel{
+				parallel=pool.GetMaxRequests()
+			}
 		}else if multiplexing{
-			parallel=pool.GetMaxRequests()
+			if pool.GetMaxRequests()>parallel{
+				parallel=pool.GetMaxRequests()
+			}
 		}
 	}else if clients==1 {
-		conn, err:= rpc.Dial(network,addr,codec)
+		conn, err:= rpc.DialWithOptions(network,addr,codec,opts)
 		if err != nil {
 			log.Fatalln("dailing error: ", err)
 		}
-		conn.SetCompressType(compress)
-		if batch {conn.EnableBatch()}
-		if batch_async{conn.EnableBatchAsync()}
-		if multiplexing{conn.EnableMultiplexing()}
 		if batch{
 			parallel=conn.GetMaxBatchRequest()
-		}else if pipelining{
-			parallel=conn.GetMaxRequests()
+		}
+		if pipelining{
+			if conn.GetMaxRequests()>parallel{
+				parallel=conn.GetMaxRequests()
+			}
 		}else if multiplexing{
-			parallel=conn.GetMaxRequests()
+			if conn.GetMaxRequests()>parallel{
+				parallel=conn.GetMaxRequests()
+			}
 		}
 		wrkClients=make([]stats.Client,1)
 		wrkClients[0]= &WrkClient{conn}

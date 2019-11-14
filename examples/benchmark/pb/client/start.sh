@@ -1,3 +1,5 @@
 #!/bin/sh
 
-nohup sh ./run.sh >> run.log.out 2>&1 &
+mkdir tmp
+mkdir log.out
+nohup sh ./run.sh >> ./tmp/run.log.out 2>&1 &

@@ -15,7 +15,7 @@ type QUICConn struct {
 	stopChan 		chan bool
 	finishChan		chan bool
 	closed			bool
-
+	buffer 			bool
 }
 
 func DialQUIC(address string)  (Conn, error)  {
@@ -35,7 +35,9 @@ func DialQUIC(address string)  (Conn, error)  {
 	}
 	return t, nil
 }
-
+func (t *QUICConn)Buffer(enable bool){
+	t.buffer=enable
+}
 func (t *QUICConn)Handle(readChan chan []byte,writeChan chan []byte, stopChan chan bool,finishChan chan bool){
 	t.readChan=readChan
 	t.writeChan=writeChan
@@ -50,7 +52,7 @@ func (t *QUICConn)handle(){
 	stopReadStreamChan := make(chan bool,1)
 	stopWriteStreamChan := make(chan bool,1)
 	go protocol.ReadStream(t.conn, readChan, stopReadStreamChan,finishChan)
-	go protocol.WriteStream(t.conn, writeChan, stopWriteStreamChan,finishChan)
+	go protocol.WriteStream(t.conn, writeChan, stopWriteStreamChan,finishChan,t.buffer)
 	go func() {
 		t.closed=false
 		for {
@@ -96,11 +98,12 @@ func (t *QUICConn)handle(){
 		t.closed=true
 	}()
 }
+
 func (t *QUICConn)TickerFactor()(int){
 	return 1000
 }
 func (t *QUICConn)BatchFactor()(int){
-	return 1
+	return 32
 }
 func (t *QUICConn)Retry()(error){
 	session, err := quic.DialAddr(t.address, &tls.Config{InsecureSkipVerify: true}, nil)

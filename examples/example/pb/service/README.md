@@ -1,1 +1,0 @@
-protoc ./arith.proto --go_out=./

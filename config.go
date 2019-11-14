@@ -36,8 +36,8 @@ const (
 	FUNCS_CODEC_GOB   		CodecType= 4
 	FUNCS_CODEC_BYTES   	CodecType= 5
 
-	DefaultMaxCacheRequest	= 1024
-	DefaultMaxBatchRequest	= 8
+	DefaultMaxCacheRequest	= 10240
+	DefaultMaxBatchRequest	= 1
 	DefaultMaxDelayNanoSecond= 1000
 	DefaultMaxRequests=32
 
@@ -50,7 +50,7 @@ const (
 	DefaultClientRetryTicker=10000
 
 	DefaultClientMaxErrPerSecond=10000
-	DefaultClientMaxErrHearbeat=3
+	DefaultClientMaxErrHearbeat=60
 
 	MsgTypeReq MsgType = 0
 	MsgTypeRes MsgType = 1
@@ -66,7 +66,7 @@ const (
 	COMPRESSION	= "compression"
 	DC			= "default"
 
-	CompressTypeNocom CompressType = 0
+	CompressTypeNo CompressType = 0
 	CompressTypeFlate CompressType = 1
 	CompressTypeZlib  CompressType = 2
 	CompressTypeGzip  CompressType = 3

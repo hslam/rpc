@@ -6,6 +6,7 @@ import (
 //Dialer
 type Conn interface {
 	Handle(readChan chan []byte,writeChan chan []byte, stopChan chan bool,finishChan chan bool)
+	Buffer(enable bool)
 	TickerFactor()(int)
 	BatchFactor()(int)
 	Retry()(error)

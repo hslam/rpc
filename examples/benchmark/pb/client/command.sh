@@ -10,50 +10,64 @@ t1="50000"
 t2="100000"
 t3="500000"
 t4="1000000"
+c="2"
 
-nohup ./server -network=$net -async=false -multiplexing=false > log.server &
+nohup ./server -network=$net -async=false -pipelining=false -multiplexing=false -batch=false > ./tmp/log.server &
 sleep 3s
 ./client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t1 -pipelining=false -multiplexing=false -batch=false -batch_async=false -noresponse=false -clients=1
 sleep 3s
-./client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t2 -pipelining=false -multiplexing=false -batch=false -batch_async=false -noresponse=false -clients=8
+./client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t2 -pipelining=false -multiplexing=false -batch=false -batch_async=false -noresponse=false -clients=$c
+sleep 3s
+killall server
 
+sleep 3s
+nohup ./server -network=$net -async=false -pipelining=true -multiplexing=false -batch=false > ./tmp/log.server &
 sleep 3s
 ./client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t3 -pipelining=true -multiplexing=false -batch=false -batch_async=false -noresponse=false -clients=1
 sleep 3s
-./client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t4 -pipelining=true -multiplexing=false -batch=false -batch_async=false -noresponse=false -clients=8
+./client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t4 -pipelining=true -multiplexing=false -batch=false -batch_async=false -noresponse=false -clients=$c
+sleep 3s
+killall server
 
 sleep 3s
-./client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t2 -pipelining=false -multiplexing=false -batch=false -batch_async=false -noresponse=true -clients=1
-sleep 3s
-if [ $net != "udp" ]; then
-./client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t3 -pipelining=false -multiplexing=false -batch=false -batch_async=false -noresponse=true -clients=8
-fi
-sleep 3s
-./client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t3 -pipelining=true -multiplexing=false -batch=true -batch_async=false -noresponse=false -clients=1
-sleep 3s
-./client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t4 -pipelining=true -multiplexing=false -batch=true -batch_async=false -noresponse=false -clients=8
-sleep 3s
-
-killall server 
-sleep 3s
-nohup ./server -network=$net -async=false -multiplexing=true > log.server &
+nohup ./server -network=$net -async=false -pipelining=false -multiplexing=true -batch=false > ./tmp/log.server &
 sleep 3s
 ./client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t3 -pipelining=false -multiplexing=true -batch=false -batch_async=false -noresponse=false -clients=1
 sleep 3s
-./client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t4 -pipelining=false -multiplexing=true -batch=false -batch_async=false -noresponse=false -clients=8
+./client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t4 -pipelining=false -multiplexing=true -batch=false -batch_async=false -noresponse=false -clients=$c
+sleep 3s
+killall server
 
+sleep 3s
+nohup ./server -network=$net -async=false -pipelining=true -multiplexing=false -batch=true > ./tmp/log.server &
+sleep 3s
+./client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t3 -pipelining=true -multiplexing=false -batch=true -batch_async=false -noresponse=false -clients=1
+sleep 3s
+./client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t4 -pipelining=true -multiplexing=false -batch=true -batch_async=false -noresponse=false -clients=$c
+sleep 3s
+killall server
+
+
+sleep 3s
+nohup ./server -network=$net -async=false -pipelining=false -multiplexing=true -batch=true > ./tmp/log.server &
 sleep 3s
 ./client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t3 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=1
 sleep 3s
-./client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t4 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=8
+./client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t4 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=$c
+sleep 3s
+killall server
 
+
+sleep 3s
+nohup ./server -network=$net -async=false -pipelining=false -multiplexing=true -batch=true > ./tmp/log.server &
 sleep 3s
 ./client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t4 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=true -clients=1
 sleep 3s
 if [ $net != "udp" ] ; then
-	./client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t4 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=true -clients=8
+./client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t4 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=true -clients=$c
 fi
 sleep 3s
-killall server 
+killall server
+sleep 3s
 
 

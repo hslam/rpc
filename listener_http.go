@@ -71,7 +71,7 @@ func (h *Handler)ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.connChange <- 1
 		log.AllInfof("new client %s comming\n",RemoteAddr)
 		ServeHTTP(h.server,w,data)
-		log.Infof("client %s exiting\n",RemoteAddr)
+		log.AllInfof("client %s exiting\n",RemoteAddr)
 		h.connChange <- -1
 	}()
 }

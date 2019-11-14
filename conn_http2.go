@@ -41,7 +41,8 @@ func DialHTTP2(address string)  (Conn, error)  {
 	}
 	return t, nil
 }
-
+func (t *HTTP2Conn)Buffer(enable bool){
+}
 func (t *HTTP2Conn)Handle(readChan chan []byte,writeChan chan []byte, stopChan chan bool,finishChan chan bool){
 	go protocol.HandleSyncConn(t, readChan,writeChan,stopChan,64)
 }
@@ -49,7 +50,7 @@ func (t *HTTP2Conn)TickerFactor()(int){
 	return 100
 }
 func (t *HTTP2Conn)BatchFactor()(int){
-	return 64
+	return 512
 }
 func (t *HTTP2Conn)Retry()(error){
 	var tlsConfig *tls.Config

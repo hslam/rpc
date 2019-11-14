@@ -80,16 +80,15 @@ finish:
 endfor:
 }
 
-func WriteStream(writer io.Writer, writeChan chan []byte, stopChan chan bool,finishChan chan bool) {
+func WriteStream(writer io.Writer, writeChan chan []byte, stopChan chan bool,finishChan chan bool,useBuffer bool) {
 	defer func() {
 		if err := recover(); err != nil {
 		}
 	}()
-	useBuffer:=false
 	var ticker *time.Ticker
 	var ch chan bool
 	if useBuffer{
-		ticker =time.NewTicker(time.Microsecond)
+		ticker =time.NewTicker(time.Microsecond*10)
 		buf:=make([]byte,0)
 		var mu sync.Mutex
 		ch=make(chan bool,1)

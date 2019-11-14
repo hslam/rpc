@@ -6,26 +6,14 @@ import (
 	"hslam.com/git/x/rpc/log"
 	"sync/atomic"
 )
+
 type Client interface {
-	SetMaxRequests(max int)
 	GetMaxRequests()(int)
-	EnablePipelining()
-	EnableMultiplexing()
-	EnableBatch()
-	EnableBatchAsync()
-	SetMaxBatchRequest(max int)error
 	GetMaxBatchRequest()int
-	SetCompressType(compress string)
-	SetCompressLevel(compress,level string)
-	SetID(id int64)error
 	GetID()int64
-	SetTimeout(timeout int64)error
 	GetTimeout()int64
-	SetHeartbeatTimeout(timeout int64)error
 	GetHeartbeatTimeout()int64
-	SetMaxErrPerSecond(maxErrPerSecond int)error
 	GetMaxErrPerSecond()int
-	SetMaxErrHeartbeat(maxErrHeartbeat int)error
 	GetMaxErrHeartbeat()int
 	CodecName()string
 	CodecType()CodecType
@@ -35,7 +23,6 @@ type Client interface {
 	CallNoResponse(name string, args interface{}) ( err error)
 	OnlyCall(name string) ( err error)
 	Ping() bool
-	DisableRetry()
 	Close() ( err error)
 	Closed()bool
 }
@@ -46,12 +33,12 @@ func Dial(network,address,codec string) (Client, error) {
 	}
 	return NewClient(transporter,codec)
 }
-func DialWithMaxRequests(network,address,codec string,max int) (Client, error) {
+func DialWithOptions(network,address,codec string,opts *Options) (Client, error) {
 	transporter,err:=dial(network,address)
 	if err!=nil{
 		return nil,err
 	}
-	return NewClientWithMaxRequests(transporter,codec,max)
+	return NewClientWithOptions(transporter,codec,opts)
 }
 type client struct {
 	mu 					sync.RWMutex
@@ -87,11 +74,12 @@ type client struct {
 	maxErrHeartbeat		int
 	errCntHeartbeat		int
 	retry 				bool
+	useBuffer 			bool
 }
 func NewClient(conn	Conn,codec string)  (*client, error) {
-	return NewClientWithMaxRequests(conn,codec,DefaultMaxRequests)
+	return NewClientWithOptions(conn,codec,DefaultOptions())
 }
-func NewClientWithMaxRequests(conn	Conn,codec string,max int)  (*client, error)  {
+func NewClientWithOptions(conn	Conn,codec string,opts *Options)  (*client, error)  {
 	funcsCodecType,err:=FuncsCodecType(codec)
 	if err!=nil{
 		return nil,err
@@ -106,7 +94,7 @@ func NewClientWithMaxRequests(conn	Conn,codec string,max int)  (*client, error) 
 		closeChan:make(chan bool,1),
 		funcsCodecType:funcsCodecType,
 		compressLevel:NoCompression,
-		compressType:CompressTypeNocom,
+		compressType:CompressTypeNo,
 		retry:true,
 		errCntChan:make(chan int,1000000),
 		timeout:DefaultClientTimeout,
@@ -114,9 +102,9 @@ func NewClientWithMaxRequests(conn	Conn,codec string,max int)  (*client, error) 
 		heartbeatTimeout:DefaultClientHearbeatTimeout,
 		maxErrHeartbeat:DefaultClientMaxErrHearbeat,
 	}
-	c.setMaxRequests(max)
+	c.loadOptions(opts)
+	c.conn.Buffer(c.useBuffer)
 	c.conn.Handle(c.readChan,c.writeChan,c.stopChan,c.finishChan)
-	c.enablePipelining()
 	go c.run()
 	return c, nil
 }
@@ -141,13 +129,10 @@ func (c *client)run(){
 				if err!=nil{
 					c.errCntHeartbeat+=1
 				}else {
-					c.errCntHeartbeat-=1
-					if c.errCntHeartbeat<0{
-						c.errCntHeartbeat=0
-					}
+					c.errCntHeartbeat=0
 				}
 				if c.errCntHeartbeat>=c.maxErrHeartbeat{
-					c.Disconnect()
+					c.retryConnect()
 					c.errCntHeartbeat=0
 				}
 			}
@@ -196,12 +181,40 @@ func (c *client)retryConnect(){
 		c.io.Retry()
 	}
 }
-func (c *client)SetMaxRequests(max int) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.setMaxRequests(max)
+func (c *client)loadOptions(opts *Options) {
+	opts.Check()
+	c.setMaxRequests(opts.MaxRequests)
+	if opts.Pipelining{
+		c.enablePipelining()
+	}else if opts.Multiplexing{
+		c.enableMultiplexing()
+	}else {
+		c.enablePipelining()
+	}
+	if opts.Batch{
+		c.enableBatch()
+		if opts.BatchAsync{
+			c.enableBatchAsync()
+		}
+		if opts.MaxBatchRequest>c.GetMaxBatchRequest(){
+			c.setMaxBatchRequest(opts.MaxBatchRequest)
+		}
+	}
+	c.setCompressType(opts.CompressType)
+	c.setCompressLevel(opts.CompressLevel)
+	c.setID(opts.ID)
+	c.setTimeout(opts.Timeout)
+	c.setHeartbeatTimeout(opts.HeartbeatTimeout)
+	c.setMaxErrPerSecond(opts.MaxErrPerSecond)
+	c.setMaxErrHeartbeat(opts.MaxErrHeartbeat)
+	if !opts.Retry{
+		c.disableRetry()
+	}
+	c.setUseBuffer(opts.useBuffer)
 }
-
+func (c *client)setUseBuffer(enable bool) {
+	c.useBuffer=enable
+}
 func (c *client)setMaxRequests(max int) {
 	c.maxRequests=max+1
 	c.readChan=make(chan []byte,c.maxRequests)
@@ -215,11 +228,7 @@ func (c *client)setMaxRequests(max int) {
 func (c *client)GetMaxRequests()(int){
 	return c.maxRequests-1
 }
-func (c *client)EnablePipelining(){
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.enablePipelining()
-}
+
 func (c *client)enablePipelining(){
 	c.unordered=false
 	if c.maxRequests==0||c.readChan==nil||c.writeChan==nil{
@@ -230,11 +239,7 @@ func (c *client)enablePipelining(){
 	}
 	c.io=NewPipeline(c.maxRequests,c.readChan,c.writeChan)
 }
-func (c *client)EnableMultiplexing(){
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.enableMultiplexing()
-}
+
 func (c *client)enableMultiplexing(){
 	c.unordered=true
 	if c.maxRequests==0||c.readChan==nil||c.writeChan==nil{
@@ -245,19 +250,15 @@ func (c *client)enableMultiplexing(){
 	}
 	c.io=NewMultiplex(c,c.maxRequests,c.readChan,c.writeChan)
 }
-func (c *client)EnableBatch(){
-	c.mu.Lock()
-	defer c.mu.Unlock()
+func (c *client)enableBatch(){
 	c.batchEnabled = true
-	c.batch=NewBatch(c,DefaultMaxDelayNanoSecond*c.conn.TickerFactor())
+	c.batch=NewBatch(c,DefaultMaxDelayNanoSecond*c.conn.TickerFactor(),DefaultMaxBatchRequest*c.conn.BatchFactor())
 	c.batch.SetMaxBatchRequest(DefaultMaxBatchRequest*c.conn.BatchFactor())
 }
-func (c *client)EnableBatchAsync(){
-	c.mu.Lock()
-	defer c.mu.Unlock()
+func (c *client)enableBatchAsync(){
 	c.batchAsync = true
 }
-func (c *client)SetMaxBatchRequest(max int)error {
+func (c *client)setMaxBatchRequest(max int)error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if max<=0{
@@ -272,21 +273,14 @@ func (c *client)GetMaxBatchRequest()int {
 	return c.batch.GetMaxBatchRequest()
 }
 
-func (c *client)SetCompressType(compress string){
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.compressType=getCompressType(compress)
+func (c *client)setCompressType(compressType CompressType){
+	c.compressType=compressType
 	c.compressLevel=DefaultCompression
 }
-func (c *client)SetCompressLevel(compress,level string){
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.compressType=getCompressType(compress)
-	c.compressLevel=getCompressLevel(level)
+func (c *client)setCompressLevel(level CompressLevel){
+	c.compressLevel=level
 }
-func (c *client)SetID(id int64)error{
-	c.mu.Lock()
-	defer c.mu.Unlock()
+func (c *client)setID(id int64)error{
 	c.client_id=id
 	return nil
 }
@@ -295,12 +289,7 @@ func (c *client)GetID()int64{
 	defer c.mu.Unlock()
 	return c.client_id
 }
-func (c *client)SetTimeout(timeout int64)error{
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if timeout<=0{
-		return ErrSetTimeout
-	}
+func (c *client)setTimeout(timeout int64)error{
 	c.timeout=timeout
 	return nil
 }
@@ -310,7 +299,7 @@ func (c *client)GetTimeout()int64{
 	return c.timeout
 }
 
-func (c *client)SetHeartbeatTimeout(timeout int64)error{
+func (c *client)setHeartbeatTimeout(timeout int64)error{
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if timeout<=0{
@@ -324,9 +313,7 @@ func (c *client)GetHeartbeatTimeout()int64{
 	defer c.mu.Unlock()
 	return c.heartbeatTimeout
 }
-func (c *client)SetMaxErrPerSecond(maxErrPerSecond int)error{
-	c.mu.Lock()
-	defer c.mu.Unlock()
+func (c *client)setMaxErrPerSecond(maxErrPerSecond int)error{
 	if maxErrPerSecond<=0{
 		return ErrSetMaxErrPerSecond
 	}
@@ -338,9 +325,7 @@ func (c *client)GetMaxErrPerSecond()int{
 	defer c.mu.Unlock()
 	return c.maxErrPerSecond
 }
-func (c *client)SetMaxErrHeartbeat(maxErrHeartbeat int)error{
-	c.mu.Lock()
-	defer c.mu.Unlock()
+func (c *client)setMaxErrHeartbeat(maxErrHeartbeat int)error{
 	if maxErrHeartbeat<=0{
 		return ErrSetMaxErrHeartbeat
 	}
@@ -489,7 +474,7 @@ func (c *client)Ping() bool {
 	}
 	return true
 }
-func (c *client)DisableRetry() {
+func (c *client)disableRetry() {
 	c.retry=false
 }
 func (c *client)RemoteCall(b []byte)([]byte,error){

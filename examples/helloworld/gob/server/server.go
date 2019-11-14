@@ -1,6 +1,6 @@
 package main
 import (
-	"hslam.com/git/x/rpc/examples/helloworld/pb/service"
+	"hslam.com/git/x/rpc/examples/helloworld/gob/service"
 	"hslam.com/git/x/rpc"
 )
 func main()  {

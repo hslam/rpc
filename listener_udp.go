@@ -37,8 +37,8 @@ func (l *UDPListener)Serve() (error) {
 			l.connNum += conn_change
 		}
 	}()
-	readChan := make(chan *protocol.UDPMsg,10240)
-	writeChan := make(chan  *protocol.UDPMsg,10240)
+	readChan := make(chan *protocol.UDPMsg,l.maxConnNum)
+	writeChan := make(chan  *protocol.UDPMsg,l.maxConnNum)
 	go protocol.ReadUDPConn(l.netUDPConn, readChan)
 	go protocol.WriteUDPConn(l.netUDPConn, writeChan)
 	for {
@@ -55,7 +55,7 @@ func (l *UDPListener)Serve() (error) {
 				var RemoteAddr=udp_msg.RemoteAddr.String()
 				log.AllInfof("new client %s comming\n",RemoteAddr)
 				ServeUDPConn(l.server,udp_msg,writeChan)
-				log.Infof("client %s exiting\n",RemoteAddr)
+				log.AllInfof("client %s exiting\n",RemoteAddr)
 				connChange <- -1
 			}()
 		}

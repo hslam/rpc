@@ -15,6 +15,7 @@ type TCPConn struct {
 	finishChan		chan bool
 	stopHandleChan	chan bool
 	closed			bool
+	buffer 			bool
 }
 
 func DialTCP(address string)  (Conn, error)  {
@@ -42,7 +43,9 @@ func (t *TCPConn)Handle(readChan chan []byte,writeChan chan []byte, stopChan cha
 	t.finishChan=finishChan
 	t.handle()
 }
-
+func (t *TCPConn)Buffer(enable bool){
+	t.buffer=enable
+}
 func (t *TCPConn)handle(){
 	readChan:=make(chan []byte,1)
 	writeChan:=make(chan []byte,1)
@@ -50,7 +53,7 @@ func (t *TCPConn)handle(){
 	stopReadStreamChan := make(chan bool,1)
 	stopWriteStreamChan := make(chan bool,1)
 	go protocol.ReadStream(t.conn, readChan, stopReadStreamChan,finishChan)
-	go protocol.WriteStream(t.conn, writeChan, stopWriteStreamChan,finishChan)
+	go protocol.WriteStream(t.conn, writeChan, stopWriteStreamChan,finishChan,t.buffer)
 	go func() {
 		t.closed=false
 		//log.Traceln("TCPConn.handle start")
@@ -102,7 +105,7 @@ func (t *TCPConn)TickerFactor()(int){
 	return 300
 }
 func (t *TCPConn)BatchFactor()(int){
-	return 64
+	return 512
 }
 func (t *TCPConn)Retry()(error){
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", t.address)

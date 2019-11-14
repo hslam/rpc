@@ -28,7 +28,8 @@ func DialUDP(address string)  (Conn, error)  {
 	}
 	return t, nil
 }
-
+func (t *UDPConn)Buffer(enable bool){
+}
 func (t *UDPConn)Handle(readChan chan []byte,writeChan chan []byte, stopChan chan bool,finishChan chan bool){
 	t.readChan=readChan
 	t.writeChan=writeChan

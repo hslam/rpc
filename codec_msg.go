@@ -87,7 +87,7 @@ func (m *Msg)Decode(b []byte)(error) {
 	m.data=nil
 	m.batch=false
 	m.codecType=FUNCS_CODEC_INVALID
-	m.compressType=CompressTypeNocom
+	m.compressType=CompressTypeNo
 	m.compressLevel=NoCompression
 	switch rpc_codec {
 	case RPC_CODEC_ME:
@@ -145,7 +145,7 @@ func getCompressType(name string)  (CompressType)  {
 	case GZIP:
 		return CompressTypeGzip
 	default:
-		return CompressTypeNocom
+		return CompressTypeNo
 	}
 }
 func getCompressLevel(name string)  (CompressLevel)  {
