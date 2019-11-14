@@ -13,6 +13,10 @@ var (
 	DefaultServer = NewServer()
 )
 
+type registerObject struct {
+	name string
+	obj	interface{}
+}
 type Server struct {
 	network 					string
 	listener 					Listener
@@ -24,6 +28,7 @@ type Server struct {
 	async						bool
 	asyncMax					int
 	lowDelay 					bool
+	objs 						[]*registerObject
 }
 func NewServer() *Server {
 	return &Server{Funcs:funcs.New(),timeout:DefaultServerTimeout,asyncMax:DefaultMaxAsyncPerConn}
@@ -84,6 +89,7 @@ func Register(obj interface{}) error {
 	return DefaultServer.Register(obj)
 }
 func (s *Server) Register(obj interface{}) error {
+	s.objs=append(s.objs, &registerObject{"",obj})
 	return s.Funcs.Register(obj)
 }
 
@@ -92,6 +98,7 @@ func RegisterName(name string, obj interface{}) error {
 }
 
 func (s *Server) RegisterName(name string, obj interface{}) error {
+	s.objs=append(s.objs, &registerObject{name,obj})
 	return s.Funcs.RegisterName(name, obj)
 }
 
