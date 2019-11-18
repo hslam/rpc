@@ -5,5 +5,5 @@ import (
 )
 func main()  {
 	rpc.Register(new(service.Echo))
-	rpc.ListenAndServe("tcp",":9999")//tcp|ws|http|http2|quic
+	rpc.ListenAndServe("tcp",":9999")//tcp|ws|quic|http|http1|http2
 }

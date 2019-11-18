@@ -38,6 +38,8 @@ func DialQUIC(address string)  (Conn, error)  {
 func (t *QUICConn)Buffer(enable bool){
 	t.buffer=enable
 }
+func (t *QUICConn)Multiplexing(enable bool){
+}
 func (t *QUICConn)Handle(readChan chan []byte,writeChan chan []byte, stopChan chan bool,finishChan chan bool){
 	t.readChan=readChan
 	t.writeChan=writeChan

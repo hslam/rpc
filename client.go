@@ -104,6 +104,7 @@ func NewClientWithOptions(conn	Conn,codec string,opts *Options)  (*client, error
 	}
 	c.loadOptions(opts)
 	c.conn.Buffer(c.useBuffer)
+	c.conn.Multiplexing(c.unordered)
 	c.conn.Handle(c.readChan,c.writeChan,c.stopChan,c.finishChan)
 	go c.run()
 	return c, nil

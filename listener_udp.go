@@ -54,7 +54,7 @@ func (l *UDPListener)Serve() (error) {
 				connChange <- 1
 				var RemoteAddr=udp_msg.RemoteAddr.String()
 				log.AllInfof("new client %s comming\n",RemoteAddr)
-				ServeUDPConn(l.server,udp_msg,writeChan)
+				l.ServeUDPConn(udp_msg,writeChan)
 				log.AllInfof("client %s exiting\n",RemoteAddr)
 				connChange <- -1
 			}()
@@ -68,13 +68,13 @@ func (l *UDPListener)Serve() (error) {
 func (l *UDPListener)Addr() (string) {
 	return l.address
 }
-func ServeUDPConn(server *Server,udp_msg *protocol.UDPMsg,writeChan chan *protocol.UDPMsg)error {
-	if server.multiplexing{
+func (l *UDPListener)ServeUDPConn(udp_msg *protocol.UDPMsg,writeChan chan *protocol.UDPMsg)error {
+	if l.server.multiplexing{
 		priority,id,body,err:=protocol.UnpackFrame(udp_msg.Data)
 		if err!=nil{
 			return ErrConnExit
 		}
-		ok,res_bytes, _ := server.ServeRPC(body)
+		ok,res_bytes, _ := l.server.Serve(body)
 		if res_bytes!=nil{
 			frameBytes:=protocol.PacketFrame(priority,id,res_bytes)
 			writeChan <- &protocol.UDPMsg{udp_msg.ID,frameBytes,udp_msg.RemoteAddr}
@@ -82,7 +82,7 @@ func ServeUDPConn(server *Server,udp_msg *protocol.UDPMsg,writeChan chan *protoc
 			writeChan <- &protocol.UDPMsg{udp_msg.ID,nil,udp_msg.RemoteAddr}
 		}
 	}else {
-		ok,res_bytes, _ := server.ServeRPC(udp_msg.Data)
+		ok,res_bytes, _ := l.server.Serve(udp_msg.Data)
 		if res_bytes!=nil{
 			writeChan <- &protocol.UDPMsg{udp_msg.ID,res_bytes,udp_msg.RemoteAddr}
 		}else if ok{

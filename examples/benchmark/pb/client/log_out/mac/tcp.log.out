@@ -59,24 +59,24 @@ Summary:
 	Clients:	1
 	Parallel calls per client:	32
 	Total calls:	500000
-	Total time:	7.37s
-	Requests per second:	67812.99
-	Fastest time for request:	0.12ms
-	Average time per request:	0.47ms
-	Slowest time for request:	34.42ms
+	Total time:	7.03s
+	Requests per second:	71117.60
+	Fastest time for request:	0.13ms
+	Average time per request:	0.45ms
+	Slowest time for request:	6.73ms
 
 Time:
-	0.1%	time for request:	0.20ms
+	0.1%	time for request:	0.21ms
 	1%	time for request:	0.26ms
 	5%	time for request:	0.31ms
-	10%	time for request:	0.33ms
+	10%	time for request:	0.34ms
 	25%	time for request:	0.38ms
-	50%	time for request:	0.44ms
-	75%	time for request:	0.51ms
-	90%	time for request:	0.62ms
-	95%	time for request:	0.73ms
-	99%	time for request:	1.10ms
-	99.9%	time for request:	2.21ms
+	50%	time for request:	0.43ms
+	75%	time for request:	0.49ms
+	90%	time for request:	0.56ms
+	95%	time for request:	0.63ms
+	99%	time for request:	0.98ms
+	99.9%	time for request:	1.73ms
 
 Result:
 	Response ok:	500000 (100.00%)
@@ -87,11 +87,11 @@ Summary:
 	Clients:	2
 	Parallel calls per client:	32
 	Total calls:	1000000
-	Total time:	11.28s
-	Requests per second:	88667.17
+	Total time:	10.76s
+	Requests per second:	92935.88
 	Fastest time for request:	0.14ms
-	Average time per request:	0.72ms
-	Slowest time for request:	18.54ms
+	Average time per request:	0.69ms
+	Slowest time for request:	12.70ms
 
 Time:
 	0.1%	time for request:	0.25ms
@@ -99,12 +99,12 @@ Time:
 	5%	time for request:	0.40ms
 	10%	time for request:	0.45ms
 	25%	time for request:	0.55ms
-	50%	time for request:	0.67ms
-	75%	time for request:	0.83ms
-	90%	time for request:	1.02ms
-	95%	time for request:	1.18ms
-	99%	time for request:	1.69ms
-	99.9%	time for request:	3.26ms
+	50%	time for request:	0.66ms
+	75%	time for request:	0.78ms
+	90%	time for request:	0.92ms
+	95%	time for request:	1.05ms
+	99%	time for request:	1.51ms
+	99.9%	time for request:	2.96ms
 
 Result:
 	Response ok:	1000000 (100.00%)
@@ -115,24 +115,24 @@ Summary:
 	Clients:	1
 	Parallel calls per client:	32
 	Total calls:	500000
-	Total time:	8.24s
-	Requests per second:	60650.66
+	Total time:	7.24s
+	Requests per second:	69100.89
 	Fastest time for request:	0.14ms
-	Average time per request:	0.53ms
-	Slowest time for request:	14.14ms
+	Average time per request:	0.46ms
+	Slowest time for request:	4.00ms
 
 Time:
 	0.1%	time for request:	0.20ms
 	1%	time for request:	0.26ms
-	5%	time for request:	0.32ms
-	10%	time for request:	0.36ms
-	25%	time for request:	0.41ms
-	50%	time for request:	0.48ms
-	75%	time for request:	0.57ms
-	90%	time for request:	0.72ms
-	95%	time for request:	0.85ms
-	99%	time for request:	1.29ms
-	99.9%	time for request:	3.79ms
+	5%	time for request:	0.31ms
+	10%	time for request:	0.35ms
+	25%	time for request:	0.40ms
+	50%	time for request:	0.45ms
+	75%	time for request:	0.51ms
+	90%	time for request:	0.56ms
+	95%	time for request:	0.62ms
+	99%	time for request:	0.89ms
+	99.9%	time for request:	1.63ms
 
 Result:
 	Response ok:	500000 (100.00%)
@@ -143,24 +143,24 @@ Summary:
 	Clients:	2
 	Parallel calls per client:	32
 	Total calls:	1000000
-	Total time:	11.57s
-	Requests per second:	86423.25
-	Fastest time for request:	0.14ms
-	Average time per request:	0.74ms
-	Slowest time for request:	8.67ms
+	Total time:	12.63s
+	Requests per second:	79206.30
+	Fastest time for request:	0.15ms
+	Average time per request:	0.81ms
+	Slowest time for request:	11.00ms
 
 Time:
-	0.1%	time for request:	0.26ms
-	1%	time for request:	0.34ms
-	5%	time for request:	0.43ms
-	10%	time for request:	0.49ms
-	25%	time for request:	0.60ms
-	50%	time for request:	0.72ms
-	75%	time for request:	0.83ms
-	90%	time for request:	0.97ms
-	95%	time for request:	1.09ms
-	99%	time for request:	1.56ms
-	99.9%	time for request:	3.08ms
+	0.1%	time for request:	0.28ms
+	1%	time for request:	0.36ms
+	5%	time for request:	0.46ms
+	10%	time for request:	0.52ms
+	25%	time for request:	0.65ms
+	50%	time for request:	0.78ms
+	75%	time for request:	0.92ms
+	90%	time for request:	1.07ms
+	95%	time for request:	1.22ms
+	99%	time for request:	1.73ms
+	99.9%	time for request:	3.57ms
 
 Result:
 	Response ok:	1000000 (100.00%)
@@ -171,24 +171,24 @@ Summary:
 	Clients:	1
 	Parallel calls per client:	512
 	Total calls:	500000
-	Total time:	3.01s
-	Requests per second:	165944.59
-	Fastest time for request:	0.67ms
-	Average time per request:	3.08ms
-	Slowest time for request:	11.28ms
+	Total time:	2.99s
+	Requests per second:	167454.54
+	Fastest time for request:	0.69ms
+	Average time per request:	3.05ms
+	Slowest time for request:	9.22ms
 
 Time:
-	0.1%	time for request:	1.15ms
-	1%	time for request:	1.35ms
-	5%	time for request:	1.58ms
-	10%	time for request:	1.84ms
-	25%	time for request:	2.74ms
-	50%	time for request:	3.09ms
-	75%	time for request:	3.44ms
-	90%	time for request:	3.94ms
-	95%	time for request:	4.47ms
-	99%	time for request:	5.68ms
-	99.9%	time for request:	6.85ms
+	0.1%	time for request:	1.19ms
+	1%	time for request:	1.38ms
+	5%	time for request:	1.60ms
+	10%	time for request:	1.79ms
+	25%	time for request:	2.73ms
+	50%	time for request:	3.08ms
+	75%	time for request:	3.41ms
+	90%	time for request:	3.87ms
+	95%	time for request:	4.38ms
+	99%	time for request:	5.61ms
+	99.9%	time for request:	6.55ms
 
 Result:
 	Response ok:	500000 (100.00%)
@@ -199,24 +199,24 @@ Summary:
 	Clients:	2
 	Parallel calls per client:	512
 	Total calls:	1000000
-	Total time:	4.60s
-	Requests per second:	217441.46
-	Fastest time for request:	0.61ms
-	Average time per request:	4.70ms
-	Slowest time for request:	19.88ms
+	Total time:	4.85s
+	Requests per second:	205973.78
+	Fastest time for request:	0.95ms
+	Average time per request:	4.96ms
+	Slowest time for request:	15.72ms
 
 Time:
-	0.1%	time for request:	1.24ms
-	1%	time for request:	1.56ms
-	5%	time for request:	2.06ms
-	10%	time for request:	3.16ms
-	25%	time for request:	3.96ms
-	50%	time for request:	4.50ms
-	75%	time for request:	5.22ms
-	90%	time for request:	6.47ms
-	95%	time for request:	7.67ms
-	99%	time for request:	10.18ms
-	99.9%	time for request:	13.28ms
+	0.1%	time for request:	1.32ms
+	1%	time for request:	1.65ms
+	5%	time for request:	2.19ms
+	10%	time for request:	3.38ms
+	25%	time for request:	4.22ms
+	50%	time for request:	4.82ms
+	75%	time for request:	5.53ms
+	90%	time for request:	6.67ms
+	95%	time for request:	7.86ms
+	99%	time for request:	10.40ms
+	99.9%	time for request:	12.80ms
 
 Result:
 	Response ok:	1000000 (100.00%)
@@ -227,24 +227,24 @@ Summary:
 	Clients:	1
 	Parallel calls per client:	512
 	Total calls:	500000
-	Total time:	2.33s
-	Requests per second:	214634.10
-	Fastest time for request:	0.68ms
-	Average time per request:	2.38ms
-	Slowest time for request:	12.05ms
+	Total time:	2.29s
+	Requests per second:	218024.14
+	Fastest time for request:	0.64ms
+	Average time per request:	2.34ms
+	Slowest time for request:	8.23ms
 
 Time:
-	0.1%	time for request:	0.79ms
-	1%	time for request:	1.22ms
-	5%	time for request:	1.39ms
-	10%	time for request:	1.49ms
-	25%	time for request:	1.90ms
-	50%	time for request:	2.24ms
-	75%	time for request:	2.81ms
-	90%	time for request:	3.34ms
-	95%	time for request:	3.73ms
-	99%	time for request:	4.72ms
-	99.9%	time for request:	6.24ms
+	0.1%	time for request:	0.84ms
+	1%	time for request:	1.19ms
+	5%	time for request:	1.37ms
+	10%	time for request:	1.47ms
+	25%	time for request:	1.88ms
+	50%	time for request:	2.21ms
+	75%	time for request:	2.78ms
+	90%	time for request:	3.26ms
+	95%	time for request:	3.62ms
+	99%	time for request:	4.63ms
+	99.9%	time for request:	5.94ms
 
 Result:
 	Response ok:	500000 (100.00%)
@@ -255,24 +255,24 @@ Summary:
 	Clients:	2
 	Parallel calls per client:	512
 	Total calls:	1000000
-	Total time:	3.09s
-	Requests per second:	323449.05
-	Fastest time for request:	0.47ms
-	Average time per request:	3.16ms
-	Slowest time for request:	11.86ms
+	Total time:	3.20s
+	Requests per second:	312157.31
+	Fastest time for request:	0.49ms
+	Average time per request:	3.27ms
+	Slowest time for request:	14.32ms
 
 Time:
-	0.1%	time for request:	0.79ms
-	1%	time for request:	1.11ms
-	5%	time for request:	1.44ms
-	10%	time for request:	1.68ms
-	25%	time for request:	2.50ms
-	50%	time for request:	3.09ms
-	75%	time for request:	3.70ms
-	90%	time for request:	4.37ms
-	95%	time for request:	5.15ms
-	99%	time for request:	7.58ms
-	99.9%	time for request:	9.29ms
+	0.1%	time for request:	0.85ms
+	1%	time for request:	1.19ms
+	5%	time for request:	1.53ms
+	10%	time for request:	1.79ms
+	25%	time for request:	2.54ms
+	50%	time for request:	3.14ms
+	75%	time for request:	3.83ms
+	90%	time for request:	4.58ms
+	95%	time for request:	5.37ms
+	99%	time for request:	7.90ms
+	99.9%	time for request:	10.68ms
 
 Result:
 	Response ok:	1000000 (100.00%)
@@ -283,11 +283,11 @@ Summary:
 	Clients:	1
 	Parallel calls per client:	512
 	Total calls:	1000000
-	Total time:	1.70s
-	Requests per second:	589337.01
+	Total time:	1.71s
+	Requests per second:	586399.52
 	Fastest time for request:	0.00ms
-	Average time per request:	0.86ms
-	Slowest time for request:	38.51ms
+	Average time per request:	0.87ms
+	Slowest time for request:	32.90ms
 
 Time:
 	0.1%	time for request:	0.00ms
@@ -296,11 +296,11 @@ Time:
 	10%	time for request:	0.00ms
 	25%	time for request:	0.00ms
 	50%	time for request:	0.00ms
-	75%	time for request:	0.61ms
-	90%	time for request:	2.89ms
-	95%	time for request:	5.67ms
-	99%	time for request:	10.66ms
-	99.9%	time for request:	22.97ms
+	75%	time for request:	0.65ms
+	90%	time for request:	2.53ms
+	95%	time for request:	5.80ms
+	99%	time for request:	10.72ms
+	99.9%	time for request:	24.07ms
 
 Result:
 	Response ok:	1000000 (100.00%)
@@ -311,11 +311,11 @@ Summary:
 	Clients:	2
 	Parallel calls per client:	512
 	Total calls:	1000000
-	Total time:	1.77s
-	Requests per second:	563608.58
+	Total time:	1.68s
+	Requests per second:	596556.56
 	Fastest time for request:	0.00ms
-	Average time per request:	1.79ms
-	Slowest time for request:	73.95ms
+	Average time per request:	1.68ms
+	Slowest time for request:	123.69ms
 
 Time:
 	0.1%	time for request:	0.00ms
@@ -324,11 +324,11 @@ Time:
 	10%	time for request:	0.00ms
 	25%	time for request:	0.00ms
 	50%	time for request:	0.00ms
-	75%	time for request:	0.68ms
-	90%	time for request:	3.93ms
-	95%	time for request:	12.28ms
-	99%	time for request:	27.72ms
-	99.9%	time for request:	60.84ms
+	75%	time for request:	0.59ms
+	90%	time for request:	3.81ms
+	95%	time for request:	13.30ms
+	99%	time for request:	25.64ms
+	99.9%	time for request:	42.15ms
 
 Result:
 	Response ok:	1000000 (100.00%)

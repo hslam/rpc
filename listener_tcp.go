@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"net"
-	"hslam.com/git/x/rpc/protocol"
 	"hslam.com/git/x/rpc/log"
 )
 
@@ -45,96 +44,14 @@ func (l *TCPListener)Serve() (error) {
 				<-workerChan
 			}()
 			connChange <- 1
+			defer func() {connChange <- -1}()
+			defer func() {log.Infof("client %s exiting\n",conn.RemoteAddr())}()
 			log.Infof("new client %s comming\n",conn.RemoteAddr())
-			ServeTCPConn(l.server,conn)
-			log.Infof("client %s exiting\n",conn.RemoteAddr())
-			connChange <- -1
+			l.server.ServeConn(conn)
 		}()
 	}
 	return nil
 }
 func (l *TCPListener)Addr() (string) {
 	return l.address
-}
-func ServeTCPConn(server *Server,conn net.Conn)error {
-	readChan := make(chan []byte,1)
-	writeChan := make(chan []byte,1)
-	finishChan:= make(chan bool,2)
-	stopReadStreamChan := make(chan bool,1)
-	stopWriteStreamChan := make(chan bool,1)
-	stopChan := make(chan bool,1)
-	go protocol.ReadStream(conn, readChan, stopReadStreamChan,finishChan)
-	var useBuffer bool
-	if !server.batch&&!server.lowDelay&&(server.pipelining||server.multiplexing){
-		useBuffer=true
-	}
-	go protocol.WriteStream(conn, writeChan, stopWriteStreamChan,finishChan,useBuffer)
-	if server.multiplexing{
-		jobChan := make(chan bool,server.asyncMax)
-		for {
-			select {
-			case data := <-readChan:
-				go func(data []byte ,writeChan chan []byte) {
-					defer func() {
-						if err := recover(); err != nil {
-						}
-						<-jobChan
-					}()
-					jobChan<-true
-					priority,id,body,err:=protocol.UnpackFrame(data)
-					if err!=nil{
-						return
-					}
-					_,res_bytes, _ := server.ServeRPC(body)
-					if res_bytes!=nil{
-						frameBytes:=protocol.PacketFrame(priority,id,res_bytes)
-						writeChan <- frameBytes
-					}
-				}(data,writeChan)
-			case stop := <-finishChan:
-				if stop {
-					stopReadStreamChan<-true
-					stopWriteStreamChan<-true
-					goto endfor
-				}
-			}
-		}
-	}else if server.async{
-		syncConn:=newSyncConn(server)
-		go protocol.HandleSyncConn(syncConn, writeChan,readChan,stopChan,server.asyncMax)
-		select {
-		case stop := <-finishChan:
-			if stop {
-				stopReadStreamChan<-true
-				stopWriteStreamChan<-true
-				stopChan<-true
-				goto endfor
-			}
-		}
-	}else {
-		for {
-			select {
-			case data := <-readChan:
-				_,res_bytes, _ := server.ServeRPC(data)
-				if res_bytes!=nil{
-					writeChan <- res_bytes
-				}
-			case stop := <-finishChan:
-				if stop {
-					stopReadStreamChan<-true
-					stopWriteStreamChan<-true
-					goto endfor
-				}
-			}
-		}
-	}
-	endfor:
-		defer conn.Close()
-	close(readChan)
-	close(writeChan)
-	close(finishChan)
-	close(stopReadStreamChan)
-	close(stopWriteStreamChan)
-	close(stopChan)
-	return ErrConnExit
 }

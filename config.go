@@ -18,6 +18,7 @@ const (
 	QUIC  					= "quic"
 	WS   					= "ws"
 	HTTP   					= "http"
+	HTTP1   				= "http1"
 	HTTP2   				= "http2"
 
 	RPC_CODEC_ME			= 0
@@ -79,6 +80,9 @@ const (
 	DefaultMaxConnNum=1024*64
 	DefaultMaxMultiplexingPerConn=64
 	DefaultMaxAsyncPerConn =64
+
+ 	HttpConnected = "200 Connected to RPC"
+	HttpPath = "rpc"
 )
 
 func SetLogLevel(level log.Level) {

@@ -3,9 +3,11 @@ package rpc
 import (
 	"hslam.com/git/x/funcs"
 	"hslam.com/git/x/rpc/log"
+	"hslam.com/git/x/rpc/protocol"
 	"fmt"
 	"time"
 	"sync"
+	"io"
 )
 
 var (
@@ -121,11 +123,110 @@ func (s *Server)ListenAndServe(network,address string) error {
 	}
 	return nil
 }
-
-func ServeRPC(b []byte) (bool,[]byte,error) {
-	return DefaultServer.ServeRPC(b)
+func ServeMessage(ReadWriteCloser io.ReadWriteCloser) error {
+	return DefaultServer.ServeMessage(ReadWriteCloser)
 }
-func (s *Server)ServeRPC(b []byte) (bool,[]byte,error) {
+func (s *Server) ServeMessage(ReadWriteCloser io.ReadWriteCloser) error {
+	return s.serveConn(ReadWriteCloser,false)
+}
+func ServeConn(ReadWriteCloser io.ReadWriteCloser) error {
+	return DefaultServer.ServeConn(ReadWriteCloser)
+}
+func (s *Server) ServeConn(ReadWriteCloser io.ReadWriteCloser) error {
+	return s.serveConn(ReadWriteCloser,true)
+}
+func (s *Server) serveConn(ReadWriteCloser io.ReadWriteCloser,Stream bool) error {
+	readChan := make(chan []byte,1)
+	writeChan := make(chan []byte,1)
+	finishChan:= make(chan bool,2)
+	stopReadChan := make(chan bool,1)
+	stopWriteChan := make(chan bool,1)
+	stopChan := make(chan bool,1)
+	if Stream{
+		go protocol.ReadStream(ReadWriteCloser, readChan, stopReadChan,finishChan)
+		var useBuffer bool
+		if !s.batch&&!s.lowDelay&&(s.pipelining||s.multiplexing){
+			useBuffer=true
+		}
+		go protocol.WriteStream(ReadWriteCloser, writeChan, stopWriteChan,finishChan,useBuffer)
+	}else {
+		go protocol.ReadConn(ReadWriteCloser, readChan, stopReadChan,finishChan)
+		go protocol.WriteConn(ReadWriteCloser, writeChan, stopWriteChan,finishChan)
+	}
+	if s.multiplexing{
+		jobChan := make(chan bool,s.asyncMax)
+		for {
+			select {
+			case data := <-readChan:
+				go func(data []byte ,writeChan chan []byte) {
+					defer func() {
+						if err := recover(); err != nil {
+						}
+						<-jobChan
+					}()
+					jobChan<-true
+					priority,id,body,err:=protocol.UnpackFrame(data)
+					if err!=nil{
+						return
+					}
+					_,res_bytes, _ := s.Serve(body)
+					if res_bytes!=nil{
+						frameBytes:=protocol.PacketFrame(priority,id,res_bytes)
+						writeChan <- frameBytes
+					}
+				}(data,writeChan)
+			case stop := <-finishChan:
+				if stop {
+					stopReadChan<-true
+					stopWriteChan<-true
+					goto endfor
+				}
+			}
+		}
+	}else if s.async{
+		syncConn:=newSyncConn(s)
+		go protocol.HandleSyncConn(syncConn, writeChan,readChan,stopChan,s.asyncMax)
+		select {
+		case stop := <-finishChan:
+			if stop {
+				stopReadChan<-true
+				stopWriteChan<-true
+				stopChan<-true
+				goto endfor
+			}
+		}
+	}else {
+		for {
+			select {
+			case data := <-readChan:
+				_,res_bytes, _ := s.Serve(data)
+				if res_bytes!=nil{
+					writeChan <- res_bytes
+				}
+			case stop := <-finishChan:
+				if stop {
+					stopReadChan<-true
+					stopWriteChan<-true
+					goto endfor
+				}
+			}
+		}
+	}
+endfor:
+	defer ReadWriteCloser.Close()
+	close(readChan)
+	close(writeChan)
+	close(finishChan)
+	close(stopReadChan)
+	close(stopWriteChan)
+	close(stopChan)
+	return ErrConnExit
+}
+
+func Serve(b []byte) (bool,[]byte,error) {
+	return DefaultServer.Serve(b)
+}
+func (s *Server)Serve(b []byte) (bool,[]byte,error) {
 	msg:=&Msg{}
 	err:=msg.Decode(b)
 	if err!=nil{

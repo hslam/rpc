@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"github.com/lucas-clemente/quic-go"
-	"hslam.com/git/x/rpc/protocol"
 	"hslam.com/git/x/rpc/log"
 )
 
@@ -45,10 +44,15 @@ func (l *QUICListener)Serve() (error) {
 					<-workerChan
 				}()
 				connChange <- 1
+				defer func() {connChange <- -1}()
+				defer func() {log.Infof("client %s exiting\n",sess.RemoteAddr())}()
 				log.Infof("new client %s comming\n",sess.RemoteAddr())
-				ServeQUICConn(l.server,sess)
-				log.Infof("client %s exiting\n",sess.RemoteAddr())
-				connChange <- -1
+				stream, err := sess.AcceptStream()
+				if err != nil {
+					log.Errorln(err)
+					return
+				}
+				l.server.ServeConn(stream)
 			}()
 		}
 	}
@@ -56,88 +60,4 @@ func (l *QUICListener)Serve() (error) {
 }
 func (l *QUICListener)Addr() (string) {
 	return l.address
-}
-func ServeQUICConn(server *Server,sess quic.Session)error {
-	stream, err := sess.AcceptStream()
-	if err != nil {
-		log.Errorln(err)
-		panic(err)
-		return err
-	}
-	readChan := make(chan []byte,1)
-	writeChan := make(chan []byte,1)
-	finishChan:= make(chan bool,2)
-	stopReadStreamChan := make(chan bool,1)
-	stopWriteStreamChan := make(chan bool,1)
-	stopChan := make(chan bool,1)
-	go protocol.ReadStream(stream, readChan, stopReadStreamChan,finishChan)
-	var useBuffer bool
-	if !server.batch&&!server.lowDelay&&(server.pipelining||server.multiplexing){
-		useBuffer=true
-	}
-	go protocol.WriteStream(stream, writeChan, stopWriteStreamChan,finishChan,useBuffer)
-	if server.multiplexing{
-		jobChan := make(chan bool,server.asyncMax)
-		for {
-			select {
-			case data := <-readChan:
-				go func(data []byte ,writeChan chan []byte) {
-					jobChan<-true
-					priority,id,body,err:=protocol.UnpackFrame(data)
-					if err!=nil{
-						return
-					}
-					_,res_bytes, _ := server.ServeRPC(body)
-					if res_bytes!=nil{
-						frameBytes:=protocol.PacketFrame(priority,id,res_bytes)
-						writeChan <- frameBytes
-					}
-					<-jobChan
-				}(data,writeChan)
-			case stop := <-finishChan:
-				if stop {
-					stopReadStreamChan<-true
-					stopWriteStreamChan<-true
-					goto endfor
-				}
-			}
-		}
-	}else if server.async{
-		syncConn:=newSyncConn(server)
-		go protocol.HandleSyncConn(syncConn, writeChan,readChan,stopChan,server.asyncMax)
-		select {
-		case stop := <-finishChan:
-			if stop {
-				stopReadStreamChan<-true
-				stopWriteStreamChan<-true
-				stopChan<-true
-				goto endfor
-			}
-		}
-	}else{
-		for {
-			select {
-			case data := <-readChan:
-				_,res_bytes, _ := server.ServeRPC(data)
-				if res_bytes!=nil{
-					writeChan <- res_bytes
-				}
-			case stop := <-finishChan:
-				if stop {
-					stopReadStreamChan<-true
-					stopWriteStreamChan<-true
-					goto endfor
-				}
-			}
-		}
-	}
-	endfor:
-	defer stream.Close()
-	close(readChan)
-	close(writeChan)
-	close(finishChan)
-	close(stopReadStreamChan)
-	close(stopWriteStreamChan)
-	close(stopChan)
-	return ErrConnExit
 }

@@ -17,6 +17,7 @@ type HTTP2Conn struct {
 	url				string
 	CanWork			bool
 	closed			bool
+	multiplexing 	bool
 }
 
 func DialHTTP2(address string)  (Conn, error)  {
@@ -26,7 +27,7 @@ func DialHTTP2(address string)  (Conn, error)  {
 	transport := &http.Transport{
 		TLSClientConfig: tlsConfig,
 		DisableKeepAlives:false,
-		MaxIdleConnsPerHost: runtime.NumCPU(),
+		MaxConnsPerHost:1,
 	}
 	if DefaultClientTimeout>0{
 		transport.IdleConnTimeout=time.Duration(DefaultClientTimeout) * time.Millisecond
@@ -43,6 +44,38 @@ func DialHTTP2(address string)  (Conn, error)  {
 }
 func (t *HTTP2Conn)Buffer(enable bool){
 }
+func (t *HTTP2Conn)Multiplexing(enable bool){
+	t.multiplexing=enable
+	if t.multiplexing{
+		var tlsConfig *tls.Config
+		tlsConfig=&tls.Config{InsecureSkipVerify: true}
+		transport := &http.Transport{
+			TLSClientConfig: tlsConfig,
+			DisableKeepAlives:false,
+			MaxConnsPerHost:runtime.NumCPU(),
+			MaxIdleConnsPerHost:runtime.NumCPU(),
+		}
+		if DefaultClientTimeout>0{
+			transport.IdleConnTimeout=time.Duration(DefaultClientTimeout) * time.Millisecond
+		}
+		http2.ConfigureTransport(transport)
+		t.conn.Transport=transport
+	}else {
+		var tlsConfig *tls.Config
+		tlsConfig=&tls.Config{InsecureSkipVerify: true}
+		transport := &http.Transport{
+			TLSClientConfig: tlsConfig,
+			DisableKeepAlives:false,
+			MaxConnsPerHost:1,
+			MaxIdleConnsPerHost:1,
+		}
+		if DefaultClientTimeout>0{
+			transport.IdleConnTimeout=time.Duration(DefaultClientTimeout) * time.Millisecond
+		}
+		http2.ConfigureTransport(transport)
+		t.conn.Transport=transport
+	}
+}
 func (t *HTTP2Conn)Handle(readChan chan []byte,writeChan chan []byte, stopChan chan bool,finishChan chan bool){
 	go protocol.HandleSyncConn(t, readChan,writeChan,stopChan,64)
 }
@@ -53,16 +86,34 @@ func (t *HTTP2Conn)BatchFactor()(int){
 	return 512
 }
 func (t *HTTP2Conn)Retry()(error){
-	var tlsConfig *tls.Config
-	tlsConfig=&tls.Config{InsecureSkipVerify: true}
-	transport := &http.Transport{
-		TLSClientConfig: tlsConfig,
-		IdleConnTimeout: time.Duration(DefaultClientTimeout) * time.Millisecond,
-		DisableKeepAlives:false,
-		MaxConnsPerHost:1,
-	}
-	t.conn=&http.Client{
-		Transport: transport,
+	if t.multiplexing{
+		var tlsConfig *tls.Config
+		tlsConfig=&tls.Config{InsecureSkipVerify: true}
+		transport := &http.Transport{
+			TLSClientConfig: tlsConfig,
+			DisableKeepAlives:false,
+			MaxConnsPerHost:runtime.NumCPU(),
+			MaxIdleConnsPerHost:runtime.NumCPU(),
+		}
+		if DefaultClientTimeout>0{
+			transport.IdleConnTimeout=time.Duration(DefaultClientTimeout) * time.Millisecond
+		}
+		http2.ConfigureTransport(transport)
+		t.conn.Transport=transport
+	}else {
+		var tlsConfig *tls.Config
+		tlsConfig=&tls.Config{InsecureSkipVerify: true}
+		transport := &http.Transport{
+			TLSClientConfig: tlsConfig,
+			DisableKeepAlives:false,
+			MaxConnsPerHost:1,
+			MaxIdleConnsPerHost:1,
+		}
+		if DefaultClientTimeout>0{
+			transport.IdleConnTimeout=time.Duration(DefaultClientTimeout) * time.Millisecond
+		}
+		http2.ConfigureTransport(transport)
+		t.conn.Transport=transport
 	}
 	return nil
 }

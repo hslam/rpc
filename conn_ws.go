@@ -29,10 +29,11 @@ func DialWS(address string)  (Conn, error)  {
 		address:address,
 	}
 	t.CanWork=true
-
 	return t, nil
 }
 func (t *WSConn)Buffer(enable bool){
+}
+func (t *WSConn)Multiplexing(enable bool){
 }
 func (t *WSConn)Handle(readChan chan []byte,writeChan chan []byte, stopChan chan bool,finishChan chan bool){
 	t.readChan=readChan

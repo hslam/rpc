@@ -22,14 +22,14 @@ var batch bool
 var saddr string
 func init()  {
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	flag.StringVar(&network, "network", "quic", "network: -network=tcp|ws|http|http2|quic")
+	flag.StringVar(&network, "network", "tcp", "network: -network=tcp|ws|quic|http|http1|http2")
 	flag.BoolVar(&debug, "debug", true, "debug: -debug=false")
 	flag.IntVar(&debug_port, "dp", 6060, "debug_port: -dp=6060")
 	flag.IntVar(&port, "p", 9999, "port: -p=9999")
-	flag.BoolVar(&pipelining, "pipelining", false, "pipelining: -pipelining=false")
+	flag.BoolVar(&pipelining, "pipelining", true, "pipelining: -pipelining=false")
 	flag.BoolVar(&async, "async", false, "async: -async=false")
-	flag.BoolVar(&multiplexing, "multiplexing", true, "multiplexing: -multiplexing=false")
-	flag.BoolVar(&batch, "batch", true, "batch: -batch=false")
+	flag.BoolVar(&multiplexing, "multiplexing", false, "multiplexing: -multiplexing=false")
+	flag.BoolVar(&batch, "batch", false, "batch: -batch=false")
 	flag.Parse()
 	saddr = ":"+strconv.Itoa(port)
 }

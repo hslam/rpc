@@ -24,6 +24,8 @@ func Listen(network,address string,server *Server) (Listener, error) {
 		return ListenWS(address,server)
 	case HTTP:
 		return ListenHTTP(address,server)
+	case HTTP1:
+		return ListenHTTP1(address,server)
 	case HTTP2:
 		return ListenHTTP2(address,server)
 	}

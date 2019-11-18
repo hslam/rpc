@@ -1,76 +1,155 @@
 package rpc
 import (
 	"net/http"
-	"net/url"
 	"hslam.com/git/x/rpc/protocol"
 	"io"
-	"bytes"
-	"io/ioutil"
-	"runtime"
-	"time"
+	"bufio"
+	"net"
+	"errors"
 )
 type HTTPConn struct {
-	conn 			*http.Client
+	conn 			net.Conn
 	address			string
-	url				string
 	CanWork			bool
 	closed			bool
+	buffer 			bool
+	readChan 		chan []byte
+	writeChan 		chan []byte
+	stopChan 		chan bool
+	finishChan		chan bool
 }
 
 func DialHTTP(address string)  (Conn, error)  {
-	u:=url.URL{Scheme: "http", Host: address, Path: "/"}
+	var err error
+	conn, err := net.Dial("tcp", address)
+	if err != nil {
+		return nil, err
+	}
+	io.WriteString(conn, "CONNECT "+HttpPath+" HTTP/1.1\n\n")
+
+	// Require successful HTTP response
+	// before switching to RPC protocol.
+	resp, err := http.ReadResponse(bufio.NewReader(conn), &http.Request{Method: "CONNECT"})
+	if err != nil || resp.Status != HttpConnected {
+		if err == nil {
+			err = errors.New("unexpected HTTP response: " + resp.Status)
+		}
+		conn.Close()
+		return nil, &net.OpError{
+			Op:   "dial-http",
+			Net:  "tcp" + " " + address,
+			Addr: nil,
+			Err:  err,
+		}
+	}
 	t:=&HTTPConn{
-		conn:&http.Client{
-			Transport: &http.Transport{
-				DisableKeepAlives:false,
-				MaxConnsPerHost:1,
-				IdleConnTimeout: time.Duration(DefaultClientTimeout) * time.Millisecond,
-			},
-		},
 		address:address,
-		url:u.String(),
+		conn:conn,
 	}
 	return t, nil
 }
 func (t *HTTPConn)Buffer(enable bool){
+	t.buffer=enable
+}
+func (t *HTTPConn)Multiplexing(enable bool){
 }
 func (t *HTTPConn)Handle(readChan chan []byte,writeChan chan []byte, stopChan chan bool,finishChan chan bool){
-	go protocol.HandleSyncConn(t, readChan,writeChan,stopChan,64)
+	t.readChan=readChan
+	t.writeChan=writeChan
+	t.stopChan=stopChan
+	t.finishChan=finishChan
+	t.handle()
+}
+func (t *HTTPConn)handle(){
+	readChan:=make(chan []byte,1)
+	writeChan:=make(chan []byte,1)
+	finishChan:= make(chan bool,2)
+	stopReadStreamChan := make(chan bool,1)
+	stopWriteStreamChan := make(chan bool,1)
+	go protocol.ReadStream(t.conn, readChan, stopReadStreamChan,finishChan)
+	go protocol.WriteStream(t.conn, writeChan, stopWriteStreamChan,finishChan,t.buffer)
+	go func() {
+		t.closed=false
+		//log.Traceln("TCPConn.handle start")
+		for {
+			select {
+			case v:=<-readChan:
+				func() {
+					defer func() {
+						if err := recover(); err != nil {
+						}
+					}()
+					t.readChan<-v
+				}()
+			case v:=<-t.writeChan:
+				func() {
+					defer func() {
+						if err := recover(); err != nil {
+						}
+					}()
+					writeChan<-v
+				}()
+			case stop := <-finishChan:
+				if stop {
+					stopReadStreamChan<-true
+					stopWriteStreamChan<-true
+					func(){
+						defer func() {if err := recover(); err != nil {}}()
+						t.finishChan<-true
+					}()
+					goto endfor
+				}
+			case <-t.stopChan:
+				stopReadStreamChan<-true
+				stopWriteStreamChan<-true
+				goto endfor
+			}
+		}
+	endfor:
+		close(readChan)
+		close(writeChan)
+		close(finishChan)
+		close(stopReadStreamChan)
+		close(stopWriteStreamChan)
+		//log.Traceln("TCPConn.handle end")
+		t.closed=true
+	}()
 }
 func (t *HTTPConn)TickerFactor()(int){
-	return 100
+	return 300
 }
 func (t *HTTPConn)BatchFactor()(int){
 	return 512
 }
 func (t *HTTPConn)Retry()(error){
-	Transport:= &http.Transport{
-		DisableKeepAlives:false,
-		MaxIdleConnsPerHost: runtime.NumCPU(),
+	var err error
+	conn, err := net.Dial("tcp", t.address)
+	if err != nil {
+		return  err
 	}
-	if DefaultClientTimeout>0{
-		Transport.IdleConnTimeout=time.Duration(DefaultClientTimeout) * time.Millisecond
+	path:=""
+	io.WriteString(conn, "CONNECT "+path+" HTTP/1.0\n\n")
+
+	// Require successful HTTP response
+	// before switching to RPC protocol.
+	resp, err := http.ReadResponse(bufio.NewReader(conn), &http.Request{Method: "CONNECT"})
+	if err != nil || resp.Status != HttpConnected {
+		if err == nil {
+			err = errors.New("unexpected HTTP response: " + resp.Status)
+		}
+		conn.Close()
+		return  &net.OpError{
+			Op:   "dial-http",
+			Net:  "tcp" + " " + t.address,
+			Addr: nil,
+			Err:  err,
+		}
 	}
-	t.conn=&http.Client{
-		Transport:Transport,
-	}
+	t.conn=conn
 	return nil
 }
 func (t *HTTPConn)Close()(error){
 	return nil
-}
-func (c *HTTPConn)Do(requestBody []byte)([]byte,error) {
-	var requestBodyReader io.Reader
-	if requestBody!=nil{
-		requestBodyReader = bytes.NewReader(requestBody)
-	}
-	req, _ := http.NewRequest("POST", c.url, requestBodyReader)
-	resp, err :=c.conn.Do(req)
-	if err!=nil{
-		return nil,err
-	}
-	defer resp.Body.Close()
-	return ioutil.ReadAll(resp.Body)
 }
 
 func (t *HTTPConn)Closed()(bool){

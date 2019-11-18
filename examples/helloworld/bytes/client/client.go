@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 func main()  {
-	conn, err:= rpc.Dial("tcp","127.0.0.1:9999","bytes")//tcp|ws|http|http2|quic
+	conn, err:= rpc.Dial("tcp","127.0.0.1:9999","bytes")//tcp|ws|quic|http|http1|http2
 	if err != nil {
 		log.Fatalln("dailing error: ", err)
 	}

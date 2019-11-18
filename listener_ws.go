@@ -58,10 +58,10 @@ func (l *WSListener)Serve() (error) {
 				<-workerChan
 			}()
 			connChange <- 1
+			defer func() {connChange <- -1}()
+			defer func() {log.Infof("client %s exiting\n",conn.RemoteAddr())}()
 			log.Infof("new client %s comming\n",conn.RemoteAddr())
-			ServeWSConn(l.server,conn)
-			log.Infof("client %s exiting\n",conn.RemoteAddr())
-			connChange <- -1
+			l.server.ServeMessage(&protocol.WSConn{conn})
 		}()
 	})
 	err:=l.httpServer.Serve(l.listener)
@@ -74,80 +74,3 @@ func (l *WSListener)Serve() (error) {
  func (l *WSListener)Addr() (string) {
 	 return l.address
  }
-func ServeWSConn(server *Server,conn *websocket.Conn)error {
-	readChan := make(chan []byte,1)
-	writeChan := make(chan []byte,1)
-	finishChan:= make(chan bool,2)
-	stopReadConnChan := make(chan bool,1)
-	stopWriteConnChan := make(chan bool,1)
-	stopChan := make(chan bool,1)
-	var wsConn =&protocol.WSConn{conn}
-	go protocol.ReadConn(wsConn, readChan, stopReadConnChan,finishChan)
-	go protocol.WriteConn(wsConn, writeChan, stopWriteConnChan,finishChan)
-	if server.multiplexing{
-		jobChan := make(chan bool,server.asyncMax)
-		for {
-			select {
-			case data := <-readChan:
-				go func(data []byte ,writeChan chan []byte) {
-					jobChan<-true
-					priority,id,body,err:=protocol.UnpackFrame(data)
-					if err!=nil{
-						return
-					}
-					_,res_bytes, _ := server.ServeRPC(body)
-					if res_bytes!=nil{
-						frameBytes:=protocol.PacketFrame(priority,id,res_bytes)
-						writeChan <- frameBytes
-					}
-					<-jobChan
-				}(data,writeChan)
-			case stop := <-finishChan:
-				if stop {
-					stopReadConnChan<-true
-					stopWriteConnChan<-true
-					goto endfor
-				}
-			}
-		}
-	}else if server.async{
-		syncConn:=newSyncConn(server)
-		go protocol.HandleSyncConn(syncConn, writeChan,readChan,stopChan,server.asyncMax)
-		select {
-		case stop := <-finishChan:
-			if stop {
-				stopReadConnChan<-true
-				stopWriteConnChan<-true
-				stopChan<-true
-				goto endfor
-			}
-		}
-	}else {
-		for {
-			select {
-			case data := <-readChan:
-				_,res_bytes, _ := server.ServeRPC(data)
-				if res_bytes!=nil{
-					writeChan <- res_bytes
-				}
-			case stop := <-finishChan:
-				if stop {
-					stopReadConnChan<-true
-					stopWriteConnChan<-true
-					goto endfor
-				}
-			}
-		}
-	}
-
-endfor:
-	defer conn.Close()
-	close(writeChan)
-	close(readChan)
-	close(finishChan)
-	close(stopReadConnChan)
-	close(stopWriteConnChan)
-	close(stopChan)
-	return ErrConnExit
-}
-
