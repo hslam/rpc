@@ -18,8 +18,9 @@ A Golang implementation of RPC using TCP,WS,QUIC and HTTP
 * **Protocal** stream/message/frame
 * **Pool**
 
-## Benchmark
 Batch is only useful when there are multiple goroutines calling it.
+
+## Benchmark
 
 ### Linux Environment
 * **CPU** 12 Cores 3.1 GHz
