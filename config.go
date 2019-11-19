@@ -82,7 +82,7 @@ const (
 	DefaultMaxAsyncPerConn =64
 
  	HttpConnected = "200 Connected to RPC"
-	HttpPath = "rpc"
+	HttpPath = "/"
 )
 
 func SetLogLevel(level log.Level) {

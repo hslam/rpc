@@ -2,8 +2,9 @@ package rpc
 
 import (
 	"hslam.com/git/x/rpc/log"
+	"hslam.com/git/x/rpc/protocol"
 	"net/http"
-	"net"
+	"io/ioutil"
 	"io"
 )
 
@@ -12,8 +13,6 @@ type HTTPListener struct {
 	address			string
 	maxConnNum		int
 	connNum			int
-	workerChan  		chan bool
-	connChange 		chan int
 }
 func ListenHTTP(address string,server *Server) (Listener, error) {
 	listener:=  &HTTPListener{address:address,server:server,maxConnNum:DefaultMaxConnNum*server.asyncMax}
@@ -23,22 +22,22 @@ func ListenHTTP(address string,server *Server) (Listener, error) {
 
 func (l *HTTPListener)Serve() (error) {
 	log.Allf( "%s\n", "Waiting for clients")
-	l.workerChan = make(chan bool,l.maxConnNum)
-	l.connChange = make(chan int)
+	handler:=new(Handler)
+	handler.server=l.server
+	handler.workerChan = make(chan bool,l.maxConnNum)
+	handler.connChange = make(chan int)
 	go func() {
-		for conn_change := range l.connChange {
+		for conn_change := range handler.connChange {
 			l.connNum += conn_change
 		}
 	}()
-	http.Handle(HttpPath,l)
-	lis, err := net.Listen("tcp", l.address)
-	if err != nil {
+	err:=http.ListenAndServe(l.address, handler)
+
+	if err!=nil{
 		log.Errorf("fatal error: %s", err)
 		return err
 	}
-	http.Serve(lis, nil)
 	return nil
-
 }
 
 
@@ -46,28 +45,78 @@ func (l *HTTPListener)Addr() (string) {
 	return l.address
 }
 
-func (l *HTTPListener) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	if req.Method != "CONNECT" {
+
+type Handler struct {
+	server			*Server
+	workerChan  		chan bool
+	connChange 		chan int
+}
+func (h *Handler)ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	var RemoteAddr=r.RemoteAddr
+	if r.Method=="POST"{
+		data, err := ioutil.ReadAll(r.Body)
+		if err!=nil{
+			return
+		}
+		h.workerChan<-true
+		func() {
+			defer func() {
+				if err := recover(); err != nil {
+				}
+				<-h.workerChan
+			}()
+			h.connChange <- 1
+			defer func() {h.connChange <- -1}()
+			defer func() {log.AllInfof("client %s exiting\n",RemoteAddr)}()
+			log.AllInfof("new client %s comming\n",RemoteAddr)
+			h.Serve(w,data)
+		}()
+	}else if r.Method=="CONNECT"{
+		conn, _, err := w.(http.Hijacker).Hijack()
+		if err != nil {
+			return
+		}
+		io.WriteString(conn, "HTTP/1.1 "+HttpConnected+"\n\n")
+		func() {
+			defer func() {
+				if err := recover(); err != nil {
+				}
+				<-h.workerChan
+			}()
+			h.connChange <- 1
+			defer func() {h.connChange <- -1}()
+			defer func() {log.Infof("client %s exiting\n",conn.RemoteAddr())}()
+			log.Infof("new client %s comming\n",conn.RemoteAddr())
+			h.server.ServeConn(conn)
+		}()
+	}else {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		io.WriteString(w, "405 must CONNECT\n")
-		return
+		io.WriteString(w, "405 must CONNECT or POST\n")
 	}
-	conn, _, err := w.(http.Hijacker).Hijack()
-	if err != nil {
-		return
+}
+
+func (h *Handler)Serve(w io.Writer,data []byte)error {
+	if h.server.multiplexing{
+		priority,id,body,err:=protocol.UnpackFrame(data)
+		if err!=nil{
+			return err
+		}
+		_,res_bytes, _ := h.server.Serve(body)
+		if res_bytes!=nil{
+			frameBytes:=protocol.PacketFrame(priority,id,res_bytes)
+			_,err:=w.Write(frameBytes)
+			return err
+		}
+	}else {
+		_,res_bytes, _ := h.server.Serve(data)
+		if res_bytes!=nil{
+			_,err:=w.Write(res_bytes)
+			return err
+		}else {
+			return nil
+		}
 	}
-	io.WriteString(conn, "HTTP/1.1 "+HttpConnected+"\n\n")
-	func() {
-		defer func() {
-			if err := recover(); err != nil {
-			}
-			<-l.workerChan
-		}()
-		l.connChange <- 1
-		defer func() {l.connChange <- -1}()
-		defer func() {log.Infof("client %s exiting\n",conn.RemoteAddr())}()
-		log.Infof("new client %s comming\n",conn.RemoteAddr())
-		l.server.ServeConn(conn)
-	}()
+	return ErrConnExit
 }

@@ -31,7 +31,7 @@ var batch_async bool
 
 func init()  {
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	flag.StringVar(&network, "network", "tcp", "network: -network=tcp|ws|quic|http|http1|http2")
+	flag.StringVar(&network, "network", "tcp", "network: -network=tcp|ws|quic|http")
 	flag.StringVar(&codec, "codec", "bytes", "codec: -codec=pb|json|xml|bytes")
 	flag.StringVar(&compress, "compress", "no", "compress: -compress=no|flate|zlib|gzip")
 	flag.StringVar(&host, "h", "127.0.0.1", "host: -h=127.0.0.1")
