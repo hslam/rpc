@@ -1,14 +1,14 @@
 # rpc
-A Golang implementation of RPC using TCP,QUIC,WS,HTTP and HTTP2
+A Golang implementation of RPC using TCP,WS,QUIC,HTTP,HTTP1 and HTTP2
 
 ## Server Feature
 
-* **Network** tcp/ws/http/http2/quic
+* **Network** tcp|ws|quic|http|http1|http2
 * **Pipelining** async/sync
 * **Multiplexing**
 
 ## Client Feature
-* **Network** tcp/ws/http/http2/quic
+* **Network** tcp|ws|quic|http|http1|http2
 * **Codec** json/protobuf/xml/gob/bytes
 * **Compress** flate/zlib/gzip/no
 * **Pipelining**
