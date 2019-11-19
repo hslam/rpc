@@ -127,15 +127,15 @@ func ServeMessage(ReadWriteCloser io.ReadWriteCloser) error {
 	return DefaultServer.ServeMessage(ReadWriteCloser)
 }
 func (s *Server) ServeMessage(ReadWriteCloser io.ReadWriteCloser) error {
-	return s.serveConn(ReadWriteCloser,false)
+	return s.serve(ReadWriteCloser,false)
 }
 func ServeConn(ReadWriteCloser io.ReadWriteCloser) error {
 	return DefaultServer.ServeConn(ReadWriteCloser)
 }
 func (s *Server) ServeConn(ReadWriteCloser io.ReadWriteCloser) error {
-	return s.serveConn(ReadWriteCloser,true)
+	return s.serve(ReadWriteCloser,true)
 }
-func (s *Server) serveConn(ReadWriteCloser io.ReadWriteCloser,Stream bool) error {
+func (s *Server) serve(ReadWriteCloser io.ReadWriteCloser,Stream bool) error {
 	readChan := make(chan []byte,1)
 	writeChan := make(chan []byte,1)
 	finishChan:= make(chan bool,2)
