@@ -15,7 +15,7 @@ A Golang implementation of RPC using TCP,WS,QUIC and HTTP
 * **Multiplexing**
 * **Batch** async/sync
 * **Go/Call/CallNoRequest/CallNoResponse/OnlyCall**
-* **Protocal** stream/message/frame/conn
+* **Protocal** stream/message/frame
 * **Pool**
 
 ## Benchmark

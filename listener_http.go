@@ -48,7 +48,7 @@ func (l *HTTPListener)Addr() (string) {
 
 type Handler struct {
 	server			*Server
-	workerChan  		chan bool
+	workerChan  	chan bool
 	connChange 		chan int
 }
 func (h *Handler)ServeHTTP(w http.ResponseWriter, r *http.Request) {

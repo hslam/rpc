@@ -29,7 +29,7 @@ func init()  {
 	flag.BoolVar(&pipelining, "pipelining", false, "pipelining: -pipelining=false")
 	flag.BoolVar(&async, "async", false, "async: -async=false")
 	flag.BoolVar(&multiplexing, "multiplexing", true, "multiplexing: -multiplexing=false")
-	flag.BoolVar(&batch, "batch", false, "batch: -batch=false")
+	flag.BoolVar(&batch, "batch", true, "batch: -batch=false")
 	flag.Parse()
 	saddr = ":"+strconv.Itoa(port)
 }
