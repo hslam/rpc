@@ -231,10 +231,10 @@ func (s *Server)Serve(b []byte) (bool,[]byte,error) {
 	err:=msg.Decode(b)
 	if err!=nil{
 		log.Warnf("CallService MrpcDecode error: %s", err)
-		return s.ErrRPCEncode(msg.batch,err)
+		return s.RPCErrEncode(msg.batch,err)
 	}
 	if msg.version!=Version{
-		return s.ErrRPCEncode(msg.batch,fmt.Errorf("%d %d Version is not matched",Version,msg.version))
+		return s.RPCErrEncode(msg.batch,fmt.Errorf("%d %d Version is not matched",Version,msg.version))
 	}
 	if msg.msgType==MsgType(MsgTypeHea){
 		return true,b,err
@@ -298,7 +298,7 @@ func (s *Server)Handler(msg *Msg) ([]byte,bool) {
 	err:=req.Decode(msg.data)
 	if err!=nil{
 		log.Warnf("id-%d  req-%d RequestDecode error: %s ",msg.id, req.id,err)
-		return s.ErrResponseEncode(req.id,err),req.noResponse
+		return s.ResponseErrEncode(req.id,err),req.noResponse
 	}
 	data,ok:=s.Middleware(req,msg.codecType)
 	if ok{
@@ -312,7 +312,7 @@ func (s *Server)Handler(msg *Msg) ([]byte,bool) {
 		res_bytes,_:=res.Encode()
 		if err!=nil{
 			log.Warnf("id-%d  req-%d ResponseEncode error: %s ",msg.id, req.id, err)
-			return s.ErrResponseEncode(req.id,err),req.noResponse
+			return s.ResponseErrEncode(req.id,err),req.noResponse
 		}
 		return res_bytes,req.noResponse
 	}
@@ -334,7 +334,7 @@ func (s *Server)Middleware(req *Request,funcsCodecType CodecType) ([]byte,bool){
 		case <-ch:
 			return data,ok
 		case <-time.After(time.Millisecond * time.Duration(s.timeout)):
-			return s.ErrResponseEncode(req.id,fmt.Errorf("method %s time out",req.method)),false
+			return s.ResponseErrEncode(req.id,fmt.Errorf("method %s time out",req.method)),false
 		}
 	}
 	return s.CallService(req,funcsCodecType)
@@ -342,37 +342,37 @@ func (s *Server)Middleware(req *Request,funcsCodecType CodecType) ([]byte,bool){
 func (s *Server)CallService(req *Request,funcsCodecType CodecType) ([]byte,bool) {
 	if s.Funcs.GetFunc(req.method)==nil{
 		log.AllInfof("CallService %s is not supposted",req.method)
-		return s.ErrResponseEncode(req.id,fmt.Errorf("method %s is not supposted",req.method)),false
+		return s.ResponseErrEncode(req.id,fmt.Errorf("method %s is not supposted",req.method)),false
 	}
 	if req.noRequest && req.noResponse{
 		if err := s.Funcs.Call(req.method); err != nil {
-			return s.ErrResponseEncode(req.id,err),false
+			return s.ResponseErrEncode(req.id,err),false
 		}
 		return nil,true
 	}else if req.noRequest && !req.noResponse{
 		reply :=s.Funcs.GetFuncIn(req.method,0)
 		if err := s.Funcs.Call(req.method, reply); err != nil {
-			return s.ErrResponseEncode(req.id,err),false
+			return s.ResponseErrEncode(req.id,err),false
 		}
 		reply_bytes,err:=ReplyEncode(reply,funcsCodecType)
 		if err!=nil{
-			return s.ErrResponseEncode(req.id,err),false
+			return s.ResponseErrEncode(req.id,err),false
 		}
 		return reply_bytes,true
 	}else if !req.noRequest && req.noResponse{
 		args := s.Funcs.GetFuncIn(req.method,0)
 		err:=ArgsDecode(req.data,args,funcsCodecType)
 		if err!=nil{
-			return s.ErrResponseEncode(req.id,err),false
+			return s.ResponseErrEncode(req.id,err),false
 		}
 		reply :=s.Funcs.GetFuncIn(req.method,1)
 		if reply!=nil{
 			if err := s.Funcs.Call(req.method, args, reply); err != nil {
-				return s.ErrResponseEncode(req.id,err),false
+				return s.ResponseErrEncode(req.id,err),false
 			}
 		}else {
 			if err := s.Funcs.Call(req.method, args); err != nil {
-				return s.ErrResponseEncode(req.id,err),false
+				return s.ResponseErrEncode(req.id,err),false
 			}
 		}
 		return nil,true
@@ -381,23 +381,23 @@ func (s *Server)CallService(req *Request,funcsCodecType CodecType) ([]byte,bool)
 		args := s.Funcs.GetFuncIn(req.method,0)
 		err:=ArgsDecode(req.data,args,funcsCodecType)
 		if err!=nil{
-			return s.ErrResponseEncode(req.id,err),false
+			return s.ResponseErrEncode(req.id,err),false
 		}
 		reply :=s.Funcs.GetFuncIn(req.method,1)
 		if err := s.Funcs.Call(req.method, args, reply); err != nil {
-			return s.ErrResponseEncode(req.id,err),false
+			return s.ResponseErrEncode(req.id,err),false
 		}
 		var reply_bytes []byte
 		reply_bytes,err=ReplyEncode(reply,funcsCodecType)
 		if err!=nil{
-			return s.ErrResponseEncode(req.id,err),false
+			return s.ResponseErrEncode(req.id,err),false
 		}
 		return reply_bytes,true
 	}
 }
 
-func (s *Server)ErrRPCEncode(batch bool,errMsg error)(bool,[]byte,error)  {
-	res_bytes:=s.ErrResponseEncode(0, errMsg)
+func (s *Server)RPCErrEncode(batch bool,errMsg error)(bool,[]byte,error)  {
+	res_bytes:=s.ResponseErrEncode(0, errMsg)
 	msg:=&Msg{}
 	msg.data=res_bytes
 	msg.batch=batch
@@ -408,7 +408,7 @@ func (s *Server)ErrRPCEncode(batch bool,errMsg error)(bool,[]byte,error)  {
 }
 
 
-func (s *Server)ErrResponseEncode(id uint64,err error)[]byte  {
+func (s *Server)ResponseErrEncode(id uint64,err error)[]byte  {
 	res:=&Response{}
 	res.id=id
 	res.err=err
