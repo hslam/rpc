@@ -311,7 +311,7 @@ import (
 )
 func main()  {
 	rpc.Register(new(service.Arith))
-	rpc.ListenAndServe("tcp",":9999")//tcp|ws|http|http2|quic
+	rpc.ListenAndServe("tcp",":9999")//tcp|ws|quic|http|http1|http2
 }
 ```
 
@@ -325,7 +325,7 @@ import (
 	"log"
 )
 func main()  {
-	conn, err:= rpc.Dial("tcp","127.0.0.1:9999","pb")//tcp|ws|http|http2|quic
+	conn, err:= rpc.Dial("tcp","127.0.0.1:9999","pb")//tcp|ws|quic|http|http1|http2
 	if err != nil {
 		log.Fatalln("dailing error: ", err)
 	}
@@ -351,7 +351,7 @@ import (
 )
 func main()  {
 	rpc.Register(new(service.Arith))
-	rpc.ListenAndServe("http",":9999")
+	rpc.ListenAndServe("http1",":9999")
 }
 ```
 ### http-json-client-javascript
