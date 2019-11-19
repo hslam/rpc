@@ -61,6 +61,7 @@ NETRPC  HTTP    gob     0.04    0.10    -       -       2.52    7.77    -       
 JSONRPC HTTP    json    0.04    0.12    -       -       0.61    2.84    -       -       -       -       -
 GRPC    HTTP2   pb      0.11    0.42    -       -       0.80    4.81    -       -       -       -       -
 ```
+./server -network=tcp -async=false -pipelining=false -multiplexing=true -batch=true
 
 ./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=1
 ```
