@@ -151,7 +151,7 @@ Result:
         Errors: 0 (0.00%)
 ```
 
-## Example
+## [Example](https://hslam.com/git/x/rpc/src/master/examples "examples")
 ### arith.proto
 ```
 syntax = "proto3";
