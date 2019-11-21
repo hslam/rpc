@@ -28,13 +28,13 @@ Batch is only useful when there are multiple goroutines calling it.
 
 #### Define
 
+* **pkg**   package
+* **trans** transport
 * **c**     client
 * **p**     pipeline
 * **m**     multiplex
 * **b**     batch
 * **n**     no response
-* **trans** transport
-* **pkg**   package
 
 #### Linux 12 CPU 3.1 GHz 24 GiB Requests per second
 ```
