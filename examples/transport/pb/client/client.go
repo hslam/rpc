@@ -4,10 +4,12 @@ import (
 	"hslam.com/git/x/rpc"
 	"fmt"
 	"log"
+	"time"
 )
 func main()  {
-	maxConnsPerHost:=1
-	transport:=rpc.NewTransport(maxConnsPerHost,"tcp","pb",rpc.DefaultOptions())
+	MaxConnsPerHost:=2
+	MaxIdleConnsPerHost:=0
+	transport:=rpc.NewTransport(MaxConnsPerHost,MaxIdleConnsPerHost,"tcp","pb",rpc.DefaultOptions())
 	req := &service.ArithRequest{A:9,B:2}
 	var res service.ArithResponse
 	var err error
@@ -21,4 +23,5 @@ func main()  {
 		log.Fatalln("arith error: ", err)
 	}
 	fmt.Printf("%d / %d, quo is %d, rem is %d\n", req.A, req.B, res.Quo, res.Rem)
+	time.Sleep(time.Hour)
 }

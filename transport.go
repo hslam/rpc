@@ -8,46 +8,77 @@ import (
 
 const (
 	MaxConnsPerHost=8
+	MaxIdleConnsPerHost=2
 	keepAlive=time.Minute
 )
 
 type Transport struct {
 	mut			sync.Mutex
+	once 		sync.Once
 	proxys		[]*Proxy
 	MaxConnsPerHost int
+	MaxIdleConnsPerHost int
+	Network			string
+	Codec		 	string
+	Options			*Options
 }
 
-func NewTransport(maxConnsPerHost int,network,codec string,opts *Options)*Transport {
-	if maxConnsPerHost<1{
-		maxConnsPerHost=1
+func NewTransport(MaxConnsPerHost int,MaxIdleConnsPerHost int,network,codec string,opts *Options)*Transport {
+	if MaxConnsPerHost<1{
+		MaxConnsPerHost=1
+	}
+	if MaxIdleConnsPerHost<0{
+		MaxIdleConnsPerHost=0
 	}
 	t:=&Transport{
-		MaxConnsPerHost:maxConnsPerHost,
+		MaxConnsPerHost:MaxConnsPerHost,
+		MaxIdleConnsPerHost:MaxIdleConnsPerHost,
+		Network:network,
+		Codec:codec,
+		Options:opts,
 	}
-	for i:=0;i<maxConnsPerHost ;i++  {
-		t.proxys=append(t.proxys,NewProxy(network,codec,opts) )
-	}
-	go t.run()
 	return t
 }
 func (t *Transport)run(){
 	ticker:=time.NewTicker(time.Second)
 	for range ticker.C {
-		for _,r:=range t.proxys{
-			r.check()
-		}
+		func(){
+			defer func() {if err := recover(); err != nil {}}()
+			t.mut.Lock()
+			defer t.mut.Unlock()
+			idles:=[]int{}
+			for i,r:=range t.proxys{
+				r.check()
+				if len(r.clients)==0{
+					idles=append(idles, i)
+				}
+			}
+			for _,i:=range idles {
+				if len(idles)<=t.MaxIdleConnsPerHost{
+					break
+				}
+				t.proxys=append(t.proxys[:i],t.proxys[i+1:]...)
+			}
+		}()
+
 	}
 }
 func (t *Transport)GetProxy() (*Proxy) {
+	t.once.Do(func() {
+		go t.run()
+	})
 	t.mut.Lock()
 	defer t.mut.Unlock()
-	if len(t.proxys) < 1 {
-		return nil
+	if len(t.proxys)<t.MaxConnsPerHost{
+		proxy:=NewProxy(t.Network,t.Codec,t.Options)
+		t.proxys=append(t.proxys,proxy)
+		return proxy
 	}
 	rpcs := t.proxys[0]
 	t.proxys = append(t.proxys[1:], rpcs)
 	return rpcs
 }
+
 func (t *Transport)GetConn(addr string) (*ProxyClient) {
 	proxy:=t.GetProxy()
 	if proxy!=nil{
