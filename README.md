@@ -121,35 +121,6 @@ Result:
         Response ok:    1000000 (100.00%)
         Errors: 0 (0.00%)
 ```
-./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=true -clients=1
-```
-Summary:
-        Clients:        1
-        Parallel calls per client:      512
-        Total calls:    1000000
-        Total time:     1.00s
-        Requests per second:    1004994.82
-        Fastest time for request:       0.00ms
-        Average time per request:       0.50ms
-        Slowest time for request:       26.51ms
-
-Time:
-        0.1%    time for request:       0.00ms
-        1%      time for request:       0.00ms
-        5%      time for request:       0.00ms
-        10%     time for request:       0.00ms
-        25%     time for request:       0.00ms
-        50%     time for request:       0.14ms
-        75%     time for request:       0.54ms
-        90%     time for request:       0.98ms
-        95%     time for request:       2.27ms
-        99%     time for request:       5.65ms
-        99.9%   time for request:       12.01ms
-
-Result:
-        Response ok:    1000000 (100.00%)
-        Errors: 0 (0.00%)
-```
 
 ## [Example](https://hslam.com/git/x/rpc/src/master/examples "examples")
 ### arith.proto
