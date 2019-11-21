@@ -237,7 +237,10 @@ func main()  {
 	fmt.Printf("%d * %d = %d\n", req.A, req.B, res.Pro)
 }
 ```
-
+### Output
+```
+9 * 2 = 18
+```
 ### Licence
 This package is licenced under a MIT licence (Copyright (c) 2019 Mort Huang)
 
