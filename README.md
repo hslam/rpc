@@ -30,8 +30,6 @@ Batch is only useful when there are multiple goroutines calling it.
 
 * **pkg**   package
 * **trans** transport
-* **cod** codec
-
 * **c**     client
 * **p**     pipeline
 * **m**     multiplex
