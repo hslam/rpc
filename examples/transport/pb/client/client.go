@@ -6,7 +6,8 @@ import (
 	"log"
 )
 func main()  {
-	transport:=rpc.NewTransport(1,"tcp","pb",rpc.DefaultOptions())
+	maxConnsPerHost:=1
+	transport:=rpc.NewTransport(maxConnsPerHost,"tcp","pb",rpc.DefaultOptions())
 	req := &service.ArithRequest{A:9,B:2}
 	var res service.ArithResponse
 	var err error

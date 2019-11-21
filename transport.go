@@ -18,6 +18,9 @@ type Transport struct {
 }
 
 func NewTransport(maxConnsPerHost int,network,codec string,opts *Options)*Transport {
+	if maxConnsPerHost<1{
+		maxConnsPerHost=1
+	}
 	t:=&Transport{
 		MaxConnsPerHost:maxConnsPerHost,
 	}
