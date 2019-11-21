@@ -16,7 +16,7 @@ A Golang implementation of RPC using TCP,WS,QUIC and HTTP
 * **Batch** async/sync
 * **Go/Call/CallNoRequest/CallNoResponse/OnlyCall**
 * **Protocal** stream/message/frame
-* **Pool**
+* **Pool/Transport**
 
 Batch is only useful when there are multiple goroutines calling it.
 
@@ -209,6 +209,27 @@ func main()  {
 	req := &service.ArithRequest{A:9,B:2}
 	var res service.ArithResponse
 	err = conn.Call("Arith.Multiply", req, &res)
+	if err != nil {
+		log.Fatalln("arith error: ", err)
+	}
+	fmt.Printf("%d * %d = %d\n", req.A, req.B, res.Pro)
+}
+```
+### transport.go
+```go
+package main
+import (
+	"hslam.com/git/x/rpc/examples/helloworld/pb/service"
+	"hslam.com/git/x/rpc"
+	"fmt"
+	"log"
+)
+func main()  {
+    transport:=rpc.NewTransport(1,"tcp","pb",rpc.DefaultOptions())
+	req := &service.ArithRequest{A:9,B:2}
+	var res service.ArithResponse
+	var err error
+	err = transport.Call("Arith.Multiply", req, &res,"127.0.0.1:9999")
 	if err != nil {
 		log.Fatalln("arith error: ", err)
 	}
