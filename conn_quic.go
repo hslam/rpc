@@ -3,7 +3,6 @@ import (
 	"github.com/lucas-clemente/quic-go"
 	"hslam.com/git/x/rpc/protocol"
 	"crypto/tls"
-	"hslam.com/git/x/rpc/log"
 )
 
 type QUICConn struct {
@@ -21,12 +20,12 @@ type QUICConn struct {
 func DialQUIC(address string)  (Conn, error)  {
 	session, err := quic.DialAddr(address, &tls.Config{InsecureSkipVerify: true}, nil)
 	if err != nil {
-		log.Errorf("fatal error: %s", err)
+		Errorf("fatal error: %s", err)
 		return nil,err
 	}
 	stream, err := session.OpenStreamSync()
 	if err != nil {
-		log.Errorf("fatal error: %s", err)
+		Errorf("fatal error: %s", err)
 		return nil,err
 	}
 	t:=&QUICConn{
@@ -110,12 +109,12 @@ func (t *QUICConn)BatchFactor()(int){
 func (t *QUICConn)Retry()(error){
 	session, err := quic.DialAddr(t.address, &tls.Config{InsecureSkipVerify: true}, nil)
 	if err != nil {
-		log.Errorf("fatal error: %s", err)
+		Errorf("fatal error: %s", err)
 		return err
 	}
 	stream, err := session.OpenStreamSync()
 	if err != nil {
-		log.Errorf("fatal error: %s", err)
+		Errorf("fatal error: %s", err)
 		return err
 	}
 	t.conn=stream

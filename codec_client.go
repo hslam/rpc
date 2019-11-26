@@ -1,8 +1,5 @@
 package rpc
 
-import (
-	"hslam.com/git/x/rpc/log"
-)
 type ClientCodec struct{
 	client_id int64
 	req_id   uint64
@@ -19,7 +16,7 @@ func(c *ClientCodec)Encode() ([]byte, error)  {
 	if c.noRequest==false{
 		args_bytes,err:=ArgsEncode(c.args,c.funcsCodecType)
 		if err!=nil{
-			log.Errorln("ArgsEncode error: ", err)
+			Errorln("ArgsEncode error: ", err)
 			return nil,err
 		}
 		req=&Request{c.req_id,c.name,c.noRequest,c.noResponse,args_bytes,}
@@ -28,7 +25,7 @@ func(c *ClientCodec)Encode() ([]byte, error)  {
 	}
 	req_bytes,err:=req.Encode()
 	if err!=nil{
-		log.Errorln("RequestEncode error: ", err)
+		Errorln("RequestEncode error: ", err)
 		return nil,err
 	}
 	msg:=&Msg{}
@@ -48,7 +45,7 @@ func (c *ClientCodec)Decode(b []byte) error  {
 		res:=&Response{}
 		err=res.Decode(msg.data)
 		if err!=nil{
-			log.Errorln("ResponseDecode error: ", err)
+			Errorln("ResponseDecode error: ", err)
 			return err
 		}
 		c.res=res

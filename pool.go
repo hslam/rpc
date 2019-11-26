@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"sync"
-	"hslam.com/git/x/rpc/log"
 )
 
 func Dials(total int,network,address,codec string)(*Pool,error){
@@ -141,7 +140,7 @@ func (p *Pool)CodecType()CodecType {
 func (p *Pool)Go(name string, args interface{}, reply interface{}, done chan *Call) *Call{
 	defer func() {
 		if err := recover(); err != nil {
-			log.Errorln("Go failed:", err)
+			Errorln("Go failed:", err)
 		}
 	}()
 	return p.conn().Go(name,args,reply,done)
@@ -149,7 +148,7 @@ func (p *Pool)Go(name string, args interface{}, reply interface{}, done chan *Ca
 func (p *Pool)Call(name string, args interface{}, reply interface{}) ( err error) {
 	defer func() {
 		if err := recover(); err != nil {
-			log.Errorln("Call failed:", err)
+			Errorln("Call failed:", err)
 		}
 	}()
 	return p.conn().Call(name,args,reply)
@@ -157,7 +156,7 @@ func (p *Pool)Call(name string, args interface{}, reply interface{}) ( err error
 func (p *Pool)CallNoRequest(name string, reply interface{}) ( err error) {
 	defer func() {
 		if err := recover(); err != nil {
-			log.Errorln("CallNoRequest failed:", err)
+			Errorln("CallNoRequest failed:", err)
 		}
 	}()
 	return p.conn().CallNoRequest(name,reply)
@@ -165,7 +164,7 @@ func (p *Pool)CallNoRequest(name string, reply interface{}) ( err error) {
 func (p *Pool)CallNoResponse(name string, args interface{}) ( err error) {
 	defer func() {
 		if err := recover(); err != nil {
-			log.Errorln("CallNoResponse failed:", err)
+			Errorln("CallNoResponse failed:", err)
 		}
 	}()
 	return p.conn().CallNoResponse(name,args)
@@ -173,7 +172,7 @@ func (p *Pool)CallNoResponse(name string, args interface{}) ( err error) {
 func (p *Pool)OnlyCall(name string) ( err error) {
 	defer func() {
 		if err := recover(); err != nil {
-			log.Errorln("OnlyCall failed:", err)
+			Errorln("OnlyCall failed:", err)
 		}
 	}()
 	return p.conn().OnlyCall(name)
@@ -181,7 +180,7 @@ func (p *Pool)OnlyCall(name string) ( err error) {
 func (p *Pool)Ping() bool {
 	defer func() {
 		if err := recover(); err != nil {
-			log.Errorln("Ping failed:", err)
+			Errorln("Ping failed:", err)
 		}
 	}()
 	return p.head().Ping()

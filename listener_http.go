@@ -1,7 +1,6 @@
 package rpc
 
 import (
-	"hslam.com/git/x/rpc/log"
 	"hslam.com/git/x/rpc/protocol"
 	"net/http"
 	"io/ioutil"
@@ -21,7 +20,7 @@ func ListenHTTP(address string,server *Server) (Listener, error) {
 
 
 func (l *HTTPListener)Serve() (error) {
-	log.Allf( "%s\n", "Waiting for clients")
+	Allf( "%s\n", "waiting for clients")
 	handler:=new(Handler)
 	handler.server=l.server
 	handler.workerChan = make(chan bool,l.maxConnNum)
@@ -34,7 +33,7 @@ func (l *HTTPListener)Serve() (error) {
 	err:=http.ListenAndServe(l.address, handler)
 
 	if err!=nil{
-		log.Errorf("fatal error: %s", err)
+		Errorf("fatal error: %s", err)
 		return err
 	}
 	return nil
@@ -68,8 +67,8 @@ func (h *Handler)ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}()
 			h.connChange <- 1
 			defer func() {h.connChange <- -1}()
-			defer func() {log.AllInfof("client %s exiting\n",RemoteAddr)}()
-			log.AllInfof("new client %s comming\n",RemoteAddr)
+			defer func() {AllInfof("client %s exiting\n",RemoteAddr)}()
+			AllInfof("client %s comming\n",RemoteAddr)
 			h.Serve(w,data)
 		}()
 	}else if r.Method=="CONNECT"{
@@ -86,8 +85,8 @@ func (h *Handler)ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}()
 			h.connChange <- 1
 			defer func() {h.connChange <- -1}()
-			defer func() {log.Infof("client %s exiting\n",conn.RemoteAddr())}()
-			log.Infof("new client %s comming\n",conn.RemoteAddr())
+			defer func() {Infof("client %s exiting\n",conn.RemoteAddr())}()
+			Infof("client %s comming\n",conn.RemoteAddr())
 			h.server.ServeConn(conn)
 		}()
 	}else {

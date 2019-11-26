@@ -1,7 +1,6 @@
 package rpc
 import (
 	"hslam.com/git/x/rpc/protocol"
-	"hslam.com/git/x/rpc/log"
 	"net"
 )
 
@@ -19,7 +18,7 @@ type UDPConn struct {
 func DialUDP(address string)  (Conn, error)  {
 	conn, err := net.Dial(UDP, address)
 	if err != nil {
-		log.Errorf("fatal error: %s", err)
+		Errorf("fatal error: %s", err)
 		return nil,err
 	}
 	t:=&UDPConn{
@@ -99,7 +98,7 @@ func (t *UDPConn)BatchFactor()(int){
 func (t *UDPConn)Retry()(error){
 	conn, err := net.Dial(UDP, t.address)
 	if err != nil {
-		log.Errorf("fatal error: %s", err)
+		Errorf("fatal error: %s", err)
 		return err
 	}
 	t.conn=conn

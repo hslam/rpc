@@ -1,7 +1,6 @@
 package rpc
 
 import (
-	"hslam.com/git/x/rpc/log"
 	"errors"
 )
 
@@ -9,7 +8,7 @@ func ArgsEncode(args interface{},funcsCodecType CodecType) ([]byte, error)  {
 	codec:=FuncsCodec(funcsCodecType)
 	req_bytes,err :=codec.Encode(args)
 	if err!=nil{
-		log.Errorln("ArgsEncode error: ", err)
+		Errorln("ArgsEncode error: ", err)
 		return nil,err
 	}
 	return req_bytes,nil
@@ -19,7 +18,7 @@ func ArgsDecode(args_bytes []byte,args interface{},funcsCodecType CodecType) (er
 	codec:=FuncsCodec(funcsCodecType)
 	err:=codec.Decode(args_bytes,args)
 	if err!=nil{
-		log.Errorln("ArgsDecode error: ", err)
+		Errorln("ArgsDecode error: ", err)
 		return err
 	}
 	return nil
@@ -29,7 +28,7 @@ func ReplyEncode(reply interface{},funcsCodecType CodecType) ([]byte, error)  {
 	codec:=FuncsCodec(funcsCodecType)
 	res_bytes,err :=codec.Encode(reply)
 	if err!=nil{
-		log.Errorln("ReplyEncode error: ", err)
+		Errorln("ReplyEncode error: ", err)
 		return nil,err
 	}
 	return res_bytes,nil
@@ -39,7 +38,7 @@ func ReplyDecode(reply_bytes []byte,reply interface{},funcsCodecType CodecType) 
 	codec:=FuncsCodec(funcsCodecType)
 	err:=codec.Decode(reply_bytes,reply)
 	if err!=nil{
-		log.Errorln("ArgsDecode error: ", err)
+		Errorln("ArgsDecode error: ", err)
 		return err
 	}
 	return nil

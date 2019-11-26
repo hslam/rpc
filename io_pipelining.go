@@ -1,7 +1,6 @@
 package rpc
 
 import (
-	"hslam.com/git/x/rpc/log"
 	"sync"
 )
 
@@ -57,7 +56,7 @@ func (c *Pipeline)run() {
 				func() {
 					defer func() {
 						if err := recover(); err != nil {
-							log.Errorln("v.reply err", err)
+							Errorln("v.reply err", err)
 						}
 					}()
 					c.writeChan<-cr.data
@@ -118,7 +117,7 @@ func (c *Pipeline)Retry() {
 			func() {
 				defer func() {
 					if err := recover(); err != nil {
-						log.Errorln("Pipeline.retry", err)
+						Errorln("Pipeline.retry", err)
 					}
 				}()
 				c.writeChan<-cr.data

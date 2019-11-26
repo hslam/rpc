@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"errors"
-	"hslam.com/git/x/rpc/log"
 )
 
 type Listener interface {
@@ -11,8 +10,8 @@ type Listener interface {
 }
 
 func Listen(network,address string,server *Server) (Listener, error) {
-	log.Allf( "network - %s", network)
-	log.Allf( "listening on %s", address)
+	Allf( "network - %s", network)
+	Allf( "listening on %s", address)
 	switch network {
 	case TCP:
 		return ListenTCP(address,server)

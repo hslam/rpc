@@ -1,10 +1,5 @@
 package rpc
 
-import (
-	"hslam.com/git/x/rpc/log"
-)
-
-
 type CodecType int32
 type MsgType int32
 type CompressLevel int32
@@ -27,15 +22,15 @@ const (
 	JSON   					= "json"
 	PROTOBUF   				= "pb"
 	XML						= "xml"
-	GOB						= "gob"
 	BYTES					= "bytes"
+	GOB						= "gob"
 
 	FUNCS_CODEC_INVALID 	CodecType= 0
 	FUNCS_CODEC_JSON 		CodecType= 1
 	FUNCS_CODEC_PROTOBUF   	CodecType= 2
 	FUNCS_CODEC_XML   		CodecType= 3
-	FUNCS_CODEC_GOB   		CodecType= 4
-	FUNCS_CODEC_BYTES   	CodecType= 5
+	FUNCS_CODEC_BYTES   	CodecType= 4
+	FUNCS_CODEC_GOB   		CodecType= 9
 
 	DefaultMaxCacheRequest	= 10240
 	DefaultMaxBatchRequest	= 1
@@ -85,6 +80,3 @@ const (
 	HttpPath = "/"
 )
 
-func SetLogLevel(level log.Level) {
-	log.SetLogLevel(level)
-}

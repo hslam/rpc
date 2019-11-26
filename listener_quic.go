@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"github.com/lucas-clemente/quic-go"
-	"hslam.com/git/x/rpc/log"
 )
 
 type QUICListener struct {
@@ -15,14 +14,14 @@ type QUICListener struct {
 func ListenQUIC(address string,server *Server) (Listener, error) {
 	quic_listener, err := quic.ListenAddr(address, generateTLSConfig(), nil)
 	if err!=nil{
-		log.Errorf("fatal error: %s", err)
+		Errorf("fatal error: %s", err)
 		return nil,err
 	}
 	listener:= &QUICListener{address:address,quicListener:quic_listener,server:server,maxConnNum:DefaultMaxConnNum}
 	return listener,nil
 }
 func (l *QUICListener)Serve() (error) {
-	log.Allf( "%s\n", "Waiting for clients")
+	Allf( "%s\n", "waiting for clients")
 	workerChan := make(chan bool,l.maxConnNum)
 	connChange := make(chan int)
 	go func() {
@@ -33,7 +32,7 @@ func (l *QUICListener)Serve() (error) {
 	for{
 		sess, err := l.quicListener.Accept()
 		if err != nil {
-			log.Warnf("Accept: %s\n", err)
+			Warnf("Accept: %s\n", err)
 			continue
 		}else{
 			workerChan<-true
@@ -45,11 +44,11 @@ func (l *QUICListener)Serve() (error) {
 				}()
 				connChange <- 1
 				defer func() {connChange <- -1}()
-				defer func() {log.Infof("client %s exiting\n",sess.RemoteAddr())}()
-				log.Infof("new client %s comming\n",sess.RemoteAddr())
+				defer func() {Infof("client %s exiting\n",sess.RemoteAddr())}()
+				Infof("client %s comming\n",sess.RemoteAddr())
 				stream, err := sess.AcceptStream()
 				if err != nil {
-					log.Errorln(err)
+					Errorln(err)
 					return
 				}
 				l.server.ServeConn(stream)

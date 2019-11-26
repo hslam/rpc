@@ -3,7 +3,6 @@ import (
 	"sync"
 	"time"
 	"math/rand"
-	"hslam.com/git/x/rpc/log"
 	"sync/atomic"
 )
 
@@ -122,7 +121,7 @@ func (c *client)run(){
 	for{
 		select {
 		case <-c.finishChan:
-			//log.Traceln(c.client_id,"client.run finishChan")
+			//Traceln(c.client_id,"client.run finishChan")
 			c.retryConnect()
 		case <-heartbeatTicker.C:
 			if c.disconnect==false&&c.retry{
@@ -174,9 +173,9 @@ func (c *client)retryConnect(){
 	err:=c.conn.Retry()
 	if err!=nil{
 		c.hystrix=true
-		log.Traceln(c.client_id,"retry connection err ",err)
+		Traceln(c.client_id,"retry connection err ",err)
 	}else {
-		log.Traceln(c.client_id,"retry connection success")
+		Traceln(c.client_id,"retry connection success")
 		c.disconnect=false
 		c.hystrix=false
 		c.io.Retry()
@@ -347,7 +346,7 @@ func (c *client)CodecType()CodecType {
 func (c *client) Go(name string, args interface{}, reply interface{}, done chan *Call) *Call {
 	defer func() {
 		if err := recover(); err != nil {
-			log.Errorln("Go failed:", err)
+			Errorln("Go failed:", err)
 		}
 	}()
 	call := new(Call)
@@ -363,7 +362,7 @@ func (c *client) Go(name string, args interface{}, reply interface{}, done chan 
 		// RPCs that will be using that channel. If the channel
 		// is totally unbuffered, it's best not to run at all.
 		if cap(done) == 0 {
-			log.Panic("rpc: done channel is unbuffered")
+			Panic("rpc: done channel is unbuffered")
 		}
 	}
 	call.Done = done
@@ -392,7 +391,7 @@ func (c *client)Call(name string, args interface{}, reply interface{}) ( err err
 	}
 	defer func() {
 		if err := recover(); err != nil {
-			log.Errorln("Call failed:", err)
+			Errorln("Call failed:", err)
 		}
 	}()
 	if c.hystrix{
@@ -411,7 +410,7 @@ func (c *client)CallNoRequest(name string, reply interface{}) ( err error) {
 	}
 	defer func() {
 		if err := recover(); err != nil {
-			log.Errorln("Call failed:", err)
+			Errorln("Call failed:", err)
 		}
 	}()
 	if c.hystrix{
@@ -430,7 +429,7 @@ func (c *client)CallNoResponse(name string, args interface{}) ( err error) {
 	}
 	defer func() {
 		if err := recover(); err != nil {
-			log.Errorln("CallNoResponse failed:", err)
+			Errorln("CallNoResponse failed:", err)
 		}
 	}()
 	if c.hystrix{
@@ -450,7 +449,7 @@ func (c *client)OnlyCall(name string) ( err error) {
 	}
 	defer func() {
 		if err := recover(); err != nil {
-			log.Errorln("OnlyCall failed:", err)
+			Errorln("OnlyCall failed:", err)
 		}
 	}()
 	if c.hystrix{
@@ -466,7 +465,7 @@ func (c *client)OnlyCall(name string) ( err error) {
 func (c *client)Ping() bool {
 	defer func() {
 		if err := recover(); err != nil {
-			log.Errorln("client.Ping failed:", err)
+			Errorln("client.Ping failed:", err)
 		}
 	}()
 	err:=c.heartbeat()
@@ -481,7 +480,7 @@ func (c *client)disableRetry() {
 func (c *client)RemoteCall(b []byte)([]byte,error){
 	defer func() {
 		if err := recover(); err != nil {
-			log.Errorln("client.RemoteCall failed:", err)
+			Errorln("client.RemoteCall failed:", err)
 		}
 	}()
 	c.requestChan<-true
@@ -497,7 +496,7 @@ func (c *client)RemoteCall(b []byte)([]byte,error){
 func (c *client)RemoteCallNoResponse(b []byte)(error){
 	defer func() {
 		if err := recover(); err != nil {
-			log.Errorln("client.RemoteCallNoResponse failed:", err)
+			Errorln("client.RemoteCallNoResponse failed:", err)
 		}
 	}()
 	c.requestChan<-true
@@ -510,11 +509,11 @@ func (c *client)RemoteCallNoResponse(b []byte)(error){
 func (c *client)Disconnect() ( err error) {
 	defer func() {
 		if err := recover(); err != nil {
-			log.Errorln("client.Disconnect failed:", err)
+			Errorln("client.Disconnect failed:", err)
 		}
 	}()
 	if !c.conn.Closed(){
-		log.Traceln(c.client_id,"client conn Closed",c.conn.Closed())
+		Traceln(c.client_id,"client conn Closed",c.conn.Closed())
 		c.stopChan<-true
 		time.Sleep(time.Millisecond*200)
 	}
@@ -525,7 +524,7 @@ func (c *client)Close() ( err error) {
 	c.closing=true
 	defer func() {
 		if err := recover(); err != nil {
-			log.Errorln("client.Close failed:", err)
+			Errorln("client.Close failed:", err)
 		}
 		c.closing=false
 	}()
@@ -564,7 +563,7 @@ func (c *client)heartbeat() ( err error) {
 		var data []byte
 		data,err=c.RemoteCall(msg_bytes)
 		if err != nil {
-			log.Errorln("Write error: ", err)
+			Errorln("Write error: ", err)
 			ch<-1
 			return
 		}
@@ -595,7 +594,7 @@ func (c *client)call(name string, args interface{}, reply interface{}) ( err err
 		if args!=nil{
 			args_bytes,err:=ArgsEncode(args,c.funcsCodecType)
 			if err!=nil{
-				log.Errorln("ArgsEncode error: ", err)
+				Errorln("ArgsEncode error: ", err)
 			}
 			cr.args_bytes=args_bytes
 			cr.noRequest=false
@@ -666,7 +665,7 @@ func (c *client)call(name string, args interface{}, reply interface{}) ( err err
 		if clientCodec.noResponse{
 			err=c.RemoteCallNoResponse(rpc_req_bytes)
 			if err != nil {
-				log.Errorln("Write error: ", err)
+				Errorln("Write error: ", err)
 				return err
 			}
 			return nil
@@ -676,7 +675,7 @@ func (c *client)call(name string, args interface{}, reply interface{}) ( err err
 				var data []byte
 				data, err = c.RemoteCall(rpc_req_bytes)
 				if err != nil {
-					log.Errorln("Write error: ", err)
+					Errorln("Write error: ", err)
 					ch <- 1
 					return
 				}
@@ -757,7 +756,7 @@ func (c *client) send(call *Call) {
 				var data []byte
 				data, err = c.RemoteCall(rpc_req_bytes)
 				if err != nil {
-					log.Errorln("Write error: ", err)
+					Errorln("Write error: ", err)
 					return
 				}
 				clientCodec.reply = call.Reply
@@ -791,7 +790,7 @@ func (c *client) send(call *Call) {
 		if call.Args!=nil{
 			args_bytes,err:=ArgsEncode(call.Args,c.funcsCodecType)
 			if err!=nil{
-				log.Errorln("ArgsEncode error: ", err)
+				Errorln("ArgsEncode error: ", err)
 			}
 			cr.args_bytes=args_bytes
 			cr.noRequest=false

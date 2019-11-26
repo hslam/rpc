@@ -4,7 +4,6 @@ import (
 	"sync"
 	"time"
 	"hslam.com/git/x/rpc/pb"
-	"hslam.com/git/x/rpc/log"
 )
 
 type BatchRequestChan chan *BatchRequest
@@ -139,7 +138,7 @@ func (b *Batch)Ticker(crs []*BatchRequest){
 							func() {
 								defer func() {
 									if err := recover(); err != nil {
-										log.Errorln("v.reply err", err)
+										Errorln("v.reply err", err)
 									}
 								}()
 								if res.err!=nil{

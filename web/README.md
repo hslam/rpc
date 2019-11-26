@@ -11,7 +11,7 @@ import (
 )
 func main()  {
 	rpc.Register(new(service.Arith))
-	rpc.ListenAndServe("http",":9999")
+	rpc.ListenAndServe("http",":8080")
 }
 ```
 ### http-json-client-javascript
@@ -22,7 +22,7 @@ func main()  {
         this.a=A;
         this.b=B;
     }
-    var client = new rpc.Dial("127.0.0.1:9999");
+    var client = new rpc.Dial("127.0.0.1:8080");
     var req = new ArithRequest(9,2)
     var reply=client.Call("Arith.Multiply",req)
     console.log(req.a.toString()+" * "+req.b.toString()+" = "+reply.pro.toString());

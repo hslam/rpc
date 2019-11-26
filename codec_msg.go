@@ -5,7 +5,6 @@ import (
 	"github.com/golang/protobuf/proto"
 	"errors"
 	"hslam.com/git/x/rpc/pb"
-	"hslam.com/git/x/rpc/log"
 )
 
 var (
@@ -73,7 +72,7 @@ func (m *Msg)Encode() ([]byte, error) {
 			msg=pb.Msg{Version:Version,Id:m.id,MsgType:pb.MsgType(m.msgType)}
 		}
 		if data,err:=proto.Marshal(&msg);err!=nil{
-			log.Errorln("MsgEncode proto.Unmarshal error: ", err)
+			Errorln("MsgEncode proto.Unmarshal error: ", err)
 			return nil,err
 		}else {
 			return data,nil
@@ -97,7 +96,7 @@ func (m *Msg)Decode(b []byte)(error) {
 	case RPC_CODEC_PROTOBUF:
 		var msg pb.Msg
 		if err := proto.Unmarshal(b, &msg); err != nil {
-			log.Errorln("MsgDecode proto.Unmarshal error: ", err)
+			Errorln("MsgDecode proto.Unmarshal error: ", err)
 			return err
 		}
 		m.version=msg.Version

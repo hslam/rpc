@@ -7,7 +7,6 @@ import (
 	"hslam.com/git/x/rpc/protocol"
 )
 
-
 type Multiplex struct {
 	mu 					sync.RWMutex
 	client *client

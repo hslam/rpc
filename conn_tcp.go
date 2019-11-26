@@ -1,7 +1,6 @@
 package rpc
 import (
 	"hslam.com/git/x/rpc/protocol"
-	"hslam.com/git/x/rpc/log"
 	"net"
 )
 
@@ -20,12 +19,12 @@ type TCPConn struct {
 func DialTCP(address string)  (Conn, error)  {
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", address)
 	if err != nil {
-		log.Errorf("fatal error: %s", err)
+		Errorf("fatal error: %s", err)
 		return nil,err
 	}
 	conn, err := net.DialTCP("tcp", nil, tcpAddr)
 	if err != nil {
-		log.Errorf("fatal error: %s", err)
+		Errorf("fatal error: %s", err)
 		return nil,err
 	}
 	t:=&TCPConn{
@@ -57,7 +56,7 @@ func (t *TCPConn)handle(){
 	go protocol.WriteStream(t.conn, writeChan, stopWriteStreamChan,finishChan,t.buffer)
 	go func() {
 		t.closed=false
-		//log.Traceln("TCPConn.handle start")
+		//Traceln("TCPConn.handle start")
 		for {
 			select {
 			case v:=<-readChan:
@@ -98,7 +97,7 @@ func (t *TCPConn)handle(){
 			close(finishChan)
 			close(stopReadStreamChan)
 			close(stopWriteStreamChan)
-			//log.Traceln("TCPConn.handle end")
+			//Traceln("TCPConn.handle end")
 		t.closed=true
 	}()
 }
@@ -111,17 +110,17 @@ func (t *TCPConn)BatchFactor()(int){
 func (t *TCPConn)Retry()(error){
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", t.address)
 	if err != nil {
-		log.Errorf("fatal error: %s", err)
+		Errorf("fatal error: %s", err)
 		return err
 	}
 	conn, err := net.DialTCP("tcp", nil, tcpAddr)
 	if err != nil {
-		log.Errorf("fatal error: %s", err)
+		Errorf("fatal error: %s", err)
 		return err
 	}
 	t.conn=conn
 	t.handle()
-	//log.Traceln("TCPConn.Retry")
+	//Traceln("TCPConn.Retry")
 	return nil
 }
 func (t *TCPConn)Close()(error){

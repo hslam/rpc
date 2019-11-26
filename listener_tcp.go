@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"net"
-	"hslam.com/git/x/rpc/log"
 )
 
 type TCPListener struct {
@@ -15,14 +14,14 @@ type TCPListener struct {
 func ListenTCP(address string,server *Server) (Listener, error) {
 	lis, err := net.Listen("tcp", address)
 	if err!=nil{
-		log.Errorf("fatal error: %s", err)
+		Errorf("fatal error: %s", err)
 		return nil,err
 	}
 	listener:= &TCPListener{address:address,netListener:lis,server:server,maxConnNum:DefaultMaxConnNum}
 	return listener,nil
 }
 func (l *TCPListener)Serve() (error) {
-	log.Allf( "%s\n", "Waiting for clients")
+	Allf( "%s\n", "waiting for clients")
 	workerChan := make(chan bool,l.maxConnNum)
 	connChange := make(chan int)
 	go func() {
@@ -33,7 +32,7 @@ func (l *TCPListener)Serve() (error) {
 	for {
 		conn, err := l.netListener.Accept()
 		if err != nil {
-			log.Warnf("Accept: %s\n", err)
+			Warnf("Accept: %s\n", err)
 			continue
 		}
 		workerChan<-true
@@ -45,8 +44,8 @@ func (l *TCPListener)Serve() (error) {
 			}()
 			connChange <- 1
 			defer func() {connChange <- -1}()
-			defer func() {log.Infof("client %s exiting\n",conn.RemoteAddr())}()
-			log.Infof("new client %s comming\n",conn.RemoteAddr())
+			defer func() {Infof("client %s exiting\n",conn.RemoteAddr())}()
+			Infof("client %s comming\n",conn.RemoteAddr())
 			l.server.ServeConn(conn)
 		}()
 	}

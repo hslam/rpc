@@ -2,7 +2,6 @@ package rpc
 import (
 	"hslam.com/git/x/rpc/protocol"
 	"github.com/gorilla/websocket"
-	"hslam.com/git/x/rpc/log"
 	"net/url"
 )
 
@@ -21,7 +20,7 @@ func DialWS(address string)  (Conn, error)  {
 	u := url.URL{Scheme: "ws", Host: address, Path: "/"}
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
-		log.Errorf("fatal error: %s", err)
+		Errorf("fatal error: %s", err)
 		return nil,err
 	}
 	t:=&WSConn{
@@ -106,7 +105,7 @@ func (t *WSConn)Retry()(error){
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 
 	if err != nil {
-		log.Errorf("fatal error: %s", err)
+		Errorf("fatal error: %s", err)
 		return err
 	}
 	t.conn=&protocol.WSConn{c}

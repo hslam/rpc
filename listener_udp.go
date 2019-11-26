@@ -3,7 +3,6 @@ package rpc
 import (
 	"net"
 	"hslam.com/git/x/rpc/protocol"
-	"hslam.com/git/x/rpc/log"
 )
 
 type UDPListener struct {
@@ -16,12 +15,12 @@ type UDPListener struct {
 func ListenUDP(address string,server *Server) (Listener, error) {
 	addr, err := net.ResolveUDPAddr("udp", address)
 	if err!=nil{
-		log.Errorf("fatal error: %s", err)
+		Errorf("fatal error: %s", err)
 		return nil,err
 	}
 	conn, err := net.ListenUDP("udp", addr)
 	if err != nil {
-		log.Errorf("fatal error: %s", err)
+		Errorf("fatal error: %s", err)
 		return nil,err
 	}
 	listener:=  &UDPListener{address:address,netUDPConn:conn,server:server,maxConnNum:DefaultMaxConnNum*server.asyncMax}
@@ -29,7 +28,7 @@ func ListenUDP(address string,server *Server) (Listener, error) {
 }
 
 func (l *UDPListener)Serve() (error) {
-	log.Allf( "%s\n", "Waiting for clients")
+	Allf( "%s\n", "waiting for clients")
 	workerChan := make(chan bool,l.maxConnNum)
 	connChange := make(chan int)
 	go func() {
@@ -53,9 +52,9 @@ func (l *UDPListener)Serve() (error) {
 				}()
 				connChange <- 1
 				var RemoteAddr=udp_msg.RemoteAddr.String()
-				log.AllInfof("new client %s comming\n",RemoteAddr)
+				AllInfof("client %s comming\n",RemoteAddr)
 				l.ServeUDPConn(udp_msg,writeChan)
-				log.AllInfof("client %s exiting\n",RemoteAddr)
+				AllInfof("client %s exiting\n",RemoteAddr)
 				connChange <- -1
 			}()
 		}

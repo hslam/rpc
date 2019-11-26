@@ -4,7 +4,6 @@ import (
 	"github.com/golang/protobuf/proto"
 	"errors"
 	"hslam.com/git/x/rpc/pb"
-	"hslam.com/git/x/rpc/log"
 	"fmt"
 )
 type Response struct {
@@ -23,7 +22,7 @@ func(r *Response)Encode() ([]byte, error)  {
 		}
 		rpc_res:= pb.Response{Id:r.id,Data:r.data,ErrMsg:r.errMsg}
 		if rpc_res_bytes, err := proto.Marshal(&rpc_res); err != nil {
-			log.Errorln("ResponseEncode proto.Marshal error: ", err)
+			Errorln("ResponseEncode proto.Marshal error: ", err)
 			return nil,err
 		}else {
 			return rpc_res_bytes,nil
@@ -42,7 +41,7 @@ func(r *Response)Decode(b []byte) (error)  {
 	case RPC_CODEC_PROTOBUF:
 		var rpc_res_decode pb.Response
 		if err := proto.Unmarshal(b, &rpc_res_decode); err != nil {
-			log.Errorln("ResponseDecode proto.Unmarshal error: ", err)
+			Errorln("ResponseDecode proto.Unmarshal error: ", err)
 			return err
 		}
 		r.id=rpc_res_decode.Id

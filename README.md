@@ -9,7 +9,7 @@ A Golang implementation of RPC using TCP,WS,QUIC and HTTP
 
 ## Client Feature
 * **Network** tcp|ws|quic|http
-* **Codec** json/protobuf/xml/gob/bytes
+* **Codec** json/protobuf/xml/bytes
 * **Compress** flate/zlib/gzip/no
 * **Pipelining**
 * **Multiplexing**
@@ -63,7 +63,7 @@ GRPC    HTTP2  pb    0.11   0.42    -       -       0.80    4.81    -       -   
 ```
 ./server -network=tcp -async=false -pipelining=false -multiplexing=true -batch=true
 
-./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=1
+./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=8080 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=1
 ```
 Summary:
         Clients:        1
@@ -92,7 +92,7 @@ Result:
         Response ok:    1000000 (100.00%)
         Errors: 0 (0.00%)
 ```
-./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=6
+./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=8080 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=6
 ```
 Summary:
         Clients:        6
@@ -170,7 +170,7 @@ import (
 )
 func main()  {
 	rpc.Register(new(service.Arith))
-	rpc.ListenAndServe("tcp",":9999")//tcp|ws|quic|http
+	rpc.ListenAndServe("tcp",":8080")//tcp|ws|quic|http
 }
 ```
 
@@ -184,7 +184,7 @@ import (
 	"log"
 )
 func main()  {
-	conn, err:= rpc.Dial("tcp","127.0.0.1:9999","pb")//tcp|ws|quic|http
+	conn, err:= rpc.Dial("tcp","127.0.0.1:8080","pb")//tcp|ws|quic|http
 	if err != nil {
 		log.Fatalln("dailing error: ", err)
 	}
@@ -214,7 +214,7 @@ func main()  {
 	req := &service.ArithRequest{A:9,B:2}
 	var res service.ArithResponse
 	var err error
-	err = transport.Call("Arith.Multiply", req, &res,"127.0.0.1:9999")
+	err = transport.Call("Arith.Multiply", req, &res,"127.0.0.1:8080")
 	if err != nil {
 		log.Fatalln("arith error: ", err)
 	}
