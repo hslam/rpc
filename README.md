@@ -122,6 +122,17 @@ Result:
         Errors: 0 (0.00%)
 ```
 
+## Get started
+
+### Install
+```
+go get hslam.com/git/x/rpc
+```
+### Import
+```
+import "hslam.com/git/x/rpc"
+```
+
 ## [Example](https://hslam.com/git/x/rpc/src/master/examples "examples")
 ### arith.proto
 ```
