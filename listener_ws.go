@@ -60,7 +60,7 @@ func (l *WSListener)Serve() (error) {
 			defer func() {connChange <- -1}()
 			defer func() {Infof("client %s exiting\n",conn.RemoteAddr())}()
 			Infof("client %s comming\n",conn.RemoteAddr())
-			l.server.ServeMessage(&protocol.WSConn{conn})
+			l.server.ServeMessage(&protocol.WSConn{Conn:conn})
 		}()
 	})
 	err:=l.httpServer.Serve(l.listener)

@@ -9,11 +9,11 @@ import (
 func main()  {
 	MaxConnsPerHost:=2
 	MaxIdleConnsPerHost:=0
-	transport:=rpc.NewTransport(MaxConnsPerHost,MaxIdleConnsPerHost,"tcp","pb",rpc.DefaultOptions())
+	transport:=rpc.NewTransport(MaxConnsPerHost,MaxIdleConnsPerHost,"tcp","pb",rpc.DefaultOptions())//tcp|ws|quic|http
 	req := &service.ArithRequest{A:9,B:2}
 	var res service.ArithResponse
 	var err error
-	err = transport.Call("Arith.Multiply", req, &res,"127.0.0.1:9998")
+	err = transport.Call("Arith.Multiply", req, &res,"127.0.0.1:8081")
 	if err != nil {
 		log.Fatalln("arith error: ", err)
 	}

@@ -11,12 +11,40 @@ func ReadConn(reader io.Reader, readChan chan []byte, stopChan chan bool,finishC
 	}()
 	buffer := make([]byte, 65536)
 	for {
+		var data []byte
 		n, err := reader.Read(buffer)
-		if err != nil {
+		if err != nil&& err!=io.ErrShortBuffer {
 			goto finish
+		}else if err==io.ErrShortBuffer{
+			length:=len(buffer)
+			if n<=length{
+				for{
+					length*=2
+					tmp_buffer := make([]byte, length)
+					n, err=reader.Read(tmp_buffer)
+					if err != nil&& err!=io.ErrShortBuffer{
+						goto finish
+					}else if err==io.ErrShortBuffer{
+						continue
+					}else {
+						data =make([]byte,n)
+						copy(data,tmp_buffer[:n])
+						tmp_buffer=nil
+						break
+					}
+				}
+			}else {
+				data = make([]byte, n)
+				n, err=reader.Read(data)
+				if err!=nil{
+					goto finish
+				}
+			}
+
+		}else {
+			data =make([]byte,n)
+			copy(data,buffer[:n])
 		}
-		var data =make([]byte,n)
-		copy(data,buffer[:n])
 		readChan<-data
 		select {
 		case <-stopChan:

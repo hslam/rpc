@@ -24,7 +24,7 @@ func DialWS(address string)  (Conn, error)  {
 		return nil,err
 	}
 	t:=&WSConn{
-		conn:&protocol.WSConn{c},
+		conn:&protocol.WSConn{Conn:c},
 		address:address,
 	}
 	t.CanWork=true
@@ -108,7 +108,7 @@ func (t *WSConn)Retry()(error){
 		Errorf("fatal error: %s", err)
 		return err
 	}
-	t.conn=&protocol.WSConn{c}
+	t.conn=&protocol.WSConn{Conn:c}
 	t.handle()
 	return nil
 }
