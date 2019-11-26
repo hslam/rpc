@@ -1,4 +1,4 @@
-./client -network=ws -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=50000 -pipelining=false -multiplexing=false -batch=false -batch_async=false -noresponse=false -clients=1
+./client -network=ws -codec=pb -compress=no -h=127.0.0.1 -p=8080 -total=50000 -pipelining=false -multiplexing=false -batch=false -batch_async=false -noresponse=false -clients=1
 Summary:
 	Clients:	1
 	Parallel calls per client:	1
@@ -26,7 +26,7 @@ Result:
 	Response ok:	50000 (100.00%)
 	Errors:	0 (0.00%)
 
-./client -network=ws -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=100000 -pipelining=false -multiplexing=false -batch=false -batch_async=false -noresponse=false -clients=8
+./client -network=ws -codec=pb -compress=no -h=127.0.0.1 -p=8080 -total=100000 -pipelining=false -multiplexing=false -batch=false -batch_async=false -noresponse=false -clients=8
 Summary:
 	Clients:	8
 	Parallel calls per client:	1
@@ -54,7 +54,7 @@ Result:
 	Response ok:	100000 (100.00%)
 	Errors:	0 (0.00%)
 
-./client -network=ws -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=500000 -pipelining=true -multiplexing=false -batch=false -batch_async=false -noresponse=false -clients=1
+./client -network=ws -codec=pb -compress=no -h=127.0.0.1 -p=8080 -total=500000 -pipelining=true -multiplexing=false -batch=false -batch_async=false -noresponse=false -clients=1
 Summary:
 	Clients:	1
 	Parallel calls per client:	32
@@ -82,7 +82,7 @@ Result:
 	Response ok:	500000 (100.00%)
 	Errors:	0 (0.00%)
 
-./client -network=ws -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=true -multiplexing=false -batch=false -batch_async=false -noresponse=false -clients=8
+./client -network=ws -codec=pb -compress=no -h=127.0.0.1 -p=8080 -total=1000000 -pipelining=true -multiplexing=false -batch=false -batch_async=false -noresponse=false -clients=8
 Summary:
 	Clients:	8
 	Parallel calls per client:	32
@@ -110,7 +110,7 @@ Result:
 	Response ok:	1000000 (100.00%)
 	Errors:	0 (0.00%)
 
-./client -network=ws -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=500000 -pipelining=false -multiplexing=true -batch=false -batch_async=false -noresponse=false -clients=1
+./client -network=ws -codec=pb -compress=no -h=127.0.0.1 -p=8080 -total=500000 -pipelining=false -multiplexing=true -batch=false -batch_async=false -noresponse=false -clients=1
 Summary:
 	Clients:	1
 	Parallel calls per client:	32
@@ -138,7 +138,7 @@ Result:
 	Response ok:	500000 (100.00%)
 	Errors:	0 (0.00%)
 
-./client -network=ws -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false -multiplexing=true -batch=false -batch_async=false -noresponse=false -clients=8
+./client -network=ws -codec=pb -compress=no -h=127.0.0.1 -p=8080 -total=1000000 -pipelining=false -multiplexing=true -batch=false -batch_async=false -noresponse=false -clients=8
 Summary:
 	Clients:	8
 	Parallel calls per client:	32
@@ -166,7 +166,7 @@ Result:
 	Response ok:	1000000 (100.00%)
 	Errors:	0 (0.00%)
 
-./client -network=ws -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=500000 -pipelining=true -multiplexing=false -batch=true -batch_async=false -noresponse=false -clients=1
+./client -network=ws -codec=pb -compress=no -h=127.0.0.1 -p=8080 -total=500000 -pipelining=true -multiplexing=false -batch=true -batch_async=false -noresponse=false -clients=1
 Summary:
 	Clients:	1
 	Parallel calls per client:	512
@@ -194,7 +194,7 @@ Result:
 	Response ok:	500000 (100.00%)
 	Errors:	0 (0.00%)
 
-./client -network=ws -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=true -multiplexing=false -batch=true -batch_async=false -noresponse=false -clients=8
+./client -network=ws -codec=pb -compress=no -h=127.0.0.1 -p=8080 -total=1000000 -pipelining=true -multiplexing=false -batch=true -batch_async=false -noresponse=false -clients=8
 Summary:
 	Clients:	8
 	Parallel calls per client:	512
@@ -222,7 +222,7 @@ Result:
 	Response ok:	1000000 (100.00%)
 	Errors:	0 (0.00%)
 
-./client -network=ws -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=500000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=1
+./client -network=ws -codec=pb -compress=no -h=127.0.0.1 -p=8080 -total=500000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=1
 Summary:
 	Clients:	1
 	Parallel calls per client:	512
@@ -250,7 +250,7 @@ Result:
 	Response ok:	500000 (100.00%)
 	Errors:	0 (0.00%)
 
-./client -network=ws -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=8
+./client -network=ws -codec=pb -compress=no -h=127.0.0.1 -p=8080 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=8
 Summary:
 	Clients:	8
 	Parallel calls per client:	512
@@ -278,7 +278,7 @@ Result:
 	Response ok:	1000000 (100.00%)
 	Errors:	0 (0.00%)
 
-./client -network=ws -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=true -clients=1
+./client -network=ws -codec=pb -compress=no -h=127.0.0.1 -p=8080 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=true -clients=1
 Summary:
 	Clients:	1
 	Parallel calls per client:	512
@@ -306,7 +306,7 @@ Result:
 	Response ok:	1000000 (100.00%)
 	Errors:	0 (0.00%)
 
-./client -network=ws -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=true -clients=8
+./client -network=ws -codec=pb -compress=no -h=127.0.0.1 -p=8080 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=true -clients=8
 Summary:
 	Clients:	8
 	Parallel calls per client:	512

@@ -25,7 +25,7 @@ func init()  {
 	flag.StringVar(&network, "network", "tcp", "network: -network=tcp|ws|quic|http")
 	flag.BoolVar(&debug, "debug", true, "debug: -debug=false")
 	flag.IntVar(&debug_port, "dp", 6060, "debug_port: -dp=6060")
-	flag.IntVar(&port, "p", 9999, "port: -p=9999")
+	flag.IntVar(&port, "p", 8080, "port: -p=8080")
 	flag.BoolVar(&pipelining, "pipelining", false, "pipelining: -pipelining=false")
 	flag.BoolVar(&async, "async", false, "async: -async=false")
 	flag.BoolVar(&multiplexing, "multiplexing", true, "multiplexing: -multiplexing=false")
@@ -36,18 +36,10 @@ func init()  {
 func main()  {
 	go func() {if debug{log.Println(http.ListenAndServe(":"+strconv.Itoa(debug_port), nil))}}()
 	rpc.Register(new(service.Arith))
-	rpc.SetLogLevel(4)
-	if async{
-		rpc.EnableAsyncHandle()
-	}
-	if pipelining{
-		rpc.EnablePipelining()
-	}
-	if multiplexing{
-		rpc.EnableMultiplexing()
-	}
-	if batch{
-		rpc.EnableBatch()
-	}
+	rpc.SetLogLevel(rpc.InfoLevel)
+	rpc.SetPipelining(pipelining)
+	rpc.SetPipeliningAsync(async)
+	rpc.SetMultiplexing(multiplexing)
+	rpc.SetBatch(batch)
 	rpc.ListenAndServe(network,saddr)
 }

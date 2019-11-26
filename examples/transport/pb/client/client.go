@@ -18,7 +18,7 @@ func main()  {
 		log.Fatalln("arith error: ", err)
 	}
 	fmt.Printf("%d * %d = %d\n", req.A, req.B, res.Pro)
-	err = transport.Call("Arith.Divide", req, &res,"127.0.0.1:9999")
+	err = transport.Call("Arith.Divide", req, &res,"127.0.0.1:8080")
 	if err != nil {
 		log.Fatalln("arith error: ", err)
 	}

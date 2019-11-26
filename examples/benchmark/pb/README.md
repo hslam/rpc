@@ -6,7 +6,7 @@ Batch is only useful when there are multiple goroutines calling it.
 * **CPU** 4 Cores 2.9 GHz
 * **Memory** 8 GiB
 
-./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=1
+./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=8080 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=1
 ```
 Summary:
 	Clients:	1
@@ -35,7 +35,7 @@ Result:
 	Response ok:	1000000 (100.00%)
 	Errors:	0 (0.00%)
 ```
-./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=2
+./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=8080 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=2
 ```
 Summary:
 	Clients:	2
@@ -64,7 +64,7 @@ Result:
 	Response ok:	1000000 (100.00%)
 	Errors:	0 (0.00%)
 ```
-./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=true -clients=1
+./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=8080 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=true -clients=1
 ```
 Summary:
 	Clients:	1
@@ -97,7 +97,7 @@ Result:
 * **CPU** 12 Cores 3.1 GHz
 * **Memory** 24 GiB
 
-./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=1
+./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=8080 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=1
 ```
 Summary:
         Clients:        1
@@ -126,7 +126,7 @@ Result:
         Response ok:    1000000 (100.00%)
         Errors: 0 (0.00%)
 ```
-./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=6
+./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=8080 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=6
 ```
 Summary:
         Clients:        6
@@ -155,7 +155,7 @@ Result:
         Response ok:    1000000 (100.00%)
         Errors: 0 (0.00%)
 ```
-./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=9999 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=true -clients=1
+./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=8080 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=true -clients=1
 ```
 Summary:
         Clients:        1

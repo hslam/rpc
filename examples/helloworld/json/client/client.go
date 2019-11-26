@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 func main()  {
-	conn, err:= rpc.Dial("tcp","127.0.0.1:9999","json")//tcp|ws|quic|http
+	conn, err:= rpc.Dial("tcp","127.0.0.1:8080","json")//tcp|ws|quic|http
 	if err != nil {
 		log.Fatalln("dailing error: ", err)
 	}

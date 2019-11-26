@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"hslam.com/git/x/funcs"
-	"hslam.com/git/x/rpc/log"
 	"hslam.com/git/x/rpc/protocol"
 	"fmt"
 	"time"
@@ -11,7 +10,6 @@ import (
 )
 
 var (
-
 	DefaultServer = NewServer()
 )
 
@@ -27,37 +25,41 @@ type Server struct {
 	batch 						bool
 	pipelining 					bool
 	multiplexing				bool
-	async						bool
+	pipeliningAsync				bool
 	asyncMax					int
 	lowDelay 					bool
 	objs 						[]*registerObject
 }
 func NewServer() *Server {
-	return &Server{Funcs:funcs.New(),timeout:DefaultServerTimeout,asyncMax:DefaultMaxAsyncPerConn}
+	return &Server{Funcs:funcs.New(),timeout:DefaultServerTimeout,asyncMax:DefaultMaxAsyncPerConn,multiplexing:true,batch:true}
 }
-func EnableBatch()  {
-	DefaultServer.EnableBatch()
+func SetBatch(enable bool)  {
+	DefaultServer.SetBatch(enable)
 }
-func (s *Server) EnableBatch() {
-	s.batch=true
+func (s *Server) SetBatch(enable bool)  {
+	s.batch=enable
 }
-func SetLowDelay(enabled bool)  {
-	DefaultServer.SetLowDelay(enabled)
+func SetLowDelay(enable bool)  {
+	DefaultServer.SetLowDelay(enable)
 }
-func (s *Server) SetLowDelay(enabled bool)  {
-	s.lowDelay=enabled
+func (s *Server) SetLowDelay(enable bool)  {
+	s.lowDelay=enable
 }
-func EnablePipelining()  {
-	DefaultServer.EnablePipelining()
+func SetPipelining(enable bool) {
+	DefaultServer.SetPipelining(enable)
 }
-func (s *Server) EnablePipelining() {
-	s.pipelining=true
+func (s *Server) SetPipelining(enable bool) {
+	s.pipelining=enable
 }
-func EnableMultiplexing()  {
-	DefaultServer.EnableMultiplexing()
+func SetMultiplexing(enable bool)  {
+	DefaultServer.SetMultiplexing(enable)
 }
-func (s *Server) EnableMultiplexing() {
-	s.EnableMultiplexingWithSize(DefaultMaxMultiplexingPerConn)
+func (s *Server) SetMultiplexing(enable bool) {
+	if enable{
+		s.EnableMultiplexingWithSize(DefaultMaxMultiplexingPerConn)
+	}else {
+		s.multiplexing=false
+	}
 }
 func EnableMultiplexingWithSize(size  int)  {
 	DefaultServer.EnableMultiplexingWithSize(size)
@@ -66,25 +68,29 @@ func (s *Server) EnableMultiplexingWithSize(size  int) {
 	s.multiplexing=true
 	s.asyncMax=size
 }
-func Async() bool {
-	return DefaultServer.Async()
+func PipeliningAsync() bool {
+	return DefaultServer.PipeliningAsync()
 }
-func (s *Server) Async() bool {
-	return s.async
+func (s *Server) PipeliningAsync() bool {
+	return s.pipeliningAsync
 }
-func EnableAsyncHandle()  {
-	DefaultServer.EnableAsyncHandle()
+func SetPipeliningAsync(enable bool)  {
+	DefaultServer.SetPipeliningAsync(enable)
 }
-func (s *Server) EnableAsyncHandle() {
-	s.EnableAsyncHandleWithSize(DefaultMaxAsyncPerConn)
+func (s *Server) SetPipeliningAsync(enable bool) {
+	if enable{
+		s.EnablePipeliningAsyncWithSize(DefaultMaxAsyncPerConn)
+	}else {
+		s.pipeliningAsync=false
+	}
 }
 
-func EnableAsyncHandleWithSize(size  int) {
-	DefaultServer.EnableAsyncHandleWithSize(size )
+func EnablePipeliningAsyncWithSize(size  int) {
+	DefaultServer.EnablePipeliningAsyncWithSize(size )
 }
 
-func (s *Server) EnableAsyncHandleWithSize(size int) {
-	s.async=true
+func (s *Server) EnablePipeliningAsyncWithSize(size int) {
+	s.pipeliningAsync=true
 	s.asyncMax=size
 }
 func Register(obj interface{}) error {
@@ -112,13 +118,13 @@ func (s *Server)ListenAndServe(network,address string) error {
 	s.network=network
 	listener,err:=Listen(network,address,s)
 	if err != nil {
-		log.Errorln(err)
+		Errorln(err)
 		return err
 	}
 	s.listener=listener
 	err=s.listener.Serve()
 	if err != nil {
-		log.Errorln(err)
+		Errorln(err)
 		return err
 	}
 	return nil
@@ -183,7 +189,7 @@ func (s *Server) serve(ReadWriteCloser io.ReadWriteCloser,Stream bool) error {
 				}
 			}
 		}
-	}else if s.async{
+	}else if s.pipeliningAsync{
 		syncConn:=newSyncConn(s)
 		go protocol.HandleSyncConn(syncConn, writeChan,readChan,stopChan,s.asyncMax)
 		select {
@@ -230,7 +236,7 @@ func (s *Server)Serve(b []byte) (bool,[]byte,error) {
 	msg:=&Msg{}
 	err:=msg.Decode(b)
 	if err!=nil{
-		log.Warnf("CallService MrpcDecode error: %s", err)
+		Warnf("CallService MrpcDecode error: %s", err)
 		return s.RPCErrEncode(msg.batch,err)
 	}
 	if msg.version!=Version{
@@ -246,7 +252,7 @@ func (s *Server)Serve(b []byte) (bool,[]byte,error) {
 		batchCodec.Decode(msg.data)
 		res_bytes_s:=make([][]byte,len(batchCodec.data))
 		NoResponseCnt:=&Count{}
-		if s.async||batchCodec.async{
+		if batchCodec.async{
 			waitGroup :=sync.WaitGroup{}
 			for i,v:=range batchCodec.data{
 				waitGroup.Add(1)
@@ -297,12 +303,12 @@ func (s *Server)Handler(msg *Msg) ([]byte,bool) {
 	req:=&Request{}
 	err:=req.Decode(msg.data)
 	if err!=nil{
-		log.Warnf("id-%d  req-%d RequestDecode error: %s ",msg.id, req.id,err)
+		Warnf("id:%d  req:%d RequestDecode error: %s ",msg.id, req.id,err)
 		return s.ResponseErrEncode(req.id,err),req.noResponse
 	}
 	data,ok:=s.Middleware(req,msg.codecType)
 	if ok{
-		log.AllInfof("id-%d  req-%d CallService %s success",msg.id, req.id,req.method)
+		AllInfof("id:%d  req:%d CallService %s success",msg.id, req.id,req.method)
 		if req.noResponse==true{
 			return nil,true
 		}
@@ -311,7 +317,7 @@ func (s *Server)Handler(msg *Msg) ([]byte,bool) {
 		res.data=data
 		res_bytes,_:=res.Encode()
 		if err!=nil{
-			log.Warnf("id-%d  req-%d ResponseEncode error: %s ",msg.id, req.id, err)
+			Warnf("id:%d  req:%d ResponseEncode error: %s ",msg.id, req.id, err)
 			return s.ResponseErrEncode(req.id,err),req.noResponse
 		}
 		return res_bytes,req.noResponse
@@ -341,7 +347,7 @@ func (s *Server)Middleware(req *Request,funcsCodecType CodecType) ([]byte,bool){
 }
 func (s *Server)CallService(req *Request,funcsCodecType CodecType) ([]byte,bool) {
 	if s.Funcs.GetFunc(req.method)==nil{
-		log.AllInfof("CallService %s is not supposted",req.method)
+		AllInfof("CallService %s is not supposted",req.method)
 		return s.ResponseErrEncode(req.id,fmt.Errorf("method %s is not supposted",req.method)),false
 	}
 	if req.noRequest && req.noResponse{

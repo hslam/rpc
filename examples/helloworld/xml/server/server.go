@@ -5,5 +5,5 @@ import (
 )
 func main()  {
 	rpc.Register(new(service.Arith))
-	rpc.ListenAndServe("tcp",":9999")//tcp|ws|quic|http
+	rpc.ListenAndServe("tcp",":8080")//tcp|ws|quic|http
 }
