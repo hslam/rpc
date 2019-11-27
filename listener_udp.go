@@ -73,7 +73,7 @@ func (l *UDPListener)ServeUDPConn(udp_msg *protocol.UDPMsg,writeChan chan *proto
 		if err!=nil{
 			return ErrConnExit
 		}
-		ok,res_bytes, _ := l.server.Serve(body)
+		ok,res_bytes:= l.server.Serve(body)
 		if res_bytes!=nil{
 			frameBytes:=protocol.PacketFrame(priority,id,res_bytes)
 			writeChan <- &protocol.UDPMsg{udp_msg.ID,frameBytes,udp_msg.RemoteAddr}
@@ -81,7 +81,7 @@ func (l *UDPListener)ServeUDPConn(udp_msg *protocol.UDPMsg,writeChan chan *proto
 			writeChan <- &protocol.UDPMsg{udp_msg.ID,nil,udp_msg.RemoteAddr}
 		}
 	}else {
-		ok,res_bytes, _ := l.server.Serve(udp_msg.Data)
+		ok,res_bytes:= l.server.Serve(udp_msg.Data)
 		if res_bytes!=nil{
 			writeChan <- &protocol.UDPMsg{udp_msg.ID,res_bytes,udp_msg.RemoteAddr}
 		}else if ok{

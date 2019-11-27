@@ -9,9 +9,9 @@ func newSyncConn(server *Server) *SyncConn {
 }
 
 func (s *SyncConn)Do(requestBody []byte)([]byte,error) {
-	_,res_bytes,err:= s.server.Serve(requestBody)
+	_,res_bytes:= s.server.Serve(requestBody)
 	if res_bytes!=nil{
-		return res_bytes,err
+		return res_bytes,nil
 	}
 	return nil,nil
 }

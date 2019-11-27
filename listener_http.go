@@ -102,14 +102,14 @@ func (h *Handler)Serve(w io.Writer,data []byte)error {
 		if err!=nil{
 			return err
 		}
-		_,res_bytes, _ := h.server.Serve(body)
+		_,res_bytes := h.server.Serve(body)
 		if res_bytes!=nil{
 			frameBytes:=protocol.PacketFrame(priority,id,res_bytes)
 			_,err:=w.Write(frameBytes)
 			return err
 		}
 	}else {
-		_,res_bytes, _ := h.server.Serve(data)
+		_,res_bytes:= h.server.Serve(data)
 		if res_bytes!=nil{
 			_,err:=w.Write(res_bytes)
 			return err

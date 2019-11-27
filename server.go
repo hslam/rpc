@@ -175,7 +175,7 @@ func (s *Server) serve(ReadWriteCloser io.ReadWriteCloser,Stream bool) error {
 					if err!=nil{
 						return
 					}
-					_,res_bytes, _ := s.Serve(body)
+					_,res_bytes:= s.Serve(body)
 					if res_bytes!=nil{
 						frameBytes:=protocol.PacketFrame(priority,id,res_bytes)
 						writeChan <- frameBytes
@@ -205,7 +205,7 @@ func (s *Server) serve(ReadWriteCloser io.ReadWriteCloser,Stream bool) error {
 		for {
 			select {
 			case data := <-readChan:
-				_,res_bytes, _ := s.Serve(data)
+				_,res_bytes:= s.Serve(data)
 				if res_bytes!=nil{
 					writeChan <- res_bytes
 				}
@@ -229,14 +229,14 @@ endfor:
 	return ErrConnExit
 }
 
-func Serve(b []byte) (bool,[]byte,error) {
+func Serve(b []byte) (bool,[]byte) {
 	return DefaultServer.Serve(b)
 }
-func (s *Server)Serve(b []byte) (bool,[]byte,error) {
+func (s *Server)Serve(b []byte) (ok bool,body []byte) {
 	ctx:=&ServerCodec{}
 	ctx.Decode(b)
 	if ctx.msg.msgType==MsgTypeHea{
-		return true,b,nil
+		return true,b
 	}
 	ctx.msg.msgType=MsgTypeRes
 	var noResponse =false
@@ -283,11 +283,11 @@ func (s *Server)Serve(b []byte) (bool,[]byte,error) {
 		responseBytes,_=ctx.response.Encode()
 	}
 	if noResponse==true{
-		return true,nil,nil
+		return true,nil
 	}
 	ctx.msg.data=responseBytes
-	body,err:=ctx.Encode()
-	return true,body,err
+	body,_=ctx.Encode()
+	return true,body
 }
 
 func (s *Server)Handler(ctx *ServerCodec,req *Request,res *Response){
