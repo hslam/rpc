@@ -233,191 +233,149 @@ func Serve(b []byte) (bool,[]byte,error) {
 	return DefaultServer.Serve(b)
 }
 func (s *Server)Serve(b []byte) (bool,[]byte,error) {
-	msg:=&Msg{}
-	err:=msg.Decode(b)
-	if err!=nil{
-		Warnf("CallService MrpcDecode error: %s", err)
-		return s.RPCErrEncode(msg.batch,err)
+	ctx:=&ServerCodec{}
+	ctx.Decode(b)
+	if ctx.msg.msgType==MsgTypeHea{
+		return true,b,nil
 	}
-	if msg.version!=Version{
-		return s.RPCErrEncode(msg.batch,fmt.Errorf("%d %d Version is not matched",Version,msg.version))
-	}
-	if msg.msgType==MsgType(MsgTypeHea){
-		return true,b,err
-	}
+	ctx.msg.msgType=MsgTypeRes
 	var noResponse =false
 	var responseBytes []byte
-	if msg.batch{
-		batchCodec:=&BatchCodec{}
-		batchCodec.Decode(msg.data)
-		res_bytes_s:=make([][]byte,len(batchCodec.data))
+	if ctx.msg.batch{
 		NoResponseCnt:=&Count{}
-		if batchCodec.async{
+		if ctx.batchCodec.async{
 			waitGroup :=sync.WaitGroup{}
-			for i,v:=range batchCodec.data{
+			for i,v:=range ctx.requests{
 				waitGroup.Add(1)
-				go func(i int,v []byte,msg Msg,res_bytes_s[][]byte,NoResponseCnt *Count,waitGroup *sync.WaitGroup) {
+				go func(i int,req *Request,res *Response,NoResponseCnt *Count,waitGroup *sync.WaitGroup) {
 					defer waitGroup.Done()
-					msg.data=v
-					res_bytes,nr:=s.Handler(&msg)
-					if nr==true{
+					s.Handler(ctx,req,res)
+					if req.noResponse==true{
 						NoResponseCnt.add(1)
-						res_bytes_s[i]=[]byte("")
-					}else {
-						res_bytes_s[i]=res_bytes
+						ctx.responses[i].data=[]byte("")
+					}else{
+						body,_:=ctx.responses[i].Encode()
+						ctx.batchCodec.data[i]=body
 					}
-				}(i,v,*msg,res_bytes_s,NoResponseCnt,&waitGroup)
+				}(i,v,ctx.responses[i],NoResponseCnt,&waitGroup)
 			}
 			waitGroup.Wait()
 		}else {
-			for i,v:=range batchCodec.data{
-				msg.data=v
-				res_bytes,nr:=s.Handler(msg)
-				if nr==true{
+			for i,v:=range ctx.requests{
+				s.Handler(ctx,v,ctx.responses[i])
+				if v.noResponse==true{
 					NoResponseCnt.add(1)
-					res_bytes_s[i]=[]byte("")
-				}else {
-					res_bytes_s[i]=res_bytes
+					ctx.responses[i].data=[]byte("")
+				}else{
+					body,_:=ctx.responses[i].Encode()
+					ctx.batchCodec.data[i]=body
 				}
 			}
 		}
-		if NoResponseCnt.load()==int64(len(batchCodec.data)){
+		if NoResponseCnt.load()==int64(len(ctx.requests)){
 			noResponse=true
 		}else {
-			batchCodec:=&BatchCodec{data:res_bytes_s}
-			responseBytes,_=batchCodec.Encode()
+			responseBytes,_=ctx.batchCodec.Encode()
 		}
 	}else{
-		responseBytes,noResponse=s.Handler(msg)
+		s.Handler(ctx,ctx.request,ctx.response)
+		noResponse=ctx.request.noResponse
+		responseBytes,_=ctx.response.Encode()
 	}
 	if noResponse==true{
 		return true,nil,nil
 	}
-	msg.data=responseBytes
-	msg.msgType=MsgType(MsgTypeRes)
-	msg_bytes,err:=msg.Encode()
-	return true,msg_bytes,err
+	ctx.msg.data=responseBytes
+	body,err:=ctx.Encode()
+	return true,body,err
 }
 
-func (s *Server)Handler(msg *Msg) ([]byte,bool) {
-	req:=&Request{}
-	err:=req.Decode(msg.data)
-	if err!=nil{
-		Warnf("id:%d  req:%d RequestDecode error: %s ",msg.id, req.id,err)
-		return s.ResponseErrEncode(req.id,err),req.noResponse
-	}
-	data,ok:=s.Middleware(req,msg.codecType)
-	if ok{
-		AllInfof("id:%d  req:%d CallService %s success",msg.id, req.id,req.method)
-		if req.noResponse==true{
-			return nil,true
-		}
-		res:=&Response{}
-		res.id=req.id
-		res.data=data
-		res_bytes,_:=res.Encode()
-		if err!=nil{
-			Warnf("id:%d  req:%d ResponseEncode error: %s ",msg.id, req.id, err)
-			return s.ResponseErrEncode(req.id,err),req.noResponse
-		}
-		return res_bytes,req.noResponse
-	}
-	return data,req.noResponse
-}
-
-func (s *Server)Middleware(req *Request,funcsCodecType CodecType) ([]byte,bool){
+func (s *Server)Handler(ctx *ServerCodec,req *Request,res *Response){
+	res.id=req.id
 	if s.timeout>0{
 		ch := make(chan int)
-		var (
-			data []byte
-			ok bool
-		)
 		go func() {
-			data,ok=s.CallService(req,funcsCodecType)
+			s.CallService(ctx,req,res)
 			ch<-1
 		}()
 		select {
 		case <-ch:
-			return data,ok
+			return
 		case <-time.After(time.Millisecond * time.Duration(s.timeout)):
-			return s.ResponseErrEncode(req.id,fmt.Errorf("method %s time out",req.method)),false
+			res.err=fmt.Errorf("method %s time out",req.method)
+			return
 		}
 	}
-	return s.CallService(req,funcsCodecType)
+	s.CallService(ctx,req,res)
 }
-func (s *Server)CallService(req *Request,funcsCodecType CodecType) ([]byte,bool) {
+func (s *Server)CallService(ctx *ServerCodec,req *Request,res *Response) {
 	if s.Funcs.GetFunc(req.method)==nil{
-		AllInfof("CallService %s is not supposted",req.method)
-		return s.ResponseErrEncode(req.id,fmt.Errorf("method %s is not supposted",req.method)),false
+		AllInfof("Server.CallService method %s is not supposted",req.method)
+		res.err=fmt.Errorf("Server.CallService method %s is not supposted",req.method)
+		return
 	}
 	if req.noRequest && req.noResponse{
 		if err := s.Funcs.Call(req.method); err != nil {
-			return s.ResponseErrEncode(req.id,err),false
+			AllInfof("Server.CallService OnlyCall err %s",err)
+			res.err=fmt.Errorf("Server.CallService OnlyCall err %s",err)
+			return
 		}
-		return nil,true
+		return
 	}else if req.noRequest && !req.noResponse{
 		reply :=s.Funcs.GetFuncIn(req.method,0)
 		if err := s.Funcs.Call(req.method, reply); err != nil {
-			return s.ResponseErrEncode(req.id,err),false
+			AllInfof("Server.CallService CallNoRequest err %s",err)
+			res.err= fmt.Errorf("Server.CallService CallNoRequest err %s",err)
+			return
 		}
-		reply_bytes,err:=ReplyEncode(reply,funcsCodecType)
+		reply_bytes,err:=ReplyEncode(reply,ctx.msg.codecType)
 		if err!=nil{
-			return s.ResponseErrEncode(req.id,err),false
+			res.err= fmt.Errorf("Server.CallService ReplyEncode err %s",err)
+			return
 		}
-		return reply_bytes,true
+		res.data=reply_bytes
+		return
 	}else if !req.noRequest && req.noResponse{
 		args := s.Funcs.GetFuncIn(req.method,0)
-		err:=ArgsDecode(req.data,args,funcsCodecType)
+		err:=ArgsDecode(req.data,args,ctx.msg.codecType)
 		if err!=nil{
-			return s.ResponseErrEncode(req.id,err),false
+			res.err= fmt.Errorf("Server.CallService ArgsDecode err %s",err)
+			return
 		}
 		reply :=s.Funcs.GetFuncIn(req.method,1)
 		if reply!=nil{
 			if err := s.Funcs.Call(req.method, args, reply); err != nil {
-				return s.ResponseErrEncode(req.id,err),false
+				res.err= fmt.Errorf("Server.CallService CallNoResponseWithReply err %s",err)
+				return
 			}
 		}else {
 			if err := s.Funcs.Call(req.method, args); err != nil {
-				return s.ResponseErrEncode(req.id,err),false
+				res.err= fmt.Errorf("Server.CallService CallNoResponseWithoutReply err %s",err)
+				return
 			}
 		}
-		return nil,true
+		return
 
 	}else {
 		args := s.Funcs.GetFuncIn(req.method,0)
-		err:=ArgsDecode(req.data,args,funcsCodecType)
+		err:=ArgsDecode(req.data,args,ctx.msg.codecType)
 		if err!=nil{
-			return s.ResponseErrEncode(req.id,err),false
+			res.err= fmt.Errorf("Server.CallService ArgsDecode err %s",err)
+			return
 		}
 		reply :=s.Funcs.GetFuncIn(req.method,1)
 		if err := s.Funcs.Call(req.method, args, reply); err != nil {
-			return s.ResponseErrEncode(req.id,err),false
+			res.err= fmt.Errorf("Server.CallService Call err %s",err)
+			return
 		}
 		var reply_bytes []byte
-		reply_bytes,err=ReplyEncode(reply,funcsCodecType)
+		reply_bytes,err=ReplyEncode(reply,ctx.msg.codecType)
 		if err!=nil{
-			return s.ResponseErrEncode(req.id,err),false
+			res.err= fmt.Errorf("Server.CallService ReplyEncode err %s",err)
+			return
 		}
-		return reply_bytes,true
+		res.data=reply_bytes
+		return
 	}
 }
 
-func (s *Server)RPCErrEncode(batch bool,errMsg error)(bool,[]byte,error)  {
-	res_bytes:=s.ResponseErrEncode(0, errMsg)
-	msg:=&Msg{}
-	msg.data=res_bytes
-	msg.batch=batch
-	msg.msgType=MsgType(MsgTypeRes)
-	msg.codecType=FUNCS_CODEC_INVALID
-	msg_bytes,err:=msg.Encode()
-	return false,msg_bytes,err
-}
-
-
-func (s *Server)ResponseErrEncode(id uint64,err error)[]byte  {
-	res:=&Response{}
-	res.id=id
-	res.err=err
-	res_bytes,_:=res.Encode()
-	return res_bytes
-}

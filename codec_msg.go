@@ -2,14 +2,14 @@ package rpc
 
 import (
 	"bytes"
-	"github.com/golang/protobuf/proto"
 	"errors"
 	"hslam.com/git/x/rpc/pb"
 	"hslam.com/git/x/compress"
+	"hslam.com/git/x/rpc/gen"
 )
 
 var (
-	rpc_codec = RPC_CODEC_PROTOBUF
+	rpc_codec = RPC_CODEC_GENCODE
 )
 
 func init() {
@@ -55,7 +55,7 @@ func (m *Msg)Encode() ([]byte, error) {
 	}
 	switch rpc_codec {
 	case RPC_CODEC_ME:
-		return m.data,nil
+		return m.Marshal(nil)
 	case RPC_CODEC_PROTOBUF:
 		var msg pb.Msg
 		if m.msgType==MsgType(pb.MsgType_req)||m.msgType==MsgType(pb.MsgType_res){
@@ -72,7 +72,29 @@ func (m *Msg)Encode() ([]byte, error) {
 		}else if m.msgType==MsgType(pb.MsgType_hea) {
 			msg=pb.Msg{Version:Version,Id:m.id,MsgType:pb.MsgType(m.msgType)}
 		}
-		if data,err:=proto.Marshal(&msg);err!=nil{
+		if data,err:=msg.Marshal();err!=nil{
+			Errorln("MsgEncode proto.Unmarshal error: ", err)
+			return nil,err
+		}else {
+			return data,nil
+		}
+	case RPC_CODEC_GENCODE:
+		var msg gen.Msg
+		if m.msgType==MsgType(pb.MsgType_req)||m.msgType==MsgType(pb.MsgType_res){
+			msg= gen.Msg{
+				Version:Version,
+				Id:m.id,
+				MsgType:int32(m.msgType),
+				Batch:m.batch,
+				Data:m.data,
+				CodecType:int32(m.codecType),
+				CompressType:int32(m.compressType),
+				CompressLevel:int32(m.compressLevel),
+			}
+		}else if m.msgType==MsgTypeHea {
+			msg= gen.Msg{Version:Version,Id:m.id,MsgType:int32(m.msgType)}
+		}
+		if data,err:=msg.Marshal(nil);err!=nil{
 			Errorln("MsgEncode proto.Unmarshal error: ", err)
 			return nil,err
 		}else {
@@ -91,19 +113,38 @@ func (m *Msg)Decode(b []byte)(error) {
 	m.compressLevel=NoCompression
 	switch rpc_codec {
 	case RPC_CODEC_ME:
-		m.version=Version
-		m.data=b
-		return nil
+		return m.Unmarshal(b)
 	case RPC_CODEC_PROTOBUF:
-		var msg pb.Msg
-		if err := proto.Unmarshal(b, &msg); err != nil {
+		var msg =&pb.Msg{}
+		if err := msg.Unmarshal(b); err != nil {
 			Errorln("MsgDecode proto.Unmarshal error: ", err)
 			return err
 		}
 		m.version=msg.Version
 		m.id=msg.Id
 		m.msgType=MsgType(msg.MsgType)
-		if msg.MsgType==pb.MsgType_req||msg.MsgType==pb.MsgType_res{
+		if m.msgType==MsgTypeReq||m.msgType==MsgTypeRes{
+			m.data=msg.Data
+			m.batch=msg.Batch
+			m.codecType=CodecType(msg.CodecType)
+			m.compressType=CompressType(msg.CompressType)
+			m.compressLevel=CompressLevel(msg.CompressLevel)
+			compressor:=getCompressor(m.compressType,m.compressLevel)
+			if compressor!=nil{
+				m.data,_=compressor.Uncompress(m.data)
+			}
+		}
+		return nil
+	case RPC_CODEC_GENCODE:
+		var msg =&gen.Msg{}
+		if _,err := msg.Unmarshal(b); err != nil {
+			Errorln("MsgDecode gencode.Unmarshal error: ", err)
+			return err
+		}
+		m.version=msg.Version
+		m.id=msg.Id
+		m.msgType=MsgType(msg.MsgType)
+		if m.msgType==MsgTypeReq||m.msgType==MsgTypeRes{
 			m.data=msg.Data
 			m.batch=msg.Batch
 			m.codecType=CodecType(msg.CodecType)
@@ -118,6 +159,13 @@ func (m *Msg)Decode(b []byte)(error) {
 	default:
 		return errors.New("this rpc_serialize is not supported")
 	}
+}
+
+func(m *Msg)Marshal(buf []byte)([]byte,error)  {
+	return nil,nil
+}
+func(m *Msg)Unmarshal(b []byte)(error)  {
+	return nil
 }
 
 func getCompressor(compressType CompressType,level CompressLevel)  (compress.Compressor)  {
@@ -160,3 +208,4 @@ func getCompressLevel(name string)  (CompressLevel)  {
 		return NoCompression
 	}
 }
+

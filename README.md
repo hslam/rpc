@@ -3,13 +3,13 @@ A Golang implementation of RPC over TCP,WS,QUIC and HTTP
 
 ## Server Feature
 
-* **Network** tcp|quic|http
+* **Network** tcp|quic|http|ws
 * **Pipelining** async/sync
 * **Multiplexing**
 
 ## Client Feature
-* **Network** tcp|quic|http
-* **Codec** json/protobuf/xml/bytes
+* **Network** tcp|quic|http|ws
+* **Codec** json/protobuf/xml/bytes/geocode
 * **Compress** flate/zlib/gzip/no
 * **Pipelining**
 * **Multiplexing**

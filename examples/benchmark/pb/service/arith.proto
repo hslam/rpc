@@ -1,5 +1,5 @@
 syntax = "proto3";
-package pb;
+package service;
 
 message ArithRequest {
     int32 a = 1;

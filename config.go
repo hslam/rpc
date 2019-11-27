@@ -18,12 +18,13 @@ const (
 
 	RPC_CODEC_ME			= 0
 	RPC_CODEC_PROTOBUF		= 1
-	RPC_CODEC_		= 2
+	RPC_CODEC_GENCODE		= 2
 
 	JSON   					= "json"
 	PROTOBUF   				= "pb"
 	XML						= "xml"
 	BYTES					= "bytes"
+	GENCODE					= "gen"
 	GOB						= "gob"
 
 	FUNCS_CODEC_INVALID 	CodecType= 0
@@ -31,6 +32,7 @@ const (
 	FUNCS_CODEC_PROTOBUF   	CodecType= 2
 	FUNCS_CODEC_XML   		CodecType= 3
 	FUNCS_CODEC_BYTES   	CodecType= 4
+	FUNCS_CODEC_GENCODE   	CodecType= 5
 	FUNCS_CODEC_GOB   		CodecType= 9
 
 	DefaultMaxCacheRequest	= 10240

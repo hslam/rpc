@@ -1,0 +1,29 @@
+struct Msg {
+	Version       float32
+	Id            int64
+	MsgType       int32
+	Batch         bool
+	CodecType     int32
+	CompressType  int32
+	CompressLevel int32
+	Data          []byte
+}
+
+struct Batch {
+	Async bool
+	Data [][]byte
+}
+
+struct Request {
+	Id         uint64
+	Method     string
+	NoRequest  bool
+	NoResponse bool
+	Data       []byte
+}
+
+struct Response  {
+	Id     uint64
+	Data   []byte
+	ErrMsg string
+}
