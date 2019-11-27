@@ -1,5 +1,5 @@
 # rpc
-A Golang implementation of RPC using TCP,WS,QUIC and HTTP
+A Golang implementation of RPC over TCP,WS,QUIC and HTTP
 
 ## Server Feature
 
