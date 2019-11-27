@@ -1,6 +1,6 @@
 package rpc
 import (
-	"hslam.com/git/x/rpc/protocol"
+	"hslam.com/git/x/protocol"
 	"net"
 )
 

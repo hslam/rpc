@@ -2,7 +2,7 @@ package rpc
 
 import (
 	"net"
-	"hslam.com/git/x/rpc/protocol"
+	"hslam.com/git/x/protocol"
 )
 
 type UDPListener struct {

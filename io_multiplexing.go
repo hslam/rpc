@@ -4,7 +4,7 @@ import (
 	"math/rand"
 	"time"
 	"sync"
-	"hslam.com/git/x/rpc/protocol"
+	"hslam.com/git/x/protocol"
 )
 
 type Multiplex struct {

@@ -1,7 +1,7 @@
 package rpc
 import (
 	"github.com/lucas-clemente/quic-go"
-	"hslam.com/git/x/rpc/protocol"
+	"hslam.com/git/x/protocol"
 	"crypto/tls"
 )
 

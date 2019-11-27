@@ -1,7 +1,7 @@
 package rpc
 
 import (
-	"hslam.com/git/x/rpc/protocol"
+	"hslam.com/git/x/protocol"
 	"net/http"
 	"io/ioutil"
 	"io"

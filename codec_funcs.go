@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"errors"
+	"hslam.com/git/x/codec"
 )
 
 func ArgsEncode(args interface{},funcsCodecType CodecType) ([]byte, error)  {
@@ -78,18 +79,18 @@ func FuncsCodecName(funcsCodecType CodecType)string  {
 		return ""
 	}
 }
-func FuncsCodec(funcsCodecType CodecType)  (Codec)  {
+func FuncsCodec(funcsCodecType CodecType)  (codec.Codec)  {
 	switch funcsCodecType {
 	case FUNCS_CODEC_JSON:
-		return &JsonCodec{}
+		return &codec.JsonCodec{}
 	case FUNCS_CODEC_PROTOBUF:
-		return &ProtoCodec{}
+		return &codec.ProtoCodec{}
 	case FUNCS_CODEC_XML:
-		return &XmlCodec{}
+		return &codec.XmlCodec{}
 	case FUNCS_CODEC_GOB:
-		return &GobCodec{}
+		return &codec.GobCodec{}
 	case FUNCS_CODEC_BYTES:
-		return &BytesCodec{}
+		return &codec.BytesCodec{}
 	default:
 		return nil
 	}
