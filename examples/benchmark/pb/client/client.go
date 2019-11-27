@@ -28,7 +28,7 @@ var bar bool
 
 func init()  {
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	flag.StringVar(&network, "network", "tcp", "network: -network=tcp|quic|http")
+	flag.StringVar(&network, "network", "tcp", "network: -network=tcp|ws|quic|http")
 	flag.StringVar(&codec, "codec", "pb", "codec: -codec=pb|json|xml|bytes")
 	flag.StringVar(&compress, "compress", "no", "compress: -compress=no|flate|zlib|gzip")
 	flag.StringVar(&host, "h", "127.0.0.1", "host: -h=127.0.0.1")

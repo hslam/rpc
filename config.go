@@ -18,6 +18,7 @@ const (
 
 	RPC_CODEC_ME			= 0
 	RPC_CODEC_PROTOBUF		= 1
+	RPC_CODEC_		= 2
 
 	JSON   					= "json"
 	PROTOBUF   				= "pb"

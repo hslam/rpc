@@ -1,5 +1,7 @@
 protoc ./rpc.proto --go_out=./
 
+protoc ./rpc.proto --gofast_out=./
+
 protoc ./rpc.proto --js_out=import_style=commonjs,binary:.
 
 npm install google-protobuf
