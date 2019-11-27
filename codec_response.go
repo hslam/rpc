@@ -28,7 +28,7 @@ func(r *Response)Encode() ([]byte, error)  {
 			return rpc_res_bytes,nil
 		}
 	default:
-		return nil,errors.New("this mrpc_serialize is not supported")
+		return nil,errors.New("this rpc_serialize is not supported")
 	}
 }
 
@@ -53,6 +53,6 @@ func(r *Response)Decode(b []byte) (error)  {
 			return nil
 		}
 	default:
-		return errors.New("mrpc_serialize is not supported")
+		return errors.New("rpc_serialize is not supported")
 	}
 }

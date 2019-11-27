@@ -5,6 +5,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"errors"
 	"hslam.com/git/x/rpc/pb"
+	"hslam.com/git/x/compress"
 )
 
 var (
@@ -78,7 +79,7 @@ func (m *Msg)Encode() ([]byte, error) {
 			return data,nil
 		}
 	}
-	return nil,errors.New("this mrpc_serialize is not supported")
+	return nil,errors.New("this rpc_serialize is not supported")
 }
 func (m *Msg)Decode(b []byte)(error) {
 	m.version=-1
@@ -115,21 +116,21 @@ func (m *Msg)Decode(b []byte)(error) {
 		}
 		return nil
 	default:
-		return errors.New("this mrpc_serialize is not supported")
+		return errors.New("this rpc_serialize is not supported")
 	}
 }
 
-func getCompressor(compressType CompressType,level CompressLevel)  (Compressor)  {
+func getCompressor(compressType CompressType,level CompressLevel)  (compress.Compressor)  {
 	if level==NoCompression{
 		return nil
 	}
 	switch compressType {
 	case CompressTypeFlate:
-		return &FlateCompressor{Level:level}
+		return &compress.FlateCompressor{Level:compress.Level(level)}
 	case CompressTypeZlib:
-		return &ZlibCompressor{Level:level}
+		return &compress.ZlibCompressor{Level:compress.Level(level)}
 	case CompressTypeGzip:
-		return &GzipCompressor{Level:level}
+		return &compress.GzipCompressor{Level:compress.Level(level)}
 	default:
 		return nil
 	}

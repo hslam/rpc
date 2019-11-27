@@ -2,7 +2,7 @@ package rpc
 
 type CodecType int32
 type MsgType int32
-type CompressLevel int32
+type CompressLevel int
 type CompressType int32
 type ReliabilityType int32
 const (
@@ -54,8 +54,9 @@ const (
 
 	NoCompression      CompressLevel= 0
 	BestSpeed          CompressLevel= 1
-	BestCompression    CompressLevel= 2
-	DefaultCompression CompressLevel= 3
+	BestCompression    CompressLevel= 9
+	DefaultCompression CompressLevel= -1
+
 
 	NC			= "no"
 	SPEED		= "speed"
