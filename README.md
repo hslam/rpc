@@ -9,7 +9,7 @@ A Golang implementation of RPC over TCP,WS,QUIC and HTTP
 
 ## Client Feature
 * **Network** tcp|quic|http|ws
-* **Codec** json/protobuf/xml/bytes/geocode
+* **Codec** json/protobuf/xml/bytes/gencode
 * **Compress** flate/zlib/gzip/no
 * **Pipelining**
 * **Multiplexing**
