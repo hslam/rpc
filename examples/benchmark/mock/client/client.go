@@ -1,7 +1,7 @@
 package main
 
 import (
-	"hslam.com/git/x/rpc/examples/benchmark/pb/service"
+	"hslam.com/git/x/rpc/examples/benchmark/mock/service"
 	"hslam.com/git/x/rpc"
 	"hslam.com/git/x/stats"
 	"math/rand"
@@ -25,6 +25,8 @@ var noresponse bool
 var clients int
 var total_calls int
 var bar bool
+var parallel int
+var mock string
 func init()  {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	flag.StringVar(&network, "network", "tcp", "network: -network=tcp|ws|quic|http")
@@ -34,11 +36,13 @@ func init()  {
 	flag.IntVar(&port, "p", 8080, "port: -p=8080")
 	flag.IntVar(&total_calls, "total", 1000000, "total_calls: -total=10000")
 	flag.BoolVar(&batch, "batch", true, "batch: -batch=false")
-	flag.BoolVar(&batch_async, "batch_async", false, "batch_async: -batch_async=false")
+	flag.BoolVar(&batch_async, "batch_async", true, "batch_async: -batch_async=false")
 	flag.BoolVar(&pipelining, "pipelining", false, "pipelining: -pipelining=false")
 	flag.BoolVar(&multiplexing, "multiplexing", true, "pipelining: -pipelining=false")
 	flag.BoolVar(&noresponse, "noresponse", false, "noresponse: -noresponse=false")
 	flag.IntVar(&clients, "clients", 1, "clients: -clients=1")
+	flag.IntVar(&parallel, "parallel", 512, "parallel: -parallel=10000")
+	flag.StringVar(&mock, "mock", "0ms", "mock: -mock=0ms|1ms|10ms|50ms")
 	flag.BoolVar(&bar, "bar", false, "bar: -bar=true")
 	log.SetFlags(0)
 	flag.Parse()
@@ -50,6 +54,7 @@ func main()  {
 	fmt.Printf("./client -network=%s -codec=%s -compress=%s -h=%s -p=%d -total=%d -pipelining=%t -multiplexing=%t -batch=%t -batch_async=%t -noresponse=%t -clients=%d\n",network,codec,compress,host,port,total_calls,pipelining,multiplexing,batch,batch_async,noresponse,clients)
 	var wrkClients []stats.Client
 	opts:=rpc.DefaultOptions()
+	opts.SetMaxRequests(parallel)
 	opts.SetCompressType(compress)
 	opts.SetBatch(batch)
 	opts.SetBatchAsync(batch_async)
@@ -118,7 +123,7 @@ func (c *WrkClient)Call()(int64,int64,bool){
 		}
 	}else {
 		var res service.ArithResponse
-		err = c.Conn.Call("Arith.Multiply", req, &res) // 乘法运算
+		err = c.Conn.Call("Arith.Multiply"+mock, req, &res) // 乘法运算
 		if res.Pro==A*B{
 			return 0,0,true
 		}else {

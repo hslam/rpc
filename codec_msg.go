@@ -8,13 +8,6 @@ import (
 	"hslam.com/git/x/rpc/gen"
 )
 
-var (
-	rpc_codec = RPC_CODEC_GENCODE
-)
-
-func init() {
-}
-
 func (m Msg)Serialize(version float32,method string,data []byte)[]byte  {
 	header:=append(float32ToByte(version),uint16ToBytes(uint16(len(method)))...)
 	var Bytes=append(append(header, []byte(method)...), data...)

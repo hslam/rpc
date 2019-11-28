@@ -28,7 +28,7 @@ func DefaultOptions() *Options {
 		Pipelining:false,
 		Multiplexing:true,
 		Batch:true,
-		BatchAsync:false,
+		BatchAsync:true,
 		MaxBatchRequest:DefaultMaxBatchRequest,
 		Retry:true,
 		CompressType:CompressTypeNo,
