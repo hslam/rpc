@@ -648,6 +648,9 @@ func (c *client)call(name string, args interface{}, reply interface{}) ( err err
 		clientCodec.client_id=c.client_id
 		clientCodec.req_id=uint64(c.Seq())
 		clientCodec.name=name
+		clientCodec.compressType=c.compressType
+		clientCodec.compressLevel=c.compressLevel
+		clientCodec.funcsCodecType=c.funcsCodecType
 		if args!=nil{
 			clientCodec.args=args
 			clientCodec.noRequest=false
@@ -655,7 +658,6 @@ func (c *client)call(name string, args interface{}, reply interface{}) ( err err
 			clientCodec.args=nil
 			clientCodec.noRequest=true
 		}
-		clientCodec.funcsCodecType=c.funcsCodecType
 		if reply!=nil{
 			clientCodec.noResponse=false
 		}else {
@@ -718,6 +720,9 @@ func (c *client) send(call *Call) {
 		clientCodec.client_id=c.client_id
 		clientCodec.req_id=uint64(seq)
 		clientCodec.name=call.ServiceMethod
+		clientCodec.compressType=c.compressType
+		clientCodec.compressLevel=c.compressLevel
+		clientCodec.funcsCodecType=c.funcsCodecType
 		if call.Args!=nil{
 			clientCodec.args=call.Args
 			clientCodec.noRequest=false
@@ -725,7 +730,6 @@ func (c *client) send(call *Call) {
 			clientCodec.args=nil
 			clientCodec.noRequest=true
 		}
-		clientCodec.funcsCodecType=c.funcsCodecType
 		if call.Reply!=nil{
 			clientCodec.noResponse=false
 		}else {

@@ -94,7 +94,9 @@ func (b *Batch)Ticker(brs []*BatchRequest){
 	clientCodec.batch=true
 	clientCodec.batchAsync=b.client.batchAsync
 	clientCodec.requests=brs
-	clientCodec.funcsCodecType=b.client.CodecType()
+	clientCodec.compressType=b.client.compressType
+	clientCodec.compressLevel=b.client.compressLevel
+	clientCodec.funcsCodecType=b.client.funcsCodecType
 	for _,v :=range brs{
 		if v.noResponse==true{
 			NoResponseCnt++

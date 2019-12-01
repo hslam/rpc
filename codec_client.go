@@ -28,9 +28,11 @@ func(c *ClientCodec)Encode() ([]byte, error)  {
 	c.msg=&Msg{}
 	c.msg.version=Version
 	c.msg.id=c.client_id
+	c.msg.msgType=MsgTypeReq
 	c.msg.batch=c.batch
-	c.msg.msgType=MsgType(MsgTypeReq)
 	c.msg.codecType=c.funcsCodecType
+	c.msg.compressType=c.compressType
+	c.msg.compressLevel=c.compressLevel
 	if c.batch==false{
 		var req *Request
 		if c.noRequest==false{
