@@ -88,7 +88,7 @@ func FuncsCodec(funcsCodecType CodecType)  (codec.Codec)  {
 	case FUNCS_CODEC_JSON:
 		return &codec.JsonCodec{}
 	case FUNCS_CODEC_PROTOBUF:
-		return &codec.FastProtoCodec{}
+		return &codec.GogoProtoCodec{}
 	case FUNCS_CODEC_XML:
 		return &codec.XmlCodec{}
 	case FUNCS_CODEC_GOB:

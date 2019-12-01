@@ -31,7 +31,7 @@ type Server struct {
 	objs 						[]*registerObject
 }
 func NewServer() *Server {
-	return &Server{Funcs:funcs.New(),timeout:DefaultServerTimeout,asyncMax:DefaultMaxAsyncPerConn,multiplexing:true,batch:true}
+	return &Server{Funcs:funcs.New(),timeout:DefaultServerTimeout,asyncMax:DefaultMaxAsyncPerConn,multiplexing:true,batch:false}
 }
 func SetBatch(enable bool)  {
 	DefaultServer.SetBatch(enable)

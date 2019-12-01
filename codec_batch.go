@@ -67,3 +67,8 @@ func(c *BatchCodec)Marshal(buf []byte)([]byte,error)  {
 func(c *BatchCodec)Unmarshal(b []byte)(error)  {
 	return nil
 }
+func(c *BatchCodec)Reset(){
+	for i,v:=range c.data{
+		c.data[i]=v[len(v):]
+	}
+}

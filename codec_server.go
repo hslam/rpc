@@ -25,6 +25,7 @@ func (c *ServerCodec)Decode(b []byte) error  {
 		return fmt.Errorf("ServerCodec.Decode msg error: %s",err)
 	}
 	if msg.version!=Version{
+		Warnf("%d %d Version is not matched",Version,msg.version)
 		return fmt.Errorf("%d %d Version is not matched",Version,msg.version)
 	}
 	if msg.msgType==MsgTypeHea{

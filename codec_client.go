@@ -1,5 +1,9 @@
 package rpc
 
+import (
+	"hslam.com/git/x/rpc/pb"
+	"errors"
+)
 type ClientCodec struct{
 	client_id int64
 	req_id   uint64
@@ -10,40 +14,70 @@ type ClientCodec struct{
 	noResponse bool
 	reply interface{}
 	res	*Response
+	batch				bool
+	batchAsync			bool
+	compressType		CompressType
+	compressLevel 		CompressLevel
+	msg					*Msg
+	batchCodec			*BatchCodec
+	requests			[]*BatchRequest
+	responses			[]*Response
 }
 func(c *ClientCodec)Encode() ([]byte, error)  {
-	var req *Request
-	if c.noRequest==false{
-		args_bytes,err:=ArgsEncode(c.args,c.funcsCodecType)
+	var err error
+	c.msg=&Msg{}
+	c.msg.version=Version
+	c.msg.id=c.client_id
+	c.msg.batch=c.batch
+	c.msg.msgType=MsgType(MsgTypeReq)
+	c.msg.codecType=c.funcsCodecType
+	if c.batch==false{
+		var req *Request
+		if c.noRequest==false{
+			args_bytes,err:=ArgsEncode(c.args,c.funcsCodecType)
+			if err!=nil{
+				Errorln("ArgsEncode error: ", err)
+				return nil,err
+			}
+			req=&Request{c.req_id,c.name,c.noRequest,c.noResponse,args_bytes,}
+		}else {
+			req=&Request{c.req_id,c.name,c.noRequest,c.noResponse,nil,}
+		}
+		c.msg.data,err=req.Encode()
 		if err!=nil{
-			Errorln("ArgsEncode error: ", err)
+			Errorln("RequestEncode error: ", err)
 			return nil,err
 		}
-		req=&Request{c.req_id,c.name,c.noRequest,c.noResponse,args_bytes,}
 	}else {
-		req=&Request{c.req_id,c.name,c.noRequest,c.noResponse,nil,}
+		req_bytes_s:=make([][]byte,len(c.requests))
+		c.responses=make([]*Response,len(c.requests))
+		for i,v :=range c.requests{
+			req:=&Request{v.id,v.name,v.noRequest,v.noResponse,v.args_bytes}
+			req_bytes,_:=req.Encode()
+			req_bytes_s[i]=req_bytes
+			c.responses[i]=&Response{}
+		}
+		batchCodec:=&BatchCodec{async:c.batchAsync,data:req_bytes_s}
+		c.batchCodec=batchCodec
+		c.msg.data,_=batchCodec.Encode()
 	}
-	req_bytes,err:=req.Encode()
-	if err!=nil{
-		Errorln("RequestEncode error: ", err)
-		return nil,err
-	}
-	msg:=&Msg{}
-	msg.id=c.client_id
-	msg.data=req_bytes
-	msg.batch=false
-	msg.msgType=MsgType(MsgTypeReq)
-	msg.codecType=c.funcsCodecType
-	return msg.Encode()
+	return c.msg.Encode()
 }
 
 func (c *ClientCodec)Decode(b []byte) error  {
 	var req_id =c.req_id
-	msg:=&Msg{}
-	err:=msg.Decode(b)
-	if msg.msgType==MsgType(MsgTypeRes){
+	if c.msg==nil{
+		c.msg=&Msg{}
+	}else {
+		c.msg.Reset()
+	}
+	err:=c.msg.Decode(b)
+	if c.msg.msgType!=MsgType(pb.MsgType_res){
+		return errors.New("not be MsgType_res")
+	}
+	if c.msg.batch==false {
 		res:=&Response{}
-		err=res.Decode(msg.data)
+		err=res.Decode(c.msg.data)
 		if err!=nil{
 			Errorln("ResponseDecode error: ", err)
 			return err
@@ -53,13 +87,21 @@ func (c *ClientCodec)Decode(b []byte) error  {
 			if res.err!=nil{
 				return res.err
 			}
-			return ReplyDecode(res.data,c.reply,msg.codecType)
+			return ReplyDecode(res.data,c.reply,c.msg.codecType)
 		}else {
 			return ErrReqId
 		}
-
-	}else if msg.msgType==MsgType(MsgTypeHea){
+	}else {
+		c.batchCodec.Reset()
+		err=c.batchCodec.Decode(c.msg.data)
+		if err!=nil{
+			return err
+		}
+		if len(c.batchCodec.data)==len(c.requests){
+			for i,res:=range c.responses{
+				res.Decode(c.batchCodec.data[i])
+			}
+		}
 		return nil
 	}
-	return nil
 }

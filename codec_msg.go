@@ -160,7 +160,8 @@ func(m *Msg)Marshal(buf []byte)([]byte,error)  {
 func(m *Msg)Unmarshal(b []byte)(error)  {
 	return nil
 }
-
+func(m *Msg)Reset()()  {
+}
 func getCompressor(compressType CompressType,level CompressLevel)  (compress.Compressor)  {
 	if level==NoCompression{
 		return nil

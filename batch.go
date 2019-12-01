@@ -3,7 +3,6 @@ package rpc
 import (
 	"sync"
 	"time"
-	"hslam.com/git/x/rpc/pb"
 )
 
 type BatchRequestChan chan *BatchRequest
@@ -87,70 +86,52 @@ func (b *Batch)run() {
 	}
 endfor:
 }
-func (b *Batch)Ticker(crs []*BatchRequest){
-	req_bytes_s:=make([][]byte,len(crs))
+func (b *Batch)Ticker(brs []*BatchRequest){
 	NoResponseCnt:=0
 	var noResponse bool
-	for i,v :=range crs{
-		req:=&Request{v.id,v.name,v.noRequest,v.noResponse,v.args_bytes}
-		req_bytes,_:=req.Encode()
-		req_bytes_s[i]=req_bytes
+	clientCodec:=&ClientCodec{}
+	clientCodec.client_id=b.client.GetID()
+	clientCodec.batch=true
+	clientCodec.batchAsync=b.client.batchAsync
+	clientCodec.requests=brs
+	clientCodec.funcsCodecType=b.client.CodecType()
+	for _,v :=range brs{
 		if v.noResponse==true{
 			NoResponseCnt++
 		}
 	}
-	if NoResponseCnt==len(crs){
+	if NoResponseCnt==len(brs){
 		noResponse=true
 	}else {
 		noResponse=false
 	}
-	batch:=&BatchCodec{async:b.client.batchAsync,data:req_bytes_s}
-	batch_bytes,err:=batch.Encode()
-	msg:=&Msg{}
-	msg.id=b.client.GetID()
-	msg.data=batch_bytes
-	msg.batch=true
-	msg.msgType=MsgType(pb.MsgType_req)
-	msg.codecType=b.client.CodecType()
-	msg_bytes,err:=msg.Encode()
+	msg_bytes,err:=clientCodec.Encode()
 	if err==nil{
 		if noResponse==false{
 			data,err:=b.client.RemoteCall(msg_bytes)
 			if err == nil {
-				msg:=&Msg{}
-				err=msg.Decode(data)
+				err:=clientCodec.Decode(data)
 				if err!=nil{
 					return
 				}
-				if msg.msgType!=MsgType(pb.MsgType_res){
-					return
-				}
-				batch:=&BatchCodec{}
-				err=batch.Decode(msg.data)
-				if err!=nil{
-					return
-				}
-				if len(batch.data)==len(crs){
-					for i,v:=range crs{
-						res:=Response{}
-						res.Decode(batch.data[i])
-						if crs[i].id==res.id&& v.noResponse==false{
+				if len(clientCodec.responses)==len(brs){
+					for i,v:=range brs{
+						if brs[i].id==clientCodec.responses[i].id&& v.noResponse==false{
 							func() {
 								defer func() {
 									if err := recover(); err != nil {
 										Errorln("v.reply err", err)
 									}
 								}()
-								if res.err!=nil{
-									v.reply_error<-res.err
+								if clientCodec.responses[i].err!=nil{
+									v.reply_error<-clientCodec.responses[i].err
 								}else {
-									v.reply_bytes<-res.data
+									v.reply_bytes<-clientCodec.responses[i].data
 								}
 							}()
 						}
 					}
 				}
-				batch=nil
 			}
 		}else {
 			_=b.client.RemoteCallNoResponse(msg_bytes)

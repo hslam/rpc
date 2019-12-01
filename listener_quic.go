@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"context"
 	"github.com/lucas-clemente/quic-go"
 )
 
@@ -12,7 +13,7 @@ type QUICListener struct {
 	connNum			int
 }
 func ListenQUIC(address string,server *Server) (Listener, error) {
-	quic_listener, err := quic.ListenAddr(address, generateTLSConfig(), nil)
+	quic_listener, err := quic.ListenAddr(address, generateQuicTLSConfig(), nil)
 	if err!=nil{
 		Errorf("fatal error: %s", err)
 		return nil,err
@@ -30,7 +31,7 @@ func (l *QUICListener)Serve() (error) {
 		}
 	}()
 	for{
-		sess, err := l.quicListener.Accept()
+		sess, err := l.quicListener.Accept(context.Background())
 		if err != nil {
 			Warnf("Accept: %s\n", err)
 			continue
@@ -46,7 +47,7 @@ func (l *QUICListener)Serve() (error) {
 				defer func() {connChange <- -1}()
 				defer func() {Infof("client %s exiting\n",sess.RemoteAddr())}()
 				Infof("client %s comming\n",sess.RemoteAddr())
-				stream, err := sess.AcceptStream()
+				stream, err := sess.AcceptStream(context.Background())
 				if err != nil {
 					Errorln(err)
 					return

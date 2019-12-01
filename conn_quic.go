@@ -1,12 +1,13 @@
 package rpc
 import (
+	"context"
 	"github.com/lucas-clemente/quic-go"
 	"hslam.com/git/x/protocol"
 	"crypto/tls"
 )
 
 type QUICConn struct {
-	conn  		quic.Stream
+	conn  			quic.Stream
 	address			string
 	CanWork			bool
 	readChan 		chan []byte
@@ -18,12 +19,12 @@ type QUICConn struct {
 }
 
 func DialQUIC(address string)  (Conn, error)  {
-	session, err := quic.DialAddr(address, &tls.Config{InsecureSkipVerify: true}, nil)
+	session, err := quic.DialAddr(address, &tls.Config{InsecureSkipVerify: true,NextProtos:[]string{"quic-rpc"},}, nil)
 	if err != nil {
 		Errorf("fatal error: %s", err)
 		return nil,err
 	}
-	stream, err := session.OpenStreamSync()
+	stream, err := session.OpenStreamSync(context.Background())
 	if err != nil {
 		Errorf("fatal error: %s", err)
 		return nil,err
@@ -112,7 +113,7 @@ func (t *QUICConn)Retry()(error){
 		Errorf("fatal error: %s", err)
 		return err
 	}
-	stream, err := session.OpenStreamSync()
+	stream, err := session.OpenStreamSync(context.Background())
 	if err != nil {
 		Errorf("fatal error: %s", err)
 		return err

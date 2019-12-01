@@ -86,3 +86,5 @@ func(r *Response)Marshal(buf []byte)([]byte,error)  {
 func(r *Response)Unmarshal(b []byte)(error)  {
 	return nil
 }
+func(r *Response)Reset()()  {
+}
