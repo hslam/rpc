@@ -62,9 +62,50 @@ func(c *BatchCodec)Decode(b []byte)(error)  {
 }
 
 func(c *BatchCodec)Marshal(buf []byte)([]byte,error)  {
+	size:=1
+	for _,v :=range c.data{
+		size+=4+len(v)
+	}
+	var s []byte
+	if cap(buf) >= size {
+		s = buf[:size]
+	} else {
+		s = make([]byte, size)
+	}
+	if c.async{
+		s[0]=1
+	}else {
+		s[0]=0
+	}
+	offset:=1
+	for _,v :=range c.data{
+		length:=len(v)
+		copy(s[offset:], uint32ToBytes(uint32(length)))
+		offset+=4
+		copy(s[offset+length:length],v)
+		offset+=length
+	}
 	return nil,nil
 }
 func(c *BatchCodec)Unmarshal(b []byte)(error)  {
+	size:=len(b)
+	if b[0]==1{
+		c.async=true
+	}else {
+		c.async=false
+	}
+	offset:=1
+	for {
+		if offset==size{
+			break
+		}
+		length:=int(bytesToUint32(b[offset:offset+4]))
+		offset+=4
+		v:=make([]byte,length)
+		copy(v,b[offset+length:length])
+		c.data=append(c.data,v)
+		offset+=length
+	}
 	return nil
 }
 func(c *BatchCodec)Reset(){
@@ -72,3 +113,4 @@ func(c *BatchCodec)Reset(){
 		c.data[i]=v[len(v):]
 	}
 }
+
