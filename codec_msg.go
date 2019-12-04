@@ -47,7 +47,7 @@ func (m *Msg)Encode() ([]byte, error) {
 		m.data,_=compressor.Compress(m.data)
 	}
 	switch rpc_codec {
-	case RPC_CODEC_ME:
+	case RPC_CODEC_RAW:
 		return m.Marshal(nil)
 	case RPC_CODEC_PROTOBUF:
 		var msg pb.Msg
@@ -105,7 +105,7 @@ func (m *Msg)Decode(b []byte)(error) {
 	m.compressType=CompressTypeNo
 	m.compressLevel=NoCompression
 	switch rpc_codec {
-	case RPC_CODEC_ME:
+	case RPC_CODEC_RAW:
 		return m.Unmarshal(b)
 	case RPC_CODEC_PROTOBUF:
 		var msg =&pb.Msg{}

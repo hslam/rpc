@@ -16,7 +16,7 @@ const (
 	HTTP1   				= "http1"
 	HTTP2   				= "http2"
 
-	RPC_CODEC_ME			= 0
+	RPC_CODEC_RAW			= 0
 	RPC_CODEC_PROTOBUF		= 1
 	RPC_CODEC_GENCODE		= 2
 

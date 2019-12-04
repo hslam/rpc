@@ -12,7 +12,7 @@ type BatchCodec struct{
 
 func(c *BatchCodec)Encode()([]byte,error)  {
 	switch rpc_codec {
-	case RPC_CODEC_ME:
+	case RPC_CODEC_RAW:
 		return c.Marshal(nil)
 	case RPC_CODEC_PROTOBUF:
 		batch:=pb.Batch{Async:c.async,Data:c.data}
@@ -36,7 +36,7 @@ func(c *BatchCodec)Encode()([]byte,error)  {
 }
 func(c *BatchCodec)Decode(b []byte)(error)  {
 	switch rpc_codec {
-	case RPC_CODEC_ME:
+	case RPC_CODEC_RAW:
 		return c.Unmarshal(b)
 	case RPC_CODEC_PROTOBUF:
 		var batch =&pb.Batch{}

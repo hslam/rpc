@@ -39,25 +39,25 @@ Batch is only useful when there are multiple goroutines calling it.
 #### Linux 12 CPU 3.1 GHz 24 GiB Requests per second
 ```
 pkg     trans  codec 1c     8c      1c_p    8c_p    1c_m    8c_m    1c_pb   8c_pb   1c_mb   8c_mb   1c_mbn
-RPC     TCP    pb    22080  119183  163335  361216  154558  313828  288621  578407  305782  777963  1181147
-RPC     HTTP   pb    21730  118649  162478  366485  154139  328157  287788  582813  305188  834926  1210480
-RPC     QUIC   pb    10011  53606   111137  251736  102591  219560  105142  426647  111252  492597  904398
-NETRPC  TCP    gob   30200  137407  -       -       94253   351391  -       -       -       -       -
-NETRPC  HTTP   gob   29917  138912  -       -       95735   393183  -       -       -       -       -
-JSONRPC HTTP   json  26664  123223  -       -       92579   294136  -       -       -       -       -
-GRPC    HTTP2  pb    15386  61854   -       -       89989   145862  -       -       -       -       -
+RPC     TCP    pb    27807  140157  189640  501542  175541  406636  383769  807446  381797  910869  1271944
+RPC     HTTP   pb    27943  139138  189945  522737  178484  442490  385941  831232  389369  933167  1269670
+RPC     QUIC   pb    10955  57936   128896  323773  115542  263563  127853  530690  127902  530925  1006680
+NETRPC  TCP    gob   30340  141675  -       -       95282   364254  -       -       -       -       -
+NETRPC  HTTP   gob   30325  141484  -       -       96946   398242  -       -       -       -       -
+JSONRPC HTTP   json  26872  124867  -       -       92910   299619  -       -       -       -       -
+GRPC    HTTP2  pb    15649  62359   -       -       90411   146727  -       -       -       -       -
 ```
 
 #### Linux 12 CPU 3.1 GHz 24 GiB 99th percentile time (ms)
 ```
 pkg     trans  codec 1c     8c      1c_p    8c_p    1c_m    8c_m    1c_pb   8c_pb   1c_mb   8c_mb   1c_mbn
-RPC     TCP    pb    0.06   0.12    0.45    1.94    0.51    2.04    3.31    25.40   2.92    13.04   7.62
-RPC     HTTP   pb    0.06   0.12    0.44    1.92    0.47    1.95    3.21    32.97   2.93    12.18   7.55
-RPC     QUIC   pb    0.14   0.58    0.72    2.74    0.81    2.88    0.54    1.76    0.51    1.56    0.42
-NETRPC  TCP    gob   0.04   0.10    -       -       0.61    2.33    -       -       -       -       -
-NETRPC  HTTP   gob   0.04   0.10    -       -       2.52    7.77    -       -       -       -       -
-JSONRPC HTTP   json  0.04   0.12    -       -       0.61    2.84    -       -       -       -       -
-GRPC    HTTP2  pb    0.11   0.42    -       -       0.80    4.81    -       -       -       -       -
+RPC     TCP    pb    0.05   0.10    0.36    1.40    0.45    1.80    2.60    26.45   2.44    14.63   7.04
+RPC     HTTP   pb    0.05   0.10    0.33    1.38    0.36    1.58    2.56    31.02   2.36    22.15   6.77
+RPC     QUIC   pb    0.12   0.57    0.64    2.30    0.79    2.50    0.43    1.40    0.44    1.45    0.48
+NETRPC  TCP    gob   0.04   0.10    -       -       0.61    2.15    -       -       -       -       -
+NETRPC  HTTP   gob   0.04   0.10    -       -       2.47    7.32    -       -       -       -       -
+JSONRPC HTTP   json  0.04   0.12    -       -       0.62    2.78    -       -       -       -       -
+GRPC    HTTP2  pb    0.11   0.43    -       -       0.80    4.81    -       -       -       -       -
 ```
 ./server -network=tcp -async=false -pipelining=false -multiplexing=true -batch=true
 

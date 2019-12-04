@@ -15,7 +15,7 @@ type Request struct {
 }
 func(r *Request)Encode() ([]byte, error)  {
 	switch rpc_codec {
-	case RPC_CODEC_ME:
+	case RPC_CODEC_RAW:
 		return r.Marshal(nil)
 	case RPC_CODEC_PROTOBUF:
 		req:=pb.Request{
@@ -53,7 +53,7 @@ func(r *Request)Encode() ([]byte, error)  {
 func(r *Request)Decode(b []byte) (error)  {
 	r.noResponse=false
 	switch rpc_codec {
-	case RPC_CODEC_ME:
+	case RPC_CODEC_RAW:
 		return r.Unmarshal(b)
 	case RPC_CODEC_PROTOBUF:
 		var rpc_req_decode =&pb.Request{}

@@ -14,7 +14,7 @@ type Response struct {
 }
 func(r *Response)Encode() ([]byte, error)  {
 	switch rpc_codec {
-	case RPC_CODEC_ME:
+	case RPC_CODEC_RAW:
 		return r.Marshal(nil)
 	case RPC_CODEC_PROTOBUF:
 		if r.err!=nil{
@@ -45,7 +45,7 @@ func(r *Response)Encode() ([]byte, error)  {
 
 func(r *Response)Decode(b []byte) (error)  {
 	switch rpc_codec {
-	case RPC_CODEC_ME:
+	case RPC_CODEC_RAW:
 		return r.Unmarshal(b)
 	case RPC_CODEC_PROTOBUF:
 		var rpc_res_decode =&pb.Response{}
