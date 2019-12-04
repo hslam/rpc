@@ -64,60 +64,60 @@ GRPC    HTTP2  pb    0.11   0.43    -       -       0.80    4.81    -       -   
 ./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=8080 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=1
 ```
 Summary:
-        Clients:        1
-        Parallel calls per client:      512
-        Total calls:    1000000
-        Total time:     3.27s
-        Requests per second:    306227.97
-        Fastest time for request:       0.43ms
-        Average time per request:       1.67ms
-        Slowest time for request:       4.39ms
+	Clients:	1
+	Parallel calls per client:	512
+	Total calls:	1000000
+	Total time:	2.62s
+	Requests per second:	381797.86
+	Fastest time for request:	0.33ms
+	Average time per request:	1.34ms
+	Slowest time for request:	3.81ms
 
 Time:
-        0.1%    time for request:       0.61ms
-        1%      time for request:       0.88ms
-        5%      time for request:       1.19ms
-        10%     time for request:       1.34ms
-        25%     time for request:       1.53ms
-        50%     time for request:       1.59ms
-        75%     time for request:       1.72ms
-        90%     time for request:       2.15ms
-        95%     time for request:       2.48ms
-        99%     time for request:       2.90ms
-        99.9%   time for request:       3.81ms
+	0.1%	time for request:	0.52ms
+	1%	time for request:	0.70ms
+	5%	time for request:	0.88ms
+	10%	time for request:	0.98ms
+	25%	time for request:	1.13ms
+	50%	time for request:	1.26ms
+	75%	time for request:	1.47ms
+	90%	time for request:	1.86ms
+	95%	time for request:	2.07ms
+	99%	time for request:	2.44ms
+	99.9%	time for request:	3.07ms
 
 Result:
-        Response ok:    1000000 (100.00%)
-        Errors: 0 (0.00%)
+	Response ok:	1000000 (100.00%)
+	Errors:	0 (0.00%)
 ```
-./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=8080 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=6
+./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=8080 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=8
 ```
 Summary:
-        Clients:        6
-        Parallel calls per client:      512
-        Total calls:    1000000
-        Total time:     1.25s
-        Requests per second:    800650.13
-        Fastest time for request:       0.20ms
-        Average time per request:       3.81ms
-        Slowest time for request:       13.27ms
+	Clients:	8
+	Parallel calls per client:	512
+	Total calls:	1000000
+	Total time:	1.10s
+	Requests per second:	910869.59
+	Fastest time for request:	0.07ms
+	Average time per request:	4.45ms
+	Slowest time for request:	55.33ms
 
 Time:
-        0.1%    time for request:       0.67ms
-        1%      time for request:       1.12ms
-        5%      time for request:       1.82ms
-        10%     time for request:       2.19ms
-        25%     time for request:       2.81ms
-        50%     time for request:       3.52ms
-        75%     time for request:       4.50ms
-        90%     time for request:       5.79ms
-        95%     time for request:       6.82ms
-        99%     time for request:       8.87ms
-        99.9%   time for request:       10.70ms
+	0.1%	time for request:	0.37ms
+	1%	time for request:	0.69ms
+	5%	time for request:	1.21ms
+	10%	time for request:	1.68ms
+	25%	time for request:	2.61ms
+	50%	time for request:	3.93ms
+	75%	time for request:	5.57ms
+	90%	time for request:	7.64ms
+	95%	time for request:	9.53ms
+	99%	time for request:	14.63ms
+	99.9%	time for request:	23.34ms
 
 Result:
-        Response ok:    1000000 (100.00%)
-        Errors: 0 (0.00%)
+	Response ok:	1000000 (100.00%)
+	Errors:	0 (0.00%)
 ```
 
 ## Get started
