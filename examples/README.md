@@ -374,8 +374,8 @@ func main()  {
 ```
 
 ### Licence
-This package is licenced under a MIT licence (Copyright (c) 2019 Mort Huang)
+This package is licenced under a MIT licence (Copyright (c) 2019 Meng Huang)
 
 
 ### Authors
-rpc was written by Mort Huang.
+rpc was written by Meng Huang.
