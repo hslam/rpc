@@ -2,7 +2,7 @@ package rpc
 
 import (
 	"errors"
-	"hslam.com/git/x/codec"
+	"github.com/hslam/codec"
 )
 
 func ArgsEncode(args interface{},funcsCodecType CodecType) ([]byte, error)  {

@@ -1,6 +1,6 @@
 package rpc
 import (
-	"hslam.com/git/x/protocol"
+	"github.com/hslam/protocol"
 	"github.com/gorilla/websocket"
 	"net/url"
 )

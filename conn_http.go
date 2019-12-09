@@ -1,7 +1,7 @@
 package rpc
 import (
 	"net/http"
-	"hslam.com/git/x/protocol"
+	"github.com/hslam/protocol"
 	"io"
 	"bufio"
 	"net"

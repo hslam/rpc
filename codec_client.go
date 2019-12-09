@@ -1,7 +1,7 @@
 package rpc
 
 import (
-	"hslam.com/git/x/rpc/pb"
+	"github.com/hslam/rpc/pb"
 	"errors"
 )
 type ClientCodec struct{

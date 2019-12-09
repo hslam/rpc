@@ -1,8 +1,8 @@
 package main
 
 import (
-	"hslam.com/git/x/rpc"
-	"hslam.com/git/x/stats"
+	"github.com/hslam/rpc"
+	"github.com/hslam/stats"
 	"math/rand"
 	"strconv"
 	"runtime"

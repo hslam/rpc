@@ -1,7 +1,7 @@
 package main
 import (
-	"hslam.com/git/x/rpc/examples/helloworld/json/service"
-	"hslam.com/git/x/rpc"
+	"github.com/hslam/rpc/examples/helloworld/json/service"
+	"github.com/hslam/rpc"
 	"log"
 	"fmt"
 )

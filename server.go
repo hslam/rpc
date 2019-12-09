@@ -1,8 +1,8 @@
 package rpc
 
 import (
-	"hslam.com/git/x/funcs"
-	"hslam.com/git/x/protocol"
+	"github.com/hslam/funcs"
+	"github.com/hslam/protocol"
 	"fmt"
 	"time"
 	"sync"

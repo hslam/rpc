@@ -2,9 +2,9 @@ package rpc
 
 import (
 	"errors"
-	"hslam.com/git/x/rpc/pb"
+	"github.com/hslam/rpc/pb"
 	"fmt"
-	"hslam.com/git/x/rpc/gen"
+	"github.com/hslam/rpc/gen"
 )
 type Response struct {
 	id          uint64

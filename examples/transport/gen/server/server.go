@@ -1,7 +1,7 @@
 package main
 import (
-	"hslam.com/git/x/rpc/examples/transport/gen/service"
-	"hslam.com/git/x/rpc"
+	"github.com/hslam/rpc/examples/transport/gen/service"
+	"github.com/hslam/rpc"
 )
 func main()  {
 	rpc.Register(new(service.Arith))

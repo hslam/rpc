@@ -4,7 +4,7 @@ import (
 	"net"
 	"net/http"
 	"github.com/gorilla/websocket"
-	"hslam.com/git/x/protocol"
+	"github.com/hslam/protocol"
 )
 var (
 	upgrader = websocket.Upgrader{

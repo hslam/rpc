@@ -1,7 +1,7 @@
 package main
 import (
-	"hslam.com/git/x/rpc/examples/transport/pb/service"
-	"hslam.com/git/x/rpc"
+	"github.com/hslam/rpc/examples/transport/pb/service"
+	"github.com/hslam/rpc"
 	"fmt"
 	"log"
 	"time"

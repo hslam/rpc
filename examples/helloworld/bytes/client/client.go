@@ -1,6 +1,6 @@
 package main
 import (
-	"hslam.com/git/x/rpc"
+	"github.com/hslam/rpc"
 	"log"
 	"fmt"
 )

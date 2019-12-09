@@ -1,8 +1,8 @@
 package main
 
 import (
-	"hslam.com/git/x/rpc"
-	"hslam.com/git/x/rpc/examples/benchmark/mock/service"
+	"github.com/hslam/rpc"
+	"github.com/hslam/rpc/examples/benchmark/mock/service"
 	_ "net/http/pprof"
 	"net/http"
 	"strconv"

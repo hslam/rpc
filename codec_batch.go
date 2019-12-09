@@ -1,8 +1,8 @@
 package rpc
 
 import (
-	"hslam.com/git/x/rpc/pb"
-	"hslam.com/git/x/rpc/gen"
+	"github.com/hslam/rpc/pb"
+	"github.com/hslam/rpc/gen"
 	"errors"
 )
 type BatchCodec struct{

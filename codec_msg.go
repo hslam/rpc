@@ -3,9 +3,9 @@ package rpc
 import (
 	"bytes"
 	"errors"
-	"hslam.com/git/x/rpc/pb"
-	"hslam.com/git/x/compress"
-	"hslam.com/git/x/rpc/gen"
+	"github.com/hslam/rpc/pb"
+	"github.com/hslam/compress"
+	"github.com/hslam/rpc/gen"
 )
 
 func (m Msg)Serialize(version float32,method string,data []byte)[]byte  {

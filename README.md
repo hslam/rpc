@@ -124,14 +124,14 @@ Result:
 
 ### Install
 ```
-go get hslam.com/git/x/rpc
+go get github.com/hslam/rpc
 ```
 ### Import
 ```
-import "hslam.com/git/x/rpc"
+import "github.com/hslam/rpc"
 ```
 
-## [Example](https://hslam.com/git/x/rpc/src/master/examples "examples")
+## [Example](https://github.com/hslam/rpc/tree/master/examples "examples")
 ### arith.proto
 ```
 syntax = "proto3";
@@ -168,8 +168,8 @@ func (this *Arith) Multiply(req *ArithRequest, res *ArithResponse) error {
 ```go
 package main
 import (
-	"hslam.com/git/x/rpc/examples/helloworld/pb/service"
-	"hslam.com/git/x/rpc"
+	"github.com/hslam/rpc/examples/helloworld/pb/service"
+	"github.com/hslam/rpc"
 )
 func main()  {
 	rpc.Register(new(service.Arith))
@@ -181,8 +181,8 @@ func main()  {
 ```go
 package main
 import (
-	"hslam.com/git/x/rpc/examples/helloworld/pb/service"
-	"hslam.com/git/x/rpc"
+	"github.com/hslam/rpc/examples/helloworld/pb/service"
+	"github.com/hslam/rpc"
 	"fmt"
 	"log"
 )
@@ -205,8 +205,8 @@ func main()  {
 ```go
 package main
 import (
-	"hslam.com/git/x/rpc/examples/helloworld/pb/service"
-	"hslam.com/git/x/rpc"
+	"github.com/hslam/rpc/examples/helloworld/pb/service"
+	"github.com/hslam/rpc"
 	"fmt"
 	"log"
 )
