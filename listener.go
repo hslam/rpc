@@ -13,6 +13,8 @@ func Listen(network,address string,server *Server) (Listener, error) {
 	Allf( "network - %s", network)
 	Allf( "listening on %s", address)
 	switch network {
+	case IPC:
+		return ListenIPC(address,server)
 	case TCP:
 		return ListenTCP(address,server)
 	case UDP:

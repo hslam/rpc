@@ -95,6 +95,7 @@ func (o *Options)SetBatch(enable bool){
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	o.Batch=enable
+	o.BatchAsync=enable
 }
 func (o *Options)SetBatchAsync(enable bool){
 	o.mu.Lock()

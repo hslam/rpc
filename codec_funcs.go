@@ -96,7 +96,7 @@ func FuncsCodec(funcsCodecType CodecType)  (codec.Codec)  {
 	case FUNCS_CODEC_BYTES:
 		return &codec.BytesCodec{}
 	case FUNCS_CODEC_GENCODE:
-		return &codec.GencodeCodec{}
+		return &codec.CodeCodec{}
 	default:
 		return nil
 	}

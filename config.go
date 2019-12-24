@@ -8,6 +8,7 @@ type ReliabilityType int32
 const (
 	Version			float32	= 1.0
 
+	IPC   					= "ipc"
 	TCP   					= "tcp"
 	UDP						= "udp"
 	QUIC  					= "quic"

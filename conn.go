@@ -18,6 +18,8 @@ type Conn interface {
 
 func dial(network,address string) (Conn, error) {
 	switch network {
+	case IPC:
+		return DialIPC(address)
 	case TCP:
 		return DialTCP(address)
 	case UDP:

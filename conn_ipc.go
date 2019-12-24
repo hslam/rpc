@@ -4,8 +4,8 @@ import (
 	"net"
 )
 
-type TCPConn struct {
-	conn 			*net.TCPConn
+type IPCConn struct {
+	conn 			*net.UnixConn
 	address			string
 	CanWork			bool
 	readChan 		chan []byte
@@ -16,38 +16,37 @@ type TCPConn struct {
 	buffer 			bool
 }
 
-func DialTCP(address string)  (Conn, error)  {
-	tcpAddr, err := net.ResolveTCPAddr("tcp4", address)
+func DialIPC(address string)  (Conn, error)  {
+	var addr *net.UnixAddr
+	var err error
+	if addr, err = net.ResolveUnixAddr("unix", address); err != nil {
+		return nil, err
+	}
+	conn, err := net.DialUnix("unix", nil, addr)
 	if err != nil {
 		Errorf("fatal error: %s", err)
 		return nil,err
 	}
-	conn, err := net.DialTCP("tcp", nil, tcpAddr)
-	if err != nil {
-		Errorf("fatal error: %s", err)
-		return nil,err
-	}
-	conn.SetNoDelay(true)
-	t:=&TCPConn{
+	t:=&IPCConn{
 		conn:conn,
 		address:address,
 	}
 	return t, nil
 }
 
-func (t *TCPConn)Handle(readChan chan []byte,writeChan chan []byte, stopChan chan bool,finishChan chan bool){
+func (t *IPCConn)Handle(readChan chan []byte,writeChan chan []byte, stopChan chan bool,finishChan chan bool){
 	t.readChan=readChan
 	t.writeChan=writeChan
 	t.stopChan=stopChan
 	t.finishChan=finishChan
 	t.handle()
 }
-func (t *TCPConn)Buffer(enable bool){
+func (t *IPCConn)Buffer(enable bool){
 	t.buffer=enable
 }
-func (t *TCPConn)Multiplexing(enable bool){
+func (t *IPCConn)Multiplexing(enable bool){
 }
-func (t *TCPConn)handle(){
+func (t *IPCConn)handle(){
 	readChan:=make(chan []byte,1)
 	writeChan:=make(chan []byte,1)
 	finishChan:= make(chan bool,2)
@@ -102,31 +101,31 @@ func (t *TCPConn)handle(){
 		t.closed=true
 	}()
 }
-func (t *TCPConn)TickerFactor()(int){
+func (t *IPCConn)TickerFactor()(int){
 	return 300
 }
-func (t *TCPConn)BatchFactor()(int){
+func (t *IPCConn)BatchFactor()(int){
 	return 512
 }
-func (t *TCPConn)Retry()(error){
-	tcpAddr, err := net.ResolveTCPAddr("tcp4", t.address)
-	if err != nil {
-		Errorf("fatal error: %s", err)
+func (t *IPCConn)Retry()(error){
+	var addr *net.UnixAddr
+	var err error
+	if addr, err = net.ResolveUnixAddr("unix", t.address); err != nil {
 		return err
 	}
-	conn, err := net.DialTCP("tcp", nil, tcpAddr)
+	conn, err := net.DialUnix("unix", nil, addr)
 	if err != nil {
 		Errorf("fatal error: %s", err)
 		return err
 	}
 	t.conn=conn
 	t.handle()
-	//Traceln("TCPConn.Retry")
+	//Traceln("IPCConn.Retry")
 	return nil
 }
-func (t *TCPConn)Close()(error){
+func (t *IPCConn)Close()(error){
 	return t.conn.Close()
 }
-func (t *TCPConn)Closed()(bool){
+func (t *IPCConn)Closed()(bool){
 	return t.closed
 }
