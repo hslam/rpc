@@ -33,7 +33,7 @@ enum CompressLevel{
 
 message Msg {
     float version = 1;
-    int64 id  = 2;
+    uint64 id  = 2;
     MsgType msgType = 3;
     bool batch = 4;
     CodecType codecType = 5;

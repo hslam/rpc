@@ -2,7 +2,7 @@ package rpc
 
 import (
 	"github.com/hslam/rpc/pb"
-	"github.com/hslam/rpc/gen"
+	"github.com/hslam/code"
 	"errors"
 )
 type BatchCodec struct{
@@ -12,7 +12,7 @@ type BatchCodec struct{
 
 func(c *BatchCodec)Encode()([]byte,error)  {
 	switch rpc_codec {
-	case RPC_CODEC_RAW:
+	case RPC_CODEC_CODE:
 		return c.Marshal(nil)
 	case RPC_CODEC_PROTOBUF:
 		batch:=pb.Batch{Async:c.async,Data:c.data}
@@ -22,35 +22,18 @@ func(c *BatchCodec)Encode()([]byte,error)  {
 			return nil, err
 		}
 		return batch_bytes,nil
-	case RPC_CODEC_GENCODE:
-		batch:= gen.Batch{Async:c.async,Data:c.data}
-		batch_bytes,err:= batch.Marshal(nil)
-		if err != nil {
-			Errorln("BatchEncode gencode.Marshal error: ", err)
-			return nil, err
-		}
-		return batch_bytes,nil
 	default:
 		return nil,errors.New("this rpc_serialize is not supported")
 	}
 }
 func(c *BatchCodec)Decode(b []byte)(error)  {
 	switch rpc_codec {
-	case RPC_CODEC_RAW:
+	case RPC_CODEC_CODE:
 		return c.Unmarshal(b)
 	case RPC_CODEC_PROTOBUF:
 		var batch =&pb.Batch{}
 		if err := batch.Unmarshal(b); err != nil {
 			Errorln("BatchDecode proto.Unmarshal error: ", err)
-			return  err
-		}
-		c.async=batch.Async
-		c.data=batch.Data
-		return nil
-	case RPC_CODEC_GENCODE:
-		var batch =&gen.Batch{}
-		if _,err := batch.Unmarshal(b); err != nil {
-			Errorln("BatchDecode gencode.Unmarshal error: ", err)
 			return  err
 		}
 		c.async=batch.Async
@@ -62,50 +45,29 @@ func(c *BatchCodec)Decode(b []byte)(error)  {
 }
 
 func(c *BatchCodec)Marshal(buf []byte)([]byte,error)  {
-	size:=1
-	for _,v :=range c.data{
-		size+=4+len(v)
-	}
-	var s []byte
-	if cap(buf) >= size {
-		s = buf[:size]
+	var size uint64
+	size+=1
+	size+=code.SizeofSliceBytes(c.data)
+	if uint64(cap(buf)) >= size {
+		buf = buf[:size]
 	} else {
-		s = make([]byte, size)
+		buf = make([]byte, size)
 	}
-	if c.async{
-		s[0]=1
-	}else {
-		s[0]=0
-	}
-	offset:=1
-	for _,v :=range c.data{
-		length:=len(v)
-		copy(s[offset:], uint32ToBytes(uint32(length)))
-		offset+=4
-		copy(s[offset+length:length],v)
-		offset+=length
-	}
-	return nil,nil
+	var offset uint64
+	var n  uint64
+	n = code.EncodeBool(buf[offset:],c.async)
+	offset+=n
+	n = code.EncodeSliceBytes(buf[offset:],c.data)
+	offset+=n
+	return buf,nil
 }
 func(c *BatchCodec)Unmarshal(b []byte)(error)  {
-	size:=len(b)
-	if b[0]==1{
-		c.async=true
-	}else {
-		c.async=false
-	}
-	offset:=1
-	for {
-		if offset==size{
-			break
-		}
-		length:=int(bytesToUint32(b[offset:offset+4]))
-		offset+=4
-		v:=make([]byte,length)
-		copy(v,b[offset+length:length])
-		c.data=append(c.data,v)
-		offset+=length
-	}
+	var offset uint64
+	var n uint64
+	n=code.DecodeBool(b[offset:],&c.async)
+	offset+=n
+	n=code.DecodeSliceBytes(b[offset:],&c.data)
+	offset+=n
 	return nil
 }
 func(c *BatchCodec)Reset(){

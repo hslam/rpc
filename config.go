@@ -1,5 +1,6 @@
 package rpc
 
+type RPC_CODEC_TYPE int32
 type CodecType int32
 type MsgType int32
 type CompressLevel int
@@ -15,17 +16,15 @@ const (
 	WS   					= "ws"
 	HTTP   					= "http"
 	HTTP1   				= "http1"
-	HTTP2   				= "http2"
 
-	RPC_CODEC_RAW			= 0
-	RPC_CODEC_PROTOBUF		= 1
-	RPC_CODEC_GENCODE		= 2
+	RPC_CODEC_CODE			RPC_CODEC_TYPE = 0
+	RPC_CODEC_PROTOBUF		RPC_CODEC_TYPE = 1
 
 	JSON   					= "json"
 	PROTOBUF   				= "pb"
 	XML						= "xml"
 	BYTES					= "bytes"
-	GENCODE					= "gen"
+	CODE					= "code"
 	GOB						= "gob"
 
 	FUNCS_CODEC_INVALID 	CodecType= 0
@@ -33,7 +32,7 @@ const (
 	FUNCS_CODEC_PROTOBUF   	CodecType= 2
 	FUNCS_CODEC_XML   		CodecType= 3
 	FUNCS_CODEC_BYTES   	CodecType= 4
-	FUNCS_CODEC_GENCODE   	CodecType= 5
+	FUNCS_CODEC_CODE   		CodecType= 5
 	FUNCS_CODEC_GOB   		CodecType= 9
 
 	DefaultMaxCacheRequest	= 10240

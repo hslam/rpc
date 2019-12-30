@@ -5,7 +5,7 @@ import (
 	"errors"
 )
 type ClientCodec struct{
-	client_id int64
+	client_id uint64
 	req_id   uint64
 	name string
 	args interface{}

@@ -1,1 +1,0 @@
-gencode go -schema=rpc.schema -package gen

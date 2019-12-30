@@ -9,7 +9,7 @@ import (
 type Client interface {
 	GetMaxRequests()(int)
 	GetMaxBatchRequest()int
-	GetID()int64
+	GetID()uint64
 	GetTimeout()int64
 	GetHeartbeatTimeout()int64
 	GetMaxErrPerSecond()int
@@ -43,7 +43,7 @@ type client struct {
 	mu 					sync.RWMutex
 	mutex				sync.RWMutex
 	conn				Conn
-	seq 				int64
+	seq 				uint64
 	pending  			map[int64]*Call
 	unordered 			bool
 	closed				bool
@@ -64,7 +64,7 @@ type client struct {
 	funcsCodecType 		CodecType
 	compressType 		CompressType
 	compressLevel 		CompressLevel
-	client_id			int64
+	client_id			uint64
 	timeout 			int64
 	heartbeatTimeout	int64
 	errCntChan 			chan int
@@ -83,7 +83,7 @@ func NewClientWithOptions(conn	Conn,codec string,opts *Options)  (*client, error
 	if err!=nil{
 		return nil,err
 	}
-	var client_id int64=1
+	var client_id uint64=1
 	c :=  &client{
 		client_id:client_id,
 		conn:conn,
@@ -280,11 +280,11 @@ func (c *client)setCompressType(compressType CompressType){
 func (c *client)setCompressLevel(level CompressLevel){
 	c.compressLevel=level
 }
-func (c *client)setID(id int64)error{
+func (c *client)setID(id uint64)error{
 	c.client_id=id
 	return nil
 }
-func (c *client)GetID()int64{
+func (c *client)GetID()uint64{
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.client_id
@@ -492,6 +492,15 @@ func (c *client)RemoteCall(b []byte)([]byte,error){
 		return data,nil
 	}
 	return nil,ErrRemoteCall
+}
+func (c *client)RemoteGo(b []byte,cbChan chan []byte){
+	defer func() {
+		if err := recover(); err != nil {
+			Errorln("client.RemoteCall failed:", err)
+		}
+	}()
+	c.requestChan<-true
+	c.io.RequestChan()<-c.io.NewRequest(0,b,false,cbChan)
 }
 func (c *client)RemoteCallNoResponse(b []byte)(error){
 	defer func() {
@@ -702,8 +711,8 @@ func (c *client)call(name string, args interface{}, reply interface{}) ( err err
 	}
 
 }
-func (c *client)Seq()int64{
-	seq := atomic.AddInt64(&c.seq,1)
+func (c *client)Seq()uint64{
+	seq := atomic.AddUint64(&c.seq,1)
 	return seq
 }
 func (c *client) send(call *Call) {
@@ -756,11 +765,13 @@ func (c *client) send(call *Call) {
 			//c.mutex.Lock()
 			//c.pending[seq] = call
 			//c.mutex.Unlock()
-			go func(c *client,rpc_req_bytes []byte,call *Call) {
+			cbChan := make(chan []byte,1)
+			c.RemoteGo(rpc_req_bytes,cbChan)
+			go func(c *client,cbChan chan []byte,call *Call) {
 				var data []byte
-				data, err = c.RemoteCall(rpc_req_bytes)
-				if err != nil {
-					Errorln("Write error: ", err)
+				data,ok := <-cbChan
+				<-c.requestChan
+				if !ok{
 					return
 				}
 				clientCodec.reply = call.Reply
@@ -783,7 +794,7 @@ func (c *client) send(call *Call) {
 					call.Done<-call
 					return
 				}
-			}(c,rpc_req_bytes,call)
+			}(c,cbChan,call)
 		}
 	}else {
 		cr:=&BatchRequest{

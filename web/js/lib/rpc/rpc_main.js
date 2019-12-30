@@ -570,7 +570,7 @@ proto.pb.Msg.deserializeBinaryFromReader = function(msg, reader) {
       msg.setVersion(value);
       break;
     case 2:
-      var value = /** @type {number} */ (reader.readInt64());
+      var value = /** @type {number} */ (reader.readUint64());
       msg.setId(value);
       break;
     case 3:
@@ -635,7 +635,7 @@ proto.pb.Msg.serializeBinaryToWriter = function(message, writer) {
   }
   f = message.getId();
   if (f !== 0) {
-    writer.writeInt64(
+    writer.writeUint64(
       2,
       f
     );
@@ -701,7 +701,7 @@ proto.pb.Msg.prototype.setVersion = function(value) {
 
 
 /**
- * optional int64 id = 2;
+ * optional uint64 id = 2;
  * @return {number}
  */
 proto.pb.Msg.prototype.getId = function() {

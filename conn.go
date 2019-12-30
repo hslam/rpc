@@ -32,8 +32,6 @@ func dial(network,address string) (Conn, error) {
 		return DialHTTP(address)
 	case HTTP1:
 		return DialHTTP1(address)
-	case HTTP2:
-		return DialHTTP2(address)
 	default:
 		return nil, errors.New("this network is not suported")
 	}

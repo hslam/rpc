@@ -19,7 +19,6 @@ type registerObject struct {
 }
 type Server struct {
 	network 					string
-	listener 					Listener
 	Funcs 						*funcs.Funcs
 	timeout 					int64
 	batch 						bool
@@ -121,8 +120,7 @@ func (s *Server)ListenAndServe(network,address string) error {
 		Errorln(err)
 		return err
 	}
-	s.listener=listener
-	err=s.listener.Serve()
+	err=listener.Serve()
 	if err != nil {
 		Errorln(err)
 		return err

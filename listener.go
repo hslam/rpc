@@ -27,8 +27,6 @@ func Listen(network,address string,server *Server) (Listener, error) {
 		return ListenHTTP(address,server)
 	case HTTP1:
 		return ListenHTTP(address,server)
-	case HTTP2:
-		return ListenHTTP2(address,server)
 	}
 	return nil, errors.New("this network is not suported")
 }

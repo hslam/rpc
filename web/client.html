@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <title>RPC</title>
-    <script type="text/javascript" src="./js/lib/rpc/client.js"></script>
-    <script type="text/javascript" src="./js/lib/rpc/rpc_main.js"></script>
+
+    <script type="text/javascript" src="./js/lib/rpc/rpc.min.js"></script>
 </head>
 <body>
 <div style="text-align:center;">
@@ -16,7 +16,8 @@
         this.a=A;
         this.b=B;
     }
-    var client = new rpc.Dial("127.0.0.1:9999");
+    console.log(rpc);
+    var client = new rpc.Dial("127.0.0.1:8080");
     var req = new ArithRequest(9,2)
     var reply=client.Call("Arith.Multiply",req)
     var result=req.a.toString()+" * "+req.b.toString()+" = "+reply.pro.toString()+"\n"

@@ -10,8 +10,8 @@ mkdir $path
 
 echo "Start Build"
 
-go build -o rpc_server ./pb/server/server.go
-go build -o rpc_client ./pb/client/client.go
+go build -o rpc_server ./tcp/pb/server/server.go
+go build -o rpc_client ./tcp/pb/client/client.go
 
 echo "Start Benchmark"
 

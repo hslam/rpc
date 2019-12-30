@@ -4,7 +4,7 @@ import "sync"
 
 type Options struct {
 	mu sync.Mutex
-	ID int64
+	ID uint64
 	MaxRequests int
 	Pipelining bool
 	Multiplexing bool
@@ -123,12 +123,12 @@ func (o *Options)SetCompressLevel(level string){
 	defer o.mu.Unlock()
 	o.CompressLevel=getCompressLevel(level)
 }
-func (o *Options)SetID(id int64){
+func (o *Options)SetID(id uint64){
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	o.ID=id
 }
-func (o *Options)GetID()int64{
+func (o *Options)GetID()uint64{
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	return o.ID
