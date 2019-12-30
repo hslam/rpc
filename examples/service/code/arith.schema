@@ -1,9 +1,0 @@
-struct ArithRequest {
-	A int32
-	B int32
-}
-struct ArithResponse {
-	Pro int32
-	Quo int32
-	Rem int32
-}

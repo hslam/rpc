@@ -1,1 +1,0 @@
-gencode go -schema=arith.schema -package service
