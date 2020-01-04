@@ -15,7 +15,7 @@ type QUICConn struct {
 	stopChan 		chan bool
 	finishChan		chan bool
 	closed			bool
-	buffer 			bool
+	noDelay 		bool
 }
 
 func DialQUIC(address string)  (Conn, error)  {
@@ -35,8 +35,8 @@ func DialQUIC(address string)  (Conn, error)  {
 	}
 	return t, nil
 }
-func (t *QUICConn)Buffer(enable bool){
-	t.buffer=enable
+func (t *QUICConn)NoDelay(enable bool){
+	t.noDelay=enable
 }
 func (t *QUICConn)Multiplexing(enable bool){
 }
@@ -54,7 +54,7 @@ func (t *QUICConn)handle(){
 	stopReadStreamChan := make(chan bool,1)
 	stopWriteStreamChan := make(chan bool,1)
 	go protocol.ReadStream(t.conn, readChan, stopReadStreamChan,finishChan)
-	go protocol.WriteStream(t.conn, writeChan, stopWriteStreamChan,finishChan,t.buffer)
+	go protocol.WriteStream(t.conn, writeChan, stopWriteStreamChan,finishChan,t.noDelay)
 	go func() {
 		t.closed=false
 		for {

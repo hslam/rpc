@@ -4,7 +4,6 @@ import (
 	"github.com/hslam/rpc"
 	"fmt"
 	"log"
-	"time"
 )
 func main()  {
 	MaxConnsPerHost:=2
@@ -23,5 +22,4 @@ func main()  {
 		log.Fatalln("arith error: ", err)
 	}
 	fmt.Printf("%d / %d, quo is %d, rem is %d\n", req.A, req.B, res.Quo, res.Rem)
-	time.Sleep(time.Hour)
 }

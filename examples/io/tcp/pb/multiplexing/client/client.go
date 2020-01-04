@@ -6,18 +6,21 @@ import (
 	"log"
 )
 func main()  {
-	MaxConnsPerHost:=2
-	MaxIdleConnsPerHost:=0
-	transport:=rpc.NewTransport(MaxConnsPerHost,MaxIdleConnsPerHost,"ipc","pb",rpc.DefaultOptions())
+	opts:=rpc.DefaultOptions()
+	opts.SetMultiplexing(true)
+	conn, err:= rpc.DialWithOptions("tcp","127.0.0.1:8080","pb",opts)//tcp|ws|quic|http
+	if err != nil {
+		log.Fatalln("dailing error: ", err)
+	}
+	defer conn.Close()
 	req := &service.ArithRequest{A:9,B:2}
 	var res service.ArithResponse
-	var err error
-	err = transport.Call("Arith.Multiply", req, &res,"/tmp/ipc1")
+	err = conn.Call("Arith.Multiply", req, &res)
 	if err != nil {
 		log.Fatalln("arith error: ", err)
 	}
 	fmt.Printf("%d * %d = %d\n", req.A, req.B, res.Pro)
-	err = transport.Call("Arith.Divide", req, &res,"/tmp/ipc")
+	err = conn.Call("Arith.Divide", req, &res)
 	if err != nil {
 		log.Fatalln("arith error: ", err)
 	}

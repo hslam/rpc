@@ -97,11 +97,11 @@ func(m *Msg)Marshal(buf []byte)([]byte,error)  {
 	var size uint64
 	size+=4
 	size+=8
-	size+=4
 	size+=1
-	size+=4
-	size+=4
-	size+=4
+	size+=1
+	size+=1
+	size+=1
+	size+=1
 	size+=code.SizeofBytes(m.data)
 	if uint64(cap(buf)) >= size {
 		buf = buf[:size]
@@ -114,15 +114,15 @@ func(m *Msg)Marshal(buf []byte)([]byte,error)  {
 	offset+=n
 	n = code.EncodeUint64(buf[offset:],m.id)
 	offset+=n
-	n = code.EncodeUint32(buf[offset:],uint32(m.msgType))
+	n = code.EncodeUint8(buf[offset:],uint8(m.msgType))
 	offset+=n
 	n = code.EncodeBool(buf[offset:],m.batch)
 	offset+=n
-	n = code.EncodeUint32(buf[offset:],uint32(m.codecType))
+	n = code.EncodeUint8(buf[offset:],uint8(m.codecType))
 	offset+=n
-	n = code.EncodeUint32(buf[offset:],uint32(m.compressType))
+	n = code.EncodeUint8(buf[offset:],uint8(m.compressType))
 	offset+=n
-	n = code.EncodeUint32(buf[offset:],uint32(m.compressLevel))
+	n = code.EncodeUint8(buf[offset:],uint8(m.compressLevel))
 	offset+=n
 	n = code.EncodeBytes(buf[offset:],m.data)
 	offset+=n
@@ -135,22 +135,22 @@ func(m *Msg)Unmarshal(b []byte)(error)  {
 	offset+=n
 	n=code.DecodeUint64(b[offset:],&m.id)
 	offset+=n
-	var msgType uint32
-	n=code.DecodeUint32(b[offset:],&msgType)
+	var msgType uint8
+	n=code.DecodeUint8(b[offset:],&msgType)
 	m.msgType=MsgType(msgType)
 	offset+=n
 	n=code.DecodeBool(b[offset:],&m.batch)
 	offset+=n
-	var codecType uint32
-	n=code.DecodeUint32(b[offset:],&codecType)
+	var codecType uint8
+	n=code.DecodeUint8(b[offset:],&codecType)
 	m.codecType=CodecType(codecType)
 	offset+=n
-	var compressType uint32
-	n=code.DecodeUint32(b[offset:],&compressType)
+	var compressType uint8
+	n=code.DecodeUint8(b[offset:],&compressType)
 	m.compressType=CompressType(compressType)
 	offset+=n
-	var compressLevel uint32
-	n=code.DecodeUint32(b[offset:],&compressLevel)
+	var compressLevel uint8
+	n=code.DecodeUint8(b[offset:],&compressLevel)
 	m.compressLevel=CompressLevel(compressLevel)
 	offset+=n
 	n=code.DecodeBytes(b[offset:],&m.data)

@@ -21,77 +21,50 @@ type Server struct {
 	network 					string
 	Funcs 						*funcs.Funcs
 	timeout 					int64
-	batch 						bool
+	batching 					bool
 	pipelining 					bool
 	multiplexing				bool
-	pipeliningAsync				bool
 	asyncMax					int
-	lowDelay 					bool
+	noDelay 					bool
 	objs 						[]*registerObject
 }
 func NewServer() *Server {
-	return &Server{Funcs:funcs.New(),timeout:DefaultServerTimeout,asyncMax:DefaultMaxAsyncPerConn,multiplexing:true,batch:false}
+	return &Server{Funcs:funcs.New(),timeout:DefaultServerTimeout,asyncMax:DefaultMaxAsyncPerConn,multiplexing:true,batching:false}
 }
-func SetBatch(enable bool)  {
-	DefaultServer.SetBatch(enable)
+func SetBatching(enable bool)  {
+	DefaultServer.SetBatching(enable)
 }
-func (s *Server) SetBatch(enable bool)  {
-	s.batch=enable
+func (s *Server) SetBatching(enable bool)  {
+	s.batching=enable
 }
-func SetLowDelay(enable bool)  {
-	DefaultServer.SetLowDelay(enable)
+func SetNoDelay(enable bool)  {
+	DefaultServer.SetNoDelay(enable)
 }
-func (s *Server) SetLowDelay(enable bool)  {
-	s.lowDelay=enable
+func (s *Server) SetNoDelay(enable bool)  {
+	s.noDelay=enable
 }
 func SetPipelining(enable bool) {
 	DefaultServer.SetPipelining(enable)
 }
 func (s *Server) SetPipelining(enable bool) {
 	s.pipelining=enable
+	s.multiplexing=!enable
 }
 func SetMultiplexing(enable bool)  {
 	DefaultServer.SetMultiplexing(enable)
 }
 func (s *Server) SetMultiplexing(enable bool) {
-	if enable{
-		s.EnableMultiplexingWithSize(DefaultMaxMultiplexingPerConn)
-	}else {
-		s.multiplexing=false
-	}
+	s.multiplexing=enable
+	s.pipelining=!enable
+	s.SetSize(DefaultMaxMultiplexingPerConn)
 }
-func EnableMultiplexingWithSize(size  int)  {
-	DefaultServer.EnableMultiplexingWithSize(size)
+func SetSize(size  int)  {
+	DefaultServer.SetSize(size)
 }
-func (s *Server) EnableMultiplexingWithSize(size  int) {
-	s.multiplexing=true
+func (s *Server) SetSize(size  int) {
 	s.asyncMax=size
 }
-func PipeliningAsync() bool {
-	return DefaultServer.PipeliningAsync()
-}
-func (s *Server) PipeliningAsync() bool {
-	return s.pipeliningAsync
-}
-func SetPipeliningAsync(enable bool)  {
-	DefaultServer.SetPipeliningAsync(enable)
-}
-func (s *Server) SetPipeliningAsync(enable bool) {
-	if enable{
-		s.EnablePipeliningAsyncWithSize(DefaultMaxAsyncPerConn)
-	}else {
-		s.pipeliningAsync=false
-	}
-}
 
-func EnablePipeliningAsyncWithSize(size  int) {
-	DefaultServer.EnablePipeliningAsyncWithSize(size )
-}
-
-func (s *Server) EnablePipeliningAsyncWithSize(size int) {
-	s.pipeliningAsync=true
-	s.asyncMax=size
-}
 func Register(obj interface{}) error {
 	return DefaultServer.Register(obj)
 }
@@ -148,11 +121,14 @@ func (s *Server) serve(ReadWriteCloser io.ReadWriteCloser,Stream bool) error {
 	stopChan := make(chan bool,1)
 	if Stream{
 		go protocol.ReadStream(ReadWriteCloser, readChan, stopReadChan,finishChan)
-		var useBuffer bool
-		if !s.batch&&!s.lowDelay&&(s.pipelining||s.multiplexing){
-			useBuffer=true
+		var noDelay bool =true
+		if !s.batching&&(s.pipelining||s.multiplexing){
+			noDelay=false
 		}
-		go protocol.WriteStream(ReadWriteCloser, writeChan, stopWriteChan,finishChan,useBuffer)
+		if s.noDelay{
+			noDelay=true
+		}
+		go protocol.WriteStream(ReadWriteCloser, writeChan, stopWriteChan,finishChan,noDelay)
 	}else {
 		go protocol.ReadConn(ReadWriteCloser, readChan, stopReadChan,finishChan)
 		go protocol.WriteConn(ReadWriteCloser, writeChan, stopWriteChan,finishChan)
@@ -185,18 +161,6 @@ func (s *Server) serve(ReadWriteCloser io.ReadWriteCloser,Stream bool) error {
 					stopWriteChan<-true
 					goto endfor
 				}
-			}
-		}
-	}else if s.pipeliningAsync{
-		syncConn:=newSyncConn(s)
-		go protocol.HandleSyncConn(syncConn, writeChan,readChan,stopChan,s.asyncMax)
-		select {
-		case stop := <-finishChan:
-			if stop {
-				stopReadChan<-true
-				stopWriteChan<-true
-				stopChan<-true
-				goto endfor
 			}
 		}
 	}else {

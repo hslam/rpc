@@ -56,6 +56,9 @@ func(r *Response)Decode(b []byte) (error)  {
 }
 
 func(r *Response)Marshal(buf []byte)([]byte,error)  {
+	if r.err!=nil{
+		r.errMsg=fmt.Sprint(r.err)
+	}
 	var size uint64
 	size+=8
 	size+=code.SizeofBytes(r.data)
@@ -71,9 +74,7 @@ func(r *Response)Marshal(buf []byte)([]byte,error)  {
 	offset+=n
 	n = code.EncodeBytes(buf[offset:],r.data)
 	offset+=n
-	if r.err!=nil{
-		r.errMsg=fmt.Sprint(r.err)
-	}
+
 	n = code.EncodeString(buf[offset:],r.errMsg)
 	offset+=n
 	return buf,nil

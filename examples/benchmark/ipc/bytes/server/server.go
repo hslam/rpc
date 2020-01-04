@@ -15,10 +15,9 @@ var network string
 var debug bool
 var debug_port int
 var addr string
-var async bool
 var multiplexing bool
 var pipelining bool
-var batch bool
+var batching bool
 func init()  {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	flag.StringVar(&network, "network", "ipc", "network: -network=ipc")
@@ -26,9 +25,8 @@ func init()  {
 	flag.IntVar(&debug_port, "dp", 6060, "debug_port: -dp=6060")
 	flag.StringVar(&addr, "address", "/tmp/ipc", "address: -address=/tmp/ipc")
 	flag.BoolVar(&pipelining, "pipelining", false, "pipelining: -pipelining=false")
-	flag.BoolVar(&async, "async", false, "async: -async=false")
 	flag.BoolVar(&multiplexing, "multiplexing", true, "multiplexing: -multiplexing=false")
-	flag.BoolVar(&batch, "batch", false, "batch: -batch=false")
+	flag.BoolVar(&batching, "batching", false, "batching: -batching=false")
 	flag.Parse()
 }
 func main()  {
@@ -36,8 +34,7 @@ func main()  {
 	rpc.Register(new(service.Echo))
 	rpc.SetLogLevel(rpc.InfoLevel)
 	rpc.SetPipelining(pipelining)
-	rpc.SetPipeliningAsync(async)
 	rpc.SetMultiplexing(multiplexing)
-	rpc.SetBatch(batch)
+	rpc.SetBatching(batching)
 	rpc.ListenAndServe(network,addr)
 }

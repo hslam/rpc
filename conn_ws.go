@@ -30,7 +30,7 @@ func DialWS(address string)  (Conn, error)  {
 	t.CanWork=true
 	return t, nil
 }
-func (t *WSConn)Buffer(enable bool){
+func (t *WSConn)NoDelay(enable bool){
 }
 func (t *WSConn)Multiplexing(enable bool){
 }

@@ -12,7 +12,7 @@ type HTTPConn struct {
 	address			string
 	CanWork			bool
 	closed			bool
-	buffer 			bool
+	noDelay 		bool
 	readChan 		chan []byte
 	writeChan 		chan []byte
 	stopChan 		chan bool
@@ -48,8 +48,8 @@ func DialHTTP(address string)  (Conn, error)  {
 	}
 	return t, nil
 }
-func (t *HTTPConn)Buffer(enable bool){
-	t.buffer=enable
+func (t *HTTPConn)NoDelay(enable bool){
+	t.noDelay=enable
 }
 func (t *HTTPConn)Multiplexing(enable bool){
 }
@@ -67,7 +67,7 @@ func (t *HTTPConn)handle(){
 	stopReadStreamChan := make(chan bool,1)
 	stopWriteStreamChan := make(chan bool,1)
 	go protocol.ReadStream(t.conn, readChan, stopReadStreamChan,finishChan)
-	go protocol.WriteStream(t.conn, writeChan, stopWriteStreamChan,finishChan,t.buffer)
+	go protocol.WriteStream(t.conn, writeChan, stopWriteStreamChan,finishChan,t.noDelay)
 	go func() {
 		t.closed=false
 		//Traceln("TCPConn.handle start")

@@ -6,8 +6,8 @@ import (
 	"fmt"
 )
 func main()  {
+	rpc.SETRPCCODEC(rpc.RPC_CODEC_PROTOBUF)
 	opts:=rpc.DefaultOptions()
-	opts.SetMultiplexing(false)
 	opts.SetPipelining(true)
 	conn, err:= rpc.DialWithOptions("http","127.0.0.1:8080","json",opts)
 	if err != nil {

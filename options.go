@@ -8,8 +8,7 @@ type Options struct {
 	MaxRequests int
 	Pipelining bool
 	Multiplexing bool
-	Batch bool
-	BatchAsync bool
+	Batching bool
 	MaxBatchRequest int
 	Retry bool
 	CompressType CompressType
@@ -18,8 +17,8 @@ type Options struct {
 	HeartbeatTimeout int64
 	MaxErrPerSecond int
 	MaxErrHeartbeat int
-	LowDelay bool
-	useBuffer bool
+	NoDelay bool
+	noDelay bool
 }
 func DefaultOptions() *Options {
 	return &Options{
@@ -27,8 +26,7 @@ func DefaultOptions() *Options {
 		MaxRequests:DefaultMaxRequests,
 		Pipelining:false,
 		Multiplexing:true,
-		Batch:false,
-		BatchAsync:false,
+		Batching:false,
 		MaxBatchRequest:DefaultMaxBatchRequest,
 		Retry:true,
 		CompressType:CompressTypeNo,
@@ -37,8 +35,8 @@ func DefaultOptions() *Options {
 		HeartbeatTimeout:DefaultClientHearbeatTimeout,
 		MaxErrPerSecond:DefaultClientMaxErrPerSecond,
 		MaxErrHeartbeat:DefaultClientMaxErrHearbeat,
-		LowDelay:false,
-		useBuffer:false,
+		NoDelay:false,
+		noDelay:true,
 	}
 }
 func NewOptions() *Options {
@@ -60,13 +58,13 @@ func (o *Options)Check() {
 		o.Multiplexing=false
 	}
 	if o.Pipelining||o.Multiplexing{
-		o.useBuffer=true
+		o.noDelay=false
 	}
-	if o.Batch{
-		o.useBuffer=false
+	if o.Batching{
+		o.noDelay=true
 	}
-	if o.LowDelay{
-		o.useBuffer=false
+	if o.NoDelay{
+		o.noDelay=true
 	}
 }
 func (o *Options)SetMaxRequests(max int) {
@@ -83,25 +81,22 @@ func (o *Options)SetPipelining(enable bool){
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	o.Pipelining=enable
+	o.Multiplexing=!enable
 }
 
 func (o *Options)SetMultiplexing(enable bool){
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	o.Multiplexing=enable
+	o.Pipelining=!enable
 }
 
-func (o *Options)SetBatch(enable bool){
+func (o *Options)SetBatching(enable bool){
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	o.Batch=enable
-	o.BatchAsync=enable
+	o.Batching=enable
 }
-func (o *Options)SetBatchAsync(enable bool){
-	o.mu.Lock()
-	defer o.mu.Unlock()
-	o.BatchAsync=enable
-}
+
 func (o *Options)SetMaxBatchRequest(max int) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
@@ -179,8 +174,8 @@ func (o *Options)SetRetry(enable bool) {
 	defer o.mu.Unlock()
 	o.Retry=enable
 }
-func (o *Options) SetLowDelay(enabled bool)  {
+func (o *Options) SetNoDelay(enabled bool)  {
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	o.LowDelay=enabled
+	o.NoDelay=enabled
 }

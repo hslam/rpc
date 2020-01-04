@@ -32,7 +32,7 @@ func DialHTTP1(address string)  (Conn, error)  {
 	}
 	return t, nil
 }
-func (t *HTTP1Conn)Buffer(enable bool){
+func (t *HTTP1Conn)NoDelay(enable bool){
 }
 func (t *HTTP1Conn)Multiplexing(enable bool){
 	t.multiplexing=enable

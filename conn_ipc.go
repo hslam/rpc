@@ -13,7 +13,7 @@ type IPCConn struct {
 	stopChan 		chan bool
 	finishChan		chan bool
 	closed			bool
-	buffer 			bool
+	noDelay 		bool
 }
 
 func DialIPC(address string)  (Conn, error)  {
@@ -41,8 +41,8 @@ func (t *IPCConn)Handle(readChan chan []byte,writeChan chan []byte, stopChan cha
 	t.finishChan=finishChan
 	t.handle()
 }
-func (t *IPCConn)Buffer(enable bool){
-	t.buffer=enable
+func (t *IPCConn)NoDelay(enable bool){
+	t.noDelay=enable
 }
 func (t *IPCConn)Multiplexing(enable bool){
 }
@@ -53,7 +53,7 @@ func (t *IPCConn)handle(){
 	stopReadStreamChan := make(chan bool,1)
 	stopWriteStreamChan := make(chan bool,1)
 	go protocol.ReadStream(t.conn, readChan, stopReadStreamChan,finishChan)
-	go protocol.WriteStream(t.conn, writeChan, stopWriteStreamChan,finishChan,t.buffer)
+	go protocol.WriteStream(t.conn, writeChan, stopWriteStreamChan,finishChan,t.noDelay)
 	go func() {
 		t.closed=false
 		//Traceln("TCPConn.handle start")

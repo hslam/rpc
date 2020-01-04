@@ -15,7 +15,7 @@ type ClientCodec struct{
 	reply interface{}
 	res	*Response
 	batch				bool
-	batchAsync			bool
+	batchingAsync			bool
 	compressType		CompressType
 	compressLevel 		CompressLevel
 	msg					*Msg
@@ -59,7 +59,7 @@ func(c *ClientCodec)Encode() ([]byte, error)  {
 			req_bytes_s[i]=req_bytes
 			c.responses[i]=&Response{}
 		}
-		batchCodec:=&BatchCodec{async:c.batchAsync,data:req_bytes_s}
+		batchCodec:=&BatchCodec{async:c.batchingAsync,data:req_bytes_s}
 		c.batchCodec=batchCodec
 		c.msg.data,_=batchCodec.Encode()
 	}

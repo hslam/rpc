@@ -16,7 +16,7 @@ var compress string
 var host string
 var port int
 var addr string
-var batch bool
+var batching bool
 var pipelining bool
 var multiplexing bool
 var noresponse bool
@@ -25,7 +25,6 @@ var onlycall bool
 var clients int
 var total_calls int
 var bar bool
-var batch_async bool
 
 func init()  {
 	runtime.GOMAXPROCS(runtime.NumCPU())
@@ -35,8 +34,7 @@ func init()  {
 	flag.StringVar(&host, "h", "127.0.0.1", "host: -h=127.0.0.1")
 	flag.IntVar(&port, "p", 8080, "port: -p=8080")
 	flag.IntVar(&total_calls, "total", 1000000, "total_calls: -total=10000")
-	flag.BoolVar(&batch, "batch", false, "batch: -batch=false")
-	flag.BoolVar(&batch_async, "batch_async", false, "batch_async: -batch_async=false")
+	flag.BoolVar(&batching, "batching", false, "batching: -batching=false")
 	flag.BoolVar(&pipelining, "pipelining", false, "pipelining: -pipelining=false")
 	flag.BoolVar(&multiplexing, "multiplexing", true, "pipelining: -pipelining=false")
 	flag.BoolVar(&norequest, "norequest", false, "norequest: -norequest=false")
@@ -51,12 +49,11 @@ func init()  {
 }
 
 func main()  {
-	fmt.Printf("./client -network=%s -codec=%s -compress=%s -h=%s -p=%d -total=%d -pipelining=%t -multiplexing=%t -batch=%t -batch_async=%t -norequest=%t -noresponse=%t -onlycall=%t -clients=%d\n",network,codec,compress,host,port,total_calls,pipelining,multiplexing,batch,batch_async,norequest,noresponse,onlycall,clients)
+	fmt.Printf("./client -network=%s -codec=%s -compress=%s -h=%s -p=%d -total=%d -pipelining=%t -multiplexing=%t -batching=%t -norequest=%t -noresponse=%t -onlycall=%t -clients=%d\n",network,codec,compress,host,port,total_calls,pipelining,multiplexing,batching,norequest,noresponse,onlycall,clients)
 	var wrkClients []stats.Client
 	opts:=rpc.DefaultOptions()
 	opts.SetCompressType(compress)
-	opts.SetBatch(batch)
-	opts.SetBatchAsync(batch_async)
+	opts.SetBatching(batching)
 	opts.SetPipelining(pipelining)
 	opts.SetMultiplexing(multiplexing)
 	parallel:=1
@@ -75,7 +72,7 @@ func main()  {
 			var result=[]byte("helloworld")
 			wrkClients[i]=&WrkClient{pool.All()[i],body,result}
 		}
-		if batch{
+		if batching{
 			parallel=pool.GetMaxBatchRequest()
 		}
 		if pipelining{
@@ -92,7 +89,7 @@ func main()  {
 		if err != nil {
 			log.Fatalln("dailing error: ", err)
 		}
-		if batch{
+		if batching{
 			parallel=conn.GetMaxBatchRequest()
 		}
 		if pipelining{

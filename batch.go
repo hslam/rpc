@@ -92,7 +92,7 @@ func (b *Batch)Ticker(brs []*BatchRequest){
 	clientCodec:=&ClientCodec{}
 	clientCodec.client_id=b.client.GetID()
 	clientCodec.batch=true
-	clientCodec.batchAsync=b.client.batchAsync
+	clientCodec.batchingAsync=b.client.batchingAsync
 	clientCodec.requests=brs
 	clientCodec.compressType=b.client.compressType
 	clientCodec.compressLevel=b.client.compressLevel

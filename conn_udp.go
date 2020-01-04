@@ -27,7 +27,7 @@ func DialUDP(address string)  (Conn, error)  {
 	}
 	return t, nil
 }
-func (t *UDPConn)Buffer(enable bool){
+func (t *UDPConn)NoDelay(enable bool){
 }
 func (t *UDPConn)Multiplexing(enable bool){
 }

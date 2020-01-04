@@ -52,7 +52,7 @@ type client struct {
 	disconnect			bool
 	hystrix				bool
 	batchEnabled		bool
-	batchAsync			bool
+	batchingAsync			bool
 	batch				*Batch
 	io					IO
 	maxRequests			int
@@ -73,7 +73,7 @@ type client struct {
 	maxErrHeartbeat		int
 	errCntHeartbeat		int
 	retry 				bool
-	useBuffer 			bool
+	noDelay 			bool
 }
 func NewClient(conn	Conn,codec string)  (*client, error) {
 	return NewClientWithOptions(conn,codec,DefaultOptions())
@@ -102,7 +102,7 @@ func NewClientWithOptions(conn	Conn,codec string,opts *Options)  (*client, error
 		maxErrHeartbeat:DefaultClientMaxErrHearbeat,
 	}
 	c.loadOptions(opts)
-	c.conn.Buffer(c.useBuffer)
+	c.conn.NoDelay(c.noDelay)
 	c.conn.Multiplexing(c.unordered)
 	c.conn.Handle(c.readChan,c.writeChan,c.stopChan,c.finishChan)
 	go c.run()
@@ -191,10 +191,10 @@ func (c *client)loadOptions(opts *Options) {
 	}else {
 		c.enablePipelining()
 	}
-	if opts.Batch{
-		c.enableBatch()
-		if opts.BatchAsync{
-			c.enableBatchAsync()
+	if opts.Batching{
+		c.enableBatching()
+		if opts.Multiplexing{
+			c.enableBatchingAsync()
 		}
 		if opts.MaxBatchRequest>c.GetMaxBatchRequest(){
 			c.setMaxBatchRequest(opts.MaxBatchRequest)
@@ -210,10 +210,10 @@ func (c *client)loadOptions(opts *Options) {
 	if !opts.Retry{
 		c.disableRetry()
 	}
-	c.setUseBuffer(opts.useBuffer)
+	c.setNoDelay(opts.noDelay)
 }
-func (c *client)setUseBuffer(enable bool) {
-	c.useBuffer=enable
+func (c *client)setNoDelay(enable bool) {
+	c.noDelay=enable
 }
 func (c *client)setMaxRequests(max int) {
 	c.maxRequests=max+1
@@ -250,13 +250,13 @@ func (c *client)enableMultiplexing(){
 	}
 	c.io=NewMultiplex(c,c.maxRequests,c.readChan,c.writeChan)
 }
-func (c *client)enableBatch(){
+func (c *client)enableBatching(){
 	c.batchEnabled = true
 	c.batch=NewBatch(c,DefaultMaxDelayNanoSecond*c.conn.TickerFactor(),DefaultMaxBatchRequest*c.conn.BatchFactor())
 	c.batch.SetMaxBatchRequest(DefaultMaxBatchRequest*c.conn.BatchFactor())
 }
-func (c *client)enableBatchAsync(){
-	c.batchAsync = true
+func (c *client)enableBatchingAsync(){
+	c.batchingAsync = true
 }
 func (c *client)setMaxBatchRequest(max int)error {
 	c.mu.Lock()

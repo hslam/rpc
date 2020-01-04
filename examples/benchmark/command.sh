@@ -17,54 +17,54 @@ t8="600000"
 c="2"
 
 sleep 1s
-nohup ./rpc_server -network=$net -p=$p -async=false -pipelining=false -multiplexing=false -batch=false > ./tmp/log.rpc_server &
+nohup ./rpc_server -network=$net -p=$p -pipelining=false -multiplexing=false -batching=false > ./tmp/log.rpc_server &
 sleep 1s
-./rpc_client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t1 -pipelining=false -multiplexing=false -batch=false -batch_async=false -noresponse=false -clients=1
+./rpc_client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t1 -pipelining=false -multiplexing=false -batching=false -batch_async=false -noresponse=false -clients=1
 sleep 1s
-./rpc_client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t2 -pipelining=false -multiplexing=false -batch=false -batch_async=false -noresponse=false -clients=$c
+./rpc_client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t2 -pipelining=false -multiplexing=false -batching=false -batch_async=false -noresponse=false -clients=$c
 killall rpc_server
 
 sleep 1s
-nohup ./rpc_server -network=$net -p=$p -async=false -pipelining=true -multiplexing=false -batch=false > ./tmp/log.rpc_server &
+nohup ./rpc_server -network=$net -p=$p -pipelining=true -multiplexing=false -batching=false > ./tmp/log.rpc_server &
 sleep 1s
-./rpc_client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t3 -pipelining=true -multiplexing=false -batch=false -batch_async=false -noresponse=false -clients=1
+./rpc_client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t3 -pipelining=true -multiplexing=false -batching=false -batch_async=false -noresponse=false -clients=1
 sleep 1s
-./rpc_client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t4 -pipelining=true -multiplexing=false -batch=false -batch_async=false -noresponse=false -clients=$c
+./rpc_client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t4 -pipelining=true -multiplexing=false -batching=false -batch_async=false -noresponse=false -clients=$c
 killall rpc_server
 
 sleep 1s
-nohup ./rpc_server -network=$net -p=$p -async=false -pipelining=false -multiplexing=true -batch=false > ./tmp/log.rpc_server &
+nohup ./rpc_server -network=$net -p=$p -pipelining=false -multiplexing=true -batching=false > ./tmp/log.rpc_server &
 sleep 1s
-./rpc_client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t3 -pipelining=false -multiplexing=true -batch=false -batch_async=false -noresponse=false -clients=1
+./rpc_client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t3 -pipelining=false -multiplexing=true -batching=false -batch_async=false -noresponse=false -clients=1
 sleep 1s
-./rpc_client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t4 -pipelining=false -multiplexing=true -batch=false -batch_async=false -noresponse=false -clients=$c
+./rpc_client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t4 -pipelining=false -multiplexing=true -batching=false -batch_async=false -noresponse=false -clients=$c
 killall rpc_server
 
 sleep 1s
-nohup ./rpc_server -network=$net -p=$p -async=false -pipelining=true -multiplexing=false -batch=true > ./tmp/log.rpc_server &
+nohup ./rpc_server -network=$net -p=$p -pipelining=true -multiplexing=false -batching=true > ./tmp/log.rpc_server &
 sleep 1s
-./rpc_client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t5 -pipelining=true -multiplexing=false -batch=true -batch_async=false -noresponse=false -clients=1
+./rpc_client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t5 -pipelining=true -multiplexing=false -batching=true -batch_async=false -noresponse=false -clients=1
 sleep 1s
-./rpc_client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t6 -pipelining=true -multiplexing=false -batch=true -batch_async=false -noresponse=false -clients=$c
-killall rpc_server
-
-
-sleep 1s
-nohup ./rpc_server -network=$net -p=$p -async=false -pipelining=false -multiplexing=true -batch=true > ./tmp/log.rpc_server &
-sleep 1s
-./rpc_client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t5 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=1
-sleep 1s
-./rpc_client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t6 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=$c
+./rpc_client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t6 -pipelining=true -multiplexing=false -batching=true -batch_async=false -noresponse=false -clients=$c
 killall rpc_server
 
 
 sleep 1s
-nohup ./rpc_server -network=$net -p=$p -async=false -pipelining=false -multiplexing=true -batch=true > ./tmp/log.rpc_server &
+nohup ./rpc_server -network=$net -p=$p -pipelining=false -multiplexing=true -batching=true > ./tmp/log.rpc_server &
 sleep 1s
-./rpc_client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t7 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=true -clients=1
+./rpc_client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t5 -pipelining=false -multiplexing=true -batching=true -batch_async=false -noresponse=false -clients=1
+sleep 1s
+./rpc_client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t6 -pipelining=false -multiplexing=true -batching=true -batch_async=false -noresponse=false -clients=$c
+killall rpc_server
+
+
+sleep 1s
+nohup ./rpc_server -network=$net -p=$p -pipelining=false -multiplexing=true -batching=true > ./tmp/log.rpc_server &
+sleep 1s
+./rpc_client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t7 -pipelining=false -multiplexing=true -batching=true -batch_async=false -noresponse=true -clients=1
 sleep 1s
 if [ $net != "udp" ] ; then
-./rpc_client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t8 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=true -clients=$c
+./rpc_client -network=$net -codec=$cod -compress=$com -h=$host -p=$p -total=$t8 -pipelining=false -multiplexing=true -batching=true -batch_async=false -noresponse=true -clients=$c
 fi
 killall rpc_server
 

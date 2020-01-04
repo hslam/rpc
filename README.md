@@ -1,22 +1,20 @@
 # rpc
 A Golang implementation of RPC over TCP,QUIC,HTTP and IPC
 
-## Server Feature
-
-* **Network** tcp|quic|http|ipc
-* **Pipelining**
-* **Multiplexing**
-
-## Client Feature
+## Feature
 * **Network** tcp|quic|http|ipc
 * **Codec** json/protobuf/xml/bytes/code
 * **Compress** flate/zlib/gzip/no
 * **Pipelining**
 * **Multiplexing**
-* **Batch** async/sync
+* **Batching**
 * **Go/Call/CallNoRequest/CallNoResponse/OnlyCall**
 * **Protocal** stream/message/frame
 * **Pool/Transport**
+
+Pipelining still requires the requests to be returned in the order requested, then there will be the head of line blocking problem.
+
+Multiplexing allows the requests responses to be returned in an intermingled fashion so avoiding head of line blocking.
 
 Batch is only useful when there are multiple goroutines calling it.
 
