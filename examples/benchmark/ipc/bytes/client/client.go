@@ -28,7 +28,7 @@ func init()  {
 	flag.StringVar(&network, "network", "ipc", "network: -network=ipc")
 	flag.StringVar(&codec, "codec", "bytes", "codec: -codec=pb|json|xml|bytes|gen")
 	flag.StringVar(&compress, "compress", "no", "compress: -compress=no|flate|zlib|gzip")
-	flag.StringVar(&addr, "address", "/tmp/ipc", "address: -address=/tmp/ipc")
+	flag.StringVar(&addr, "addr", "/tmp/ipc", "addr: -addr=/tmp/ipc")
 	flag.IntVar(&total_calls, "total", 1000000, "total_calls: -total=10000")
 	flag.BoolVar(&batching, "batching", false, "batching: -batching=false")
 	flag.BoolVar(&pipelining, "pipelining", false, "pipelining: -pipelining=false")

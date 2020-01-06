@@ -16,7 +16,7 @@ Pipelining still requires the requests to be returned in the order requested, th
 
 Multiplexing allows the requests responses to be returned in an intermingled fashion so avoiding head of line blocking.
 
-Batch is only useful when there are multiple goroutines calling it.
+Batching is only useful when there are multiple goroutines calling it.
 
 ## Benchmark
 
@@ -29,9 +29,9 @@ Batch is only useful when there are multiple goroutines calling it.
 * **pkg**   package
 * **trans** transport
 * **c**     client
-* **p**     pipeline
-* **m**     multiplex
-* **b**     batch
+* **p**     pipelining
+* **m**     multiplexing
+* **b**     batching
 * **n**     no response
 
 #### Linux 12 CPU 3.1 GHz 24 GiB Requests per second
@@ -43,6 +43,7 @@ RPC     QUIC  pb    10936 57506  198306 383062 181747 305278 177623 676530 17413
 NETRPC  TCP   gob   30931 144303 -      -      96493  391953 -      -      -      -      -
 NETRPC  HTTP  gob   30847 144550 -      -      95691  383312 -      -      -      -      -
 JSONRPC HTTP  json  26630 127039 -      -      93800  308515 -      -      -      -      -
+RPCX    TCP   pb    28632 126713 -      -      92070  308490 -      -      -      -      -
 GRPC    HTTP2 pb    15525 63556  -      -      116194 156065 -      -      -      -      -
 ```
 
@@ -55,11 +56,12 @@ RPC     QUIC  pb    0.12  0.58   0.81   3.60   1.00   4.34   0.64   2.51   0.63 
 NETRPC  TCP   gob   0.04  0.10   -      -      1.28   4.02   -      -      -      -      -
 NETRPC  HTTP  gob   0.04  0.10   -      -      1.27   4.18   -      -      -      -      -
 JSONRPC HTTP  json  0.05  0.13   -      -      1.27   5.12   -      -      -      -      -
+RPCX    TCP   pb    0.05  0.21   -      -      1.52   5.86   -      -      -      -      -
 GRPC    HTTP2 pb    0.10  0.43   -      -      1.24   8.86   -      -      -      -      -
 ```
-./server -network=tcp -async=false -pipelining=false -multiplexing=true -batch=true
+./server -network=tcp -pipelining=false -multiplexing=true -batching=true
 
-./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=8080 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=1
+./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=8080 -total=1000000 -pipelining=false -multiplexing=true -batching=true -noresponse=false -clients=1
 ```
 Summary:
 	Clients:	1
@@ -88,7 +90,7 @@ Result:
 	Response ok:	1000000 (100.00%)
 	Errors:	0 (0.00%)
 ```
-./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=8080 -total=1000000 -pipelining=false -multiplexing=true -batch=true -batch_async=false -noresponse=false -clients=8
+./client -network=tcp -codec=pb -compress=no -h=127.0.0.1 -p=8080 -total=1000000 -pipelining=false -multiplexing=true -batching=true -noresponse=false -clients=8
 ```
 Summary:
 	Clients:	8

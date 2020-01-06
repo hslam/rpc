@@ -27,7 +27,7 @@ func init()  {
 	flag.StringVar(&network, "network", "ipc", "network: -network=ipc")
 	flag.StringVar(&codec, "codec", "pb", "codec: -codec=pb|json|xml|bytes")
 	flag.StringVar(&compress, "compress", "no", "compress: -compress=no|flate|zlib|gzip")
-	flag.StringVar(&addr, "address", "/tmp/ipc", "address: -address=/tmp/ipc")
+	flag.StringVar(&addr, "addr", "/tmp/ipc", "addr: -addr=/tmp/ipc")
 	flag.IntVar(&total_calls, "total", 1000000, "total_calls: -total=10000")
 	flag.BoolVar(&batching, "batching", false, "batching: -batching=false")
 	flag.BoolVar(&pipelining, "pipelining", false, "pipelining: -pipelining=false")
@@ -42,7 +42,7 @@ func init()  {
 }
 
 func main()  {
-	fmt.Printf("./client -network=%s -codec=%s -compress=%s -address=%s -total=%d -pipelining=%t -multiplexing=%t -batching=%t -noresponse=%t -clients=%d\n",network,codec,compress,addr,total_calls,pipelining,multiplexing,batching,noresponse,clients)
+	fmt.Printf("./client -network=%s -codec=%s -compress=%s -addr=%s -total=%d -pipelining=%t -multiplexing=%t -batching=%t -noresponse=%t -clients=%d\n",network,codec,compress,addr,total_calls,pipelining,multiplexing,batching,noresponse,clients)
 	var wrkClients []stats.Client
 	opts:=rpc.DefaultOptions()
 	opts.SetCompressType(compress)
