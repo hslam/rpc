@@ -1,9 +1,11 @@
 package main
+
 import (
-	service "github.com/hslam/rpc/examples/service/pb"
 	"github.com/hslam/rpc"
+	service "github.com/hslam/rpc/examples/service/pb"
 )
-func main()  {
+
+func main() {
 	rpc.Register(new(service.Arith))
-	rpc.ListenAndServe("ipc","/tmp/ipc")
+	rpc.ListenAndServe("ipc", "/tmp/ipc")
 }

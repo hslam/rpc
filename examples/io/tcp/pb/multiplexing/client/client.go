@@ -1,19 +1,21 @@
 package main
+
 import (
-	service "github.com/hslam/rpc/examples/service/pb"
-	"github.com/hslam/rpc"
 	"fmt"
+	"github.com/hslam/rpc"
+	service "github.com/hslam/rpc/examples/service/pb"
 	"log"
 )
-func main()  {
-	opts:=rpc.DefaultOptions()
+
+func main() {
+	opts := rpc.DefaultOptions()
 	opts.SetMultiplexing(true)
-	conn, err:= rpc.DialWithOptions("tcp","127.0.0.1:8080","pb",opts)//tcp|ws|quic|http
+	conn, err := rpc.DialWithOptions("tcp", "127.0.0.1:8080", "pb", opts) //tcp|ws|quic|http
 	if err != nil {
 		log.Fatalln("dailing error: ", err)
 	}
 	defer conn.Close()
-	req := &service.ArithRequest{A:9,B:2}
+	req := &service.ArithRequest{A: 9, B: 2}
 	var res service.ArithResponse
 	err = conn.Call("Arith.Multiply", req, &res)
 	if err != nil {

@@ -1,9 +1,11 @@
 package pb
+
 import (
 	"errors"
 	"time"
 )
-type Arith struct {}
+
+type Arith struct{}
 
 func (this *Arith) Multiply(req *ArithRequest, res *ArithResponse) error {
 	res.Pro = req.A * req.B
@@ -24,18 +26,18 @@ func (this *Arith) Multiply0ms(req *ArithRequest, res *ArithResponse) error {
 }
 
 func (this *Arith) Multiply1ms(req *ArithRequest, res *ArithResponse) error {
-	time.Sleep(time.Millisecond*1)
+	time.Sleep(time.Millisecond * 1)
 	res.Pro = req.A * req.B
 	return nil
 }
 
 func (this *Arith) Multiply10ms(req *ArithRequest, res *ArithResponse) error {
-	time.Sleep(time.Millisecond*10)
+	time.Sleep(time.Millisecond * 10)
 	res.Pro = req.A * req.B
 	return nil
 }
 func (this *Arith) Multiply50ms(req *ArithRequest, res *ArithResponse) error {
-	time.Sleep(time.Millisecond*50)
+	time.Sleep(time.Millisecond * 50)
 	res.Pro = req.A * req.B
 	return nil
 }

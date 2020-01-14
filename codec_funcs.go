@@ -5,67 +5,66 @@ import (
 	"github.com/hslam/codec"
 )
 
-func ArgsEncode(args interface{},funcsCodecType CodecType) ([]byte, error)  {
-	codec:=FuncsCodec(funcsCodecType)
-	req_bytes,err :=codec.Encode(args)
-	if err!=nil{
+func ArgsEncode(args interface{}, funcsCodecType CodecType) ([]byte, error) {
+	codec := FuncsCodec(funcsCodecType)
+	req_bytes, err := codec.Encode(args)
+	if err != nil {
 		Errorln("ArgsEncode error: ", err)
-		return nil,err
+		return nil, err
 	}
-	return req_bytes,nil
+	return req_bytes, nil
 }
 
-func ArgsDecode(args_bytes []byte,args interface{},funcsCodecType CodecType) (error){
-	codec:=FuncsCodec(funcsCodecType)
-	err:=codec.Decode(args_bytes,args)
-	if err!=nil{
+func ArgsDecode(args_bytes []byte, args interface{}, funcsCodecType CodecType) error {
+	codec := FuncsCodec(funcsCodecType)
+	err := codec.Decode(args_bytes, args)
+	if err != nil {
 		Errorln("ArgsDecode error: ", err)
 		return err
 	}
 	return nil
 }
 
-func ReplyEncode(reply interface{},funcsCodecType CodecType) ([]byte, error)  {
-	codec:=FuncsCodec(funcsCodecType)
-	res_bytes,err :=codec.Encode(reply)
-	if err!=nil{
+func ReplyEncode(reply interface{}, funcsCodecType CodecType) ([]byte, error) {
+	codec := FuncsCodec(funcsCodecType)
+	res_bytes, err := codec.Encode(reply)
+	if err != nil {
 		Errorln("ReplyEncode error: ", err)
-		return nil,err
+		return nil, err
 	}
-	return res_bytes,nil
+	return res_bytes, nil
 }
 
-func ReplyDecode(reply_bytes []byte,reply interface{},funcsCodecType CodecType) (error){
-	codec:=FuncsCodec(funcsCodecType)
-	err:=codec.Decode(reply_bytes,reply)
-	if err!=nil{
+func ReplyDecode(reply_bytes []byte, reply interface{}, funcsCodecType CodecType) error {
+	codec := FuncsCodec(funcsCodecType)
+	err := codec.Decode(reply_bytes, reply)
+	if err != nil {
 		Errorln("ArgsDecode error: ", err)
 		return err
 	}
 	return nil
 }
 
-
-func FuncsCodecType(codec string)  (CodecType, error)  {
+func FuncsCodecType(codec string) (CodecType, error) {
 	switch codec {
 	case JSON:
-		return FUNCS_CODEC_JSON,nil
+		return FUNCS_CODEC_JSON, nil
 	case PROTOBUF:
-		return FUNCS_CODEC_PROTOBUF,nil
+		return FUNCS_CODEC_PROTOBUF, nil
 	case XML:
-		return FUNCS_CODEC_XML,nil
+		return FUNCS_CODEC_XML, nil
 	case GOB:
-		return FUNCS_CODEC_GOB,nil
+		return FUNCS_CODEC_GOB, nil
 	case BYTES:
-		return FUNCS_CODEC_BYTES,nil
+		return FUNCS_CODEC_BYTES, nil
 	case CODE:
-		return FUNCS_CODEC_CODE,nil
+		return FUNCS_CODEC_CODE, nil
 	default:
-		return FUNCS_CODEC_INVALID,errors.New("this codec is not supported")
+		return FUNCS_CODEC_INVALID, errors.New("this codec is not supported")
 	}
 }
 
-func FuncsCodecName(funcsCodecType CodecType)string  {
+func FuncsCodecName(funcsCodecType CodecType) string {
 	switch funcsCodecType {
 	case FUNCS_CODEC_JSON:
 		return JSON
@@ -83,20 +82,20 @@ func FuncsCodecName(funcsCodecType CodecType)string  {
 		return ""
 	}
 }
-func FuncsCodec(funcsCodecType CodecType)  (codec.Codec)  {
+func FuncsCodec(funcsCodecType CodecType) codec.Codec {
 	switch funcsCodecType {
 	case FUNCS_CODEC_JSON:
-		return &codec.JsonCodec{}
+		return &codec.JSONCodec{}
 	case FUNCS_CODEC_PROTOBUF:
-		return &codec.GogoProtoCodec{}
+		return &codec.GOGOPBCodec{}
 	case FUNCS_CODEC_XML:
-		return &codec.XmlCodec{}
+		return &codec.XMLCodec{}
 	case FUNCS_CODEC_GOB:
-		return &codec.GobCodec{}
+		return &codec.GOBCodec{}
 	case FUNCS_CODEC_BYTES:
-		return &codec.BytesCodec{}
+		return &codec.BYTESCodec{}
 	case FUNCS_CODEC_CODE:
-		return &codec.CodeCodec{}
+		return &codec.CODECodec{}
 	default:
 		return nil
 	}

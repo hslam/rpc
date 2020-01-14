@@ -1,8 +1,10 @@
 package code
+
 import (
 	"errors"
 )
-type Arith struct {}
+
+type Arith struct{}
 
 func (this *Arith) Multiply(req *ArithRequest, res *ArithResponse) error {
 	res.Pro = req.A * req.B

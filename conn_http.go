@@ -1,25 +1,27 @@
 package rpc
+
 import (
-	"net/http"
+	"bufio"
+	"errors"
 	"github.com/hslam/protocol"
 	"io"
-	"bufio"
 	"net"
-	"errors"
+	"net/http"
 )
+
 type HTTPConn struct {
-	conn 			net.Conn
-	address			string
-	CanWork			bool
-	closed			bool
-	noDelay 		bool
-	readChan 		chan []byte
-	writeChan 		chan []byte
-	stopChan 		chan bool
-	finishChan		chan bool
+	conn       net.Conn
+	address    string
+	CanWork    bool
+	closed     bool
+	noDelay    bool
+	readChan   chan []byte
+	writeChan  chan []byte
+	stopChan   chan bool
+	finishChan chan bool
 }
 
-func DialHTTP(address string)  (Conn, error)  {
+func DialHTTP(address string) (Conn, error) {
 	var err error
 	conn, err := net.Dial("tcp", address)
 	if err != nil {
@@ -42,66 +44,69 @@ func DialHTTP(address string)  (Conn, error)  {
 			Err:  err,
 		}
 	}
-	t:=&HTTPConn{
-		address:address,
-		conn:conn,
+	t := &HTTPConn{
+		address: address,
+		conn:    conn,
 	}
 	return t, nil
 }
-func (t *HTTPConn)NoDelay(enable bool){
-	t.noDelay=enable
+func (t *HTTPConn) NoDelay(enable bool) {
+	t.noDelay = enable
 }
-func (t *HTTPConn)Multiplexing(enable bool){
+func (t *HTTPConn) Multiplexing(enable bool) {
 }
-func (t *HTTPConn)Handle(readChan chan []byte,writeChan chan []byte, stopChan chan bool,finishChan chan bool){
-	t.readChan=readChan
-	t.writeChan=writeChan
-	t.stopChan=stopChan
-	t.finishChan=finishChan
+func (t *HTTPConn) Handle(readChan chan []byte, writeChan chan []byte, stopChan chan bool, finishChan chan bool) {
+	t.readChan = readChan
+	t.writeChan = writeChan
+	t.stopChan = stopChan
+	t.finishChan = finishChan
 	t.handle()
 }
-func (t *HTTPConn)handle(){
-	readChan:=make(chan []byte,1)
-	writeChan:=make(chan []byte,1)
-	finishChan:= make(chan bool,2)
-	stopReadStreamChan := make(chan bool,1)
-	stopWriteStreamChan := make(chan bool,1)
-	go protocol.ReadStream(t.conn, readChan, stopReadStreamChan,finishChan)
-	go protocol.WriteStream(t.conn, writeChan, stopWriteStreamChan,finishChan,t.noDelay)
+func (t *HTTPConn) handle() {
+	readChan := make(chan []byte, 1)
+	writeChan := make(chan []byte, 1)
+	finishChan := make(chan bool, 2)
+	stopReadStreamChan := make(chan bool, 1)
+	stopWriteStreamChan := make(chan bool, 1)
+	go protocol.ReadStream(t.conn, readChan, stopReadStreamChan, finishChan)
+	go protocol.WriteStream(t.conn, writeChan, stopWriteStreamChan, finishChan, t.noDelay)
 	go func() {
-		t.closed=false
+		t.closed = false
 		//Traceln("TCPConn.handle start")
 		for {
 			select {
-			case v:=<-readChan:
+			case v := <-readChan:
 				func() {
 					defer func() {
 						if err := recover(); err != nil {
 						}
 					}()
-					t.readChan<-v
+					t.readChan <- v
 				}()
-			case v:=<-t.writeChan:
+			case v := <-t.writeChan:
 				func() {
 					defer func() {
 						if err := recover(); err != nil {
 						}
 					}()
-					writeChan<-v
+					writeChan <- v
 				}()
 			case stop := <-finishChan:
 				if stop {
-					stopReadStreamChan<-true
-					stopWriteStreamChan<-true
-					func(){
-						defer func() {if err := recover(); err != nil {}}()
-						t.finishChan<-true
+					stopReadStreamChan <- true
+					stopWriteStreamChan <- true
+					func() {
+						defer func() {
+							if err := recover(); err != nil {
+							}
+						}()
+						t.finishChan <- true
 					}()
 					goto endfor
 				}
 			case <-t.stopChan:
-				stopReadStreamChan<-true
-				stopWriteStreamChan<-true
+				stopReadStreamChan <- true
+				stopWriteStreamChan <- true
 				goto endfor
 			}
 		}
@@ -112,22 +117,22 @@ func (t *HTTPConn)handle(){
 		close(stopReadStreamChan)
 		close(stopWriteStreamChan)
 		//Traceln("TCPConn.handle end")
-		t.closed=true
+		t.closed = true
 	}()
 }
-func (t *HTTPConn)TickerFactor()(int){
+func (t *HTTPConn) TickerFactor() int {
 	return 300
 }
-func (t *HTTPConn)BatchFactor()(int){
+func (t *HTTPConn) BatchFactor() int {
 	return 512
 }
-func (t *HTTPConn)Retry()(error){
+func (t *HTTPConn) Retry() error {
 	var err error
 	conn, err := net.Dial("tcp", t.address)
 	if err != nil {
-		return  err
+		return err
 	}
-	path:=""
+	path := ""
 	io.WriteString(conn, "CONNECT "+path+" HTTP/1.0\n\n")
 
 	// Require successful HTTP response
@@ -138,20 +143,20 @@ func (t *HTTPConn)Retry()(error){
 			err = errors.New("unexpected HTTP response: " + resp.Status)
 		}
 		conn.Close()
-		return  &net.OpError{
+		return &net.OpError{
 			Op:   "dial-http",
 			Net:  "tcp" + " " + t.address,
 			Addr: nil,
 			Err:  err,
 		}
 	}
-	t.conn=conn
+	t.conn = conn
 	return nil
 }
-func (t *HTTPConn)Close()(error){
+func (t *HTTPConn) Close() error {
 	return nil
 }
 
-func (t *HTTPConn)Closed()(bool){
+func (t *HTTPConn) Closed() bool {
 	return t.closed
 }

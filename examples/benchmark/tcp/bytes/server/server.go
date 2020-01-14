@@ -1,11 +1,11 @@
 package main
 
 import (
+	"flag"
 	"github.com/hslam/rpc"
 	service "github.com/hslam/rpc/examples/service/bytes"
-	"strconv"
 	"runtime"
-	"flag"
+	"strconv"
 )
 
 var network string
@@ -14,7 +14,8 @@ var multiplexing bool
 var pipelining bool
 var batching bool
 var saddr string
-func init()  {
+
+func init() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	flag.StringVar(&network, "network", "tcp", "network: -network=tcp|ws|quic|http")
 	flag.IntVar(&port, "p", 8080, "port: -p=8080")
@@ -22,13 +23,13 @@ func init()  {
 	flag.BoolVar(&multiplexing, "multiplexing", true, "multiplexing: -multiplexing=false")
 	flag.BoolVar(&batching, "batching", false, "batching: -batching=false")
 	flag.Parse()
-	saddr = ":"+strconv.Itoa(port)
+	saddr = ":" + strconv.Itoa(port)
 }
-func main()  {
+func main() {
 	rpc.Register(new(service.Echo))
 	rpc.SetLogLevel(rpc.InfoLevel)
 	rpc.SetPipelining(pipelining)
 	rpc.SetMultiplexing(multiplexing)
 	rpc.SetBatching(batching)
-	rpc.ListenAndServe(network,saddr)
+	rpc.ListenAndServe(network, saddr)
 }

@@ -4,11 +4,11 @@ import "time"
 
 type Call struct {
 	ServiceMethod string
-	Args		interface{}
-	Reply		interface{}
-	Error		error
-	Done		chan *Call
-	start		time.Time
+	Args          interface{}
+	Reply         interface{}
+	Error         error
+	Done          chan *Call
+	start         time.Time
 }
 
 func (call *Call) done() {

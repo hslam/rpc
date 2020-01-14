@@ -1,93 +1,97 @@
 package rpc
+
 import (
 	"context"
+	"crypto/tls"
 	"github.com/lucas-clemente/quic-go"
 	"github.com/hslam/protocol"
-	"crypto/tls"
 )
 
 type QUICConn struct {
-	conn  			quic.Stream
-	address			string
-	CanWork			bool
-	readChan 		chan []byte
-	writeChan 		chan []byte
-	stopChan 		chan bool
-	finishChan		chan bool
-	closed			bool
-	noDelay 		bool
+	conn       quic.Stream
+	address    string
+	CanWork    bool
+	readChan   chan []byte
+	writeChan  chan []byte
+	stopChan   chan bool
+	finishChan chan bool
+	closed     bool
+	noDelay    bool
 }
 
-func DialQUIC(address string)  (Conn, error)  {
-	session, err := quic.DialAddr(address, &tls.Config{InsecureSkipVerify: true,NextProtos:[]string{"quic-rpc"},}, nil)
+func DialQUIC(address string) (Conn, error) {
+	session, err := quic.DialAddr(address, &tls.Config{InsecureSkipVerify: true, NextProtos: []string{"quic-rpc"}}, nil)
 	if err != nil {
 		Errorf("fatal error: %s", err)
-		return nil,err
+		return nil, err
 	}
 	stream, err := session.OpenStreamSync(context.Background())
 	if err != nil {
 		Errorf("fatal error: %s", err)
-		return nil,err
+		return nil, err
 	}
-	t:=&QUICConn{
-		conn:stream,
-		address:address,
+	t := &QUICConn{
+		conn:    stream,
+		address: address,
 	}
 	return t, nil
 }
-func (t *QUICConn)NoDelay(enable bool){
-	t.noDelay=enable
+func (t *QUICConn) NoDelay(enable bool) {
+	t.noDelay = enable
 }
-func (t *QUICConn)Multiplexing(enable bool){
+func (t *QUICConn) Multiplexing(enable bool) {
 }
-func (t *QUICConn)Handle(readChan chan []byte,writeChan chan []byte, stopChan chan bool,finishChan chan bool){
-	t.readChan=readChan
-	t.writeChan=writeChan
-	t.stopChan=stopChan
-	t.finishChan=finishChan
+func (t *QUICConn) Handle(readChan chan []byte, writeChan chan []byte, stopChan chan bool, finishChan chan bool) {
+	t.readChan = readChan
+	t.writeChan = writeChan
+	t.stopChan = stopChan
+	t.finishChan = finishChan
 	t.handle()
 }
-func (t *QUICConn)handle(){
-	readChan:=make(chan []byte,1)
-	writeChan:=make(chan []byte,1)
-	finishChan:= make(chan bool,2)
-	stopReadStreamChan := make(chan bool,1)
-	stopWriteStreamChan := make(chan bool,1)
-	go protocol.ReadStream(t.conn, readChan, stopReadStreamChan,finishChan)
-	go protocol.WriteStream(t.conn, writeChan, stopWriteStreamChan,finishChan,t.noDelay)
+func (t *QUICConn) handle() {
+	readChan := make(chan []byte, 1)
+	writeChan := make(chan []byte, 1)
+	finishChan := make(chan bool, 2)
+	stopReadStreamChan := make(chan bool, 1)
+	stopWriteStreamChan := make(chan bool, 1)
+	go protocol.ReadStream(t.conn, readChan, stopReadStreamChan, finishChan)
+	go protocol.WriteStream(t.conn, writeChan, stopWriteStreamChan, finishChan, t.noDelay)
 	go func() {
-		t.closed=false
+		t.closed = false
 		for {
 			select {
-			case v:=<-readChan:
+			case v := <-readChan:
 				func() {
 					defer func() {
 						if err := recover(); err != nil {
 						}
 					}()
-					t.readChan<-v
+					t.readChan <- v
 				}()
-			case v:=<-t.writeChan:
+			case v := <-t.writeChan:
 				func() {
 					defer func() {
 						if err := recover(); err != nil {
 						}
 					}()
-					writeChan<-v
+					writeChan <- v
 				}()
 			case stop := <-finishChan:
 				if stop {
-					stopReadStreamChan<-true
-					stopWriteStreamChan<-true
-					func(){
-						defer func() {if err := recover(); err != nil {}}()
-						t.finishChan<-true
+					stopReadStreamChan <- true
+					stopWriteStreamChan <- true
+					func() {
+						defer func() {
+							if err := recover(); err != nil {
+							}
+						}()
+						t.finishChan <- true
 					}()
 					goto endfor
 				}
 			case <-t.stopChan:
-				stopReadStreamChan<-true
-				stopWriteStreamChan<-true
+				stopReadStreamChan <- true
+				stopWriteStreamChan <- true
 				goto endfor
 			}
 		}
@@ -97,17 +101,17 @@ func (t *QUICConn)handle(){
 		close(finishChan)
 		close(stopReadStreamChan)
 		close(stopWriteStreamChan)
-		t.closed=true
+		t.closed = true
 	}()
 }
 
-func (t *QUICConn)TickerFactor()(int){
+func (t *QUICConn) TickerFactor() int {
 	return 1000
 }
-func (t *QUICConn)BatchFactor()(int){
+func (t *QUICConn) BatchFactor() int {
 	return 32
 }
-func (t *QUICConn)Retry()(error){
+func (t *QUICConn) Retry() error {
 	session, err := quic.DialAddr(t.address, &tls.Config{InsecureSkipVerify: true}, nil)
 	if err != nil {
 		Errorf("fatal error: %s", err)
@@ -118,13 +122,13 @@ func (t *QUICConn)Retry()(error){
 		Errorf("fatal error: %s", err)
 		return err
 	}
-	t.conn=stream
+	t.conn = stream
 	t.handle()
 	return nil
 }
-func (t *QUICConn)Close()(error){
+func (t *QUICConn) Close() error {
 	return t.conn.Close()
 }
-func (t *QUICConn)Closed()(bool){
+func (t *QUICConn) Closed() bool {
 	return t.closed
 }

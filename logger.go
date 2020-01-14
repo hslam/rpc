@@ -8,18 +8,18 @@ import (
 type Level int
 
 const (
-	LogPrefix 		= "rpc"
-	DebugLevel		Level = 1
-	TraceLevel		Level = 2
-	AllInfoLevel	Level = 3
-	InfoLevel		Level = 4
-	WarnLevel		Level = 5
-	ErrorLevel		Level = 6
-	PanicLevel		Level = 7
-	FatalLevel		Level = 8
-	OffLevel		Level = 9
-	ALLLevel		Level = 10
-	NoLevel			Level = 99
+	LogPrefix          = "rpc"
+	DebugLevel   Level = 1
+	TraceLevel   Level = 2
+	AllInfoLevel Level = 3
+	InfoLevel    Level = 4
+	WarnLevel    Level = 5
+	ErrorLevel   Level = 6
+	PanicLevel   Level = 7
+	FatalLevel   Level = 8
+	OffLevel     Level = 9
+	ALLLevel     Level = 10
+	NoLevel      Level = 99
 )
 
 var logLevel Level
@@ -30,7 +30,7 @@ func init() {
 	InitLog()
 }
 func InitLog() {
-	Logger = log.New(os.Stdout, "["+LogPrefix+"] ",log.Ldate | log.Ltime | log.Lmicroseconds | log.LUTC)
+	Logger = log.New(os.Stdout, "["+LogPrefix+"] ", log.Ldate|log.Ltime|log.Lmicroseconds|log.LUTC)
 }
 func LogLevel() Level {
 	return logLevel
@@ -40,9 +40,8 @@ func SetLogLevel(level Level) {
 	logLevel = level
 }
 
-
 func All(v ...interface{}) {
-	if Logger==nil{
+	if Logger == nil {
 		return
 	}
 	if logLevel <= ALLLevel {
@@ -51,7 +50,7 @@ func All(v ...interface{}) {
 }
 
 func Allf(format string, v ...interface{}) {
-	if Logger==nil{
+	if Logger == nil {
 		return
 	}
 	if logLevel <= ALLLevel {
@@ -59,7 +58,7 @@ func Allf(format string, v ...interface{}) {
 	}
 }
 func Allln(v ...interface{}) {
-	if Logger==nil{
+	if Logger == nil {
 		return
 	}
 	if logLevel <= ALLLevel {
@@ -67,9 +66,8 @@ func Allln(v ...interface{}) {
 	}
 }
 
-
 func Debug(v ...interface{}) {
-	if Logger==nil{
+	if Logger == nil {
 		return
 	}
 	if logLevel <= DebugLevel {
@@ -78,7 +76,7 @@ func Debug(v ...interface{}) {
 }
 
 func Debugf(format string, v ...interface{}) {
-	if Logger==nil{
+	if Logger == nil {
 		return
 	}
 	if logLevel <= DebugLevel {
@@ -86,7 +84,7 @@ func Debugf(format string, v ...interface{}) {
 	}
 }
 func Debugln(v ...interface{}) {
-	if Logger==nil{
+	if Logger == nil {
 		return
 	}
 	if logLevel <= DebugLevel {
@@ -94,9 +92,8 @@ func Debugln(v ...interface{}) {
 	}
 }
 
-
 func Trace(v ...interface{}) {
-	if Logger==nil{
+	if Logger == nil {
 		return
 	}
 	if logLevel <= TraceLevel {
@@ -105,7 +102,7 @@ func Trace(v ...interface{}) {
 }
 
 func Tracef(format string, v ...interface{}) {
-	if Logger==nil{
+	if Logger == nil {
 		return
 	}
 	if logLevel <= TraceLevel {
@@ -113,7 +110,7 @@ func Tracef(format string, v ...interface{}) {
 	}
 }
 func Traceln(v ...interface{}) {
-	if Logger==nil{
+	if Logger == nil {
 		return
 	}
 	if logLevel <= TraceLevel {
@@ -121,7 +118,7 @@ func Traceln(v ...interface{}) {
 	}
 }
 func AllInfo(v ...interface{}) {
-	if Logger==nil{
+	if Logger == nil {
 		return
 	}
 	if logLevel <= AllInfoLevel {
@@ -130,7 +127,7 @@ func AllInfo(v ...interface{}) {
 }
 
 func AllInfof(format string, v ...interface{}) {
-	if Logger==nil{
+	if Logger == nil {
 		return
 	}
 	if logLevel <= AllInfoLevel {
@@ -138,7 +135,7 @@ func AllInfof(format string, v ...interface{}) {
 	}
 }
 func AllInfoln(v ...interface{}) {
-	if Logger==nil{
+	if Logger == nil {
 		return
 	}
 	if logLevel <= AllInfoLevel {
@@ -146,7 +143,7 @@ func AllInfoln(v ...interface{}) {
 	}
 }
 func Info(v ...interface{}) {
-	if Logger==nil{
+	if Logger == nil {
 		return
 	}
 	if logLevel <= InfoLevel {
@@ -155,7 +152,7 @@ func Info(v ...interface{}) {
 }
 
 func Infof(format string, v ...interface{}) {
-	if Logger==nil{
+	if Logger == nil {
 		return
 	}
 	if logLevel <= InfoLevel {
@@ -163,7 +160,7 @@ func Infof(format string, v ...interface{}) {
 	}
 }
 func Infoln(v ...interface{}) {
-	if Logger==nil{
+	if Logger == nil {
 		return
 	}
 	if logLevel <= InfoLevel {
@@ -172,7 +169,7 @@ func Infoln(v ...interface{}) {
 }
 
 func Warn(v ...interface{}) {
-	if Logger==nil{
+	if Logger == nil {
 		return
 	}
 	if logLevel <= WarnLevel {
@@ -181,7 +178,7 @@ func Warn(v ...interface{}) {
 }
 
 func Warnf(format string, v ...interface{}) {
-	if Logger==nil{
+	if Logger == nil {
 		return
 	}
 	if logLevel <= InfoLevel {
@@ -189,7 +186,7 @@ func Warnf(format string, v ...interface{}) {
 	}
 }
 func Warnln(v ...interface{}) {
-	if Logger==nil{
+	if Logger == nil {
 		return
 	}
 	if logLevel <= WarnLevel {
@@ -197,9 +194,8 @@ func Warnln(v ...interface{}) {
 	}
 }
 
-
 func Error(v ...interface{}) {
-	if Logger==nil{
+	if Logger == nil {
 		return
 	}
 	if logLevel <= ErrorLevel {
@@ -208,7 +204,7 @@ func Error(v ...interface{}) {
 }
 
 func Errorf(format string, v ...interface{}) {
-	if Logger==nil{
+	if Logger == nil {
 		return
 	}
 	if logLevel <= ErrorLevel {
@@ -216,7 +212,7 @@ func Errorf(format string, v ...interface{}) {
 	}
 }
 func Errorln(v ...interface{}) {
-	if Logger==nil{
+	if Logger == nil {
 		return
 	}
 	if logLevel <= ErrorLevel {
@@ -224,9 +220,8 @@ func Errorln(v ...interface{}) {
 	}
 }
 
-
 func Panic(v ...interface{}) {
-	if Logger==nil{
+	if Logger == nil {
 		return
 	}
 	if logLevel <= PanicLevel {
@@ -235,7 +230,7 @@ func Panic(v ...interface{}) {
 }
 
 func Panicf(format string, v ...interface{}) {
-	if Logger==nil{
+	if Logger == nil {
 		return
 	}
 	if logLevel <= PanicLevel {
@@ -243,7 +238,7 @@ func Panicf(format string, v ...interface{}) {
 	}
 }
 func Panicln(v ...interface{}) {
-	if Logger==nil{
+	if Logger == nil {
 		return
 	}
 	if logLevel <= PanicLevel {
@@ -251,9 +246,8 @@ func Panicln(v ...interface{}) {
 	}
 }
 
-
 func Fatal(v ...interface{}) {
-	if Logger==nil{
+	if Logger == nil {
 		return
 	}
 	if logLevel <= FatalLevel {
@@ -262,7 +256,7 @@ func Fatal(v ...interface{}) {
 }
 
 func Fatalf(format string, v ...interface{}) {
-	if Logger==nil{
+	if Logger == nil {
 		return
 	}
 	if logLevel <= FatalLevel {
@@ -270,7 +264,7 @@ func Fatalf(format string, v ...interface{}) {
 	}
 }
 func Fatalln(v ...interface{}) {
-	if Logger==nil{
+	if Logger == nil {
 		return
 	}
 	if logLevel <= FatalLevel {
@@ -279,7 +273,7 @@ func Fatalln(v ...interface{}) {
 }
 
 func Off(v ...interface{}) {
-	if Logger==nil{
+	if Logger == nil {
 		return
 	}
 	if logLevel <= OffLevel {
@@ -288,7 +282,7 @@ func Off(v ...interface{}) {
 }
 
 func Offf(format string, v ...interface{}) {
-	if Logger==nil{
+	if Logger == nil {
 		return
 	}
 	if logLevel <= OffLevel {
@@ -296,12 +290,10 @@ func Offf(format string, v ...interface{}) {
 	}
 }
 func Offln(v ...interface{}) {
-	if Logger==nil{
+	if Logger == nil {
 		return
 	}
 	if logLevel <= OffLevel {
 		Logger.Println(v...)
 	}
 }
-
-

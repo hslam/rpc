@@ -1,17 +1,19 @@
 package main
+
 import (
-	service "github.com/hslam/rpc/examples/service/json"
-	"github.com/hslam/rpc"
-	"log"
 	"fmt"
+	"github.com/hslam/rpc"
+	service "github.com/hslam/rpc/examples/service/json"
+	"log"
 )
-func main()  {
-	conn, err:= rpc.Dial("ipc","/tmp/ipc","json")
+
+func main() {
+	conn, err := rpc.Dial("ipc", "/tmp/ipc", "json")
 	if err != nil {
 		log.Fatalln("dailing error: ", err)
 	}
 	defer conn.Close()
-	req := &service.ArithRequest{A:9,B:2}
+	req := &service.ArithRequest{A: 9, B: 2}
 	var res service.ArithResponse
 	err = conn.Call("Arith.Multiply", req, &res)
 	if err != nil {

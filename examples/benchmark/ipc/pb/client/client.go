@@ -1,15 +1,16 @@
 package main
 
 import (
-	service "github.com/hslam/rpc/examples/service/pb"
+	"flag"
+	"fmt"
 	"github.com/hslam/rpc"
+	service "github.com/hslam/rpc/examples/service/pb"
 	"github.com/hslam/stats"
+	"log"
 	"math/rand"
 	"runtime"
-	"flag"
-	"log"
-	"fmt"
 )
+
 var network string
 var codec string
 var compress string
@@ -22,7 +23,8 @@ var mock string
 var clients int
 var total_calls int
 var bar bool
-func init()  {
+
+func init() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	flag.StringVar(&network, "network", "ipc", "network: -network=ipc")
 	flag.StringVar(&codec, "codec", "pb", "codec: -codec=pb|json|xml|bytes")
@@ -41,86 +43,86 @@ func init()  {
 	stats.SetBar(bar)
 }
 
-func main()  {
-	fmt.Printf("./client -network=%s -codec=%s -compress=%s -addr=%s -total=%d -pipelining=%t -multiplexing=%t -batching=%t -noresponse=%t -clients=%d\n",network,codec,compress,addr,total_calls,pipelining,multiplexing,batching,noresponse,clients)
+func main() {
+	fmt.Printf("./client -network=%s -codec=%s -compress=%s -addr=%s -total=%d -pipelining=%t -multiplexing=%t -batching=%t -noresponse=%t -clients=%d\n", network, codec, compress, addr, total_calls, pipelining, multiplexing, batching, noresponse, clients)
 	var wrkClients []stats.Client
-	opts:=rpc.DefaultOptions()
+	opts := rpc.DefaultOptions()
 	opts.SetCompressType(compress)
 	opts.SetBatching(batching)
 	opts.SetPipelining(pipelining)
 	opts.SetMultiplexing(multiplexing)
-	parallel:=1
-	if clients>1{
-		pool,err := rpc.DialsWithOptions(clients,network,addr,codec,opts)
+	parallel := 1
+	if clients > 1 {
+		pool, err := rpc.DialsWithOptions(clients, network, addr, codec, opts)
 		if err != nil {
 			log.Fatalln("dailing error: ", err)
 		}
-		wrkClients=make([]stats.Client,len(pool.All()))
-		for i:=0; i<len(pool.All());i++  {
-			wrkClients[i]=&WrkClient{pool.All()[i]}
+		wrkClients = make([]stats.Client, len(pool.All()))
+		for i := 0; i < len(pool.All()); i++ {
+			wrkClients[i] = &WrkClient{pool.All()[i]}
 		}
-		if batching{
-			parallel=pool.GetMaxBatchRequest()
+		if batching {
+			parallel = pool.GetMaxBatchRequest()
 		}
-		if pipelining{
-			if pool.GetMaxRequests()>parallel{
-				parallel=pool.GetMaxRequests()
+		if pipelining {
+			if pool.GetMaxRequests() > parallel {
+				parallel = pool.GetMaxRequests()
 			}
-		}else if multiplexing{
-			if pool.GetMaxRequests()>parallel{
-				parallel=pool.GetMaxRequests()
+		} else if multiplexing {
+			if pool.GetMaxRequests() > parallel {
+				parallel = pool.GetMaxRequests()
 			}
 		}
-	}else if clients==1 {
-		conn, err:= rpc.DialWithOptions(network,addr,codec,opts)
+	} else if clients == 1 {
+		conn, err := rpc.DialWithOptions(network, addr, codec, opts)
 		if err != nil {
 			log.Fatalln("dailing error: ", err)
 		}
-		if batching{
-			parallel=conn.GetMaxBatchRequest()
+		if batching {
+			parallel = conn.GetMaxBatchRequest()
 		}
-		if pipelining{
-			if conn.GetMaxRequests()>parallel{
-				parallel=conn.GetMaxRequests()
+		if pipelining {
+			if conn.GetMaxRequests() > parallel {
+				parallel = conn.GetMaxRequests()
 			}
-		}else if multiplexing{
-			if conn.GetMaxRequests()>parallel{
-				parallel=conn.GetMaxRequests()
+		} else if multiplexing {
+			if conn.GetMaxRequests() > parallel {
+				parallel = conn.GetMaxRequests()
 			}
 		}
-		wrkClients=make([]stats.Client,1)
-		wrkClients[0]= &WrkClient{conn}
-	}else {
+		wrkClients = make([]stats.Client, 1)
+		wrkClients[0] = &WrkClient{conn}
+	} else {
 		return
 	}
-	stats.StartPrint(parallel,total_calls,wrkClients)
+	stats.StartPrint(parallel, total_calls, wrkClients)
 }
 
 type WrkClient struct {
 	Conn rpc.Client
 }
 
-func (c *WrkClient)Call()(int64,int64,bool){
+func (c *WrkClient) Call() (int64, int64, bool) {
 	var err error
-	A:= rand.Int31n(1000)
-	B:= rand.Int31n(1000)
-	req := &service.ArithRequest{A:A,B:B}
-	if noresponse{
+	A := rand.Int31n(1000)
+	B := rand.Int31n(1000)
+	req := &service.ArithRequest{A: A, B: B}
+	if noresponse {
 		err = c.Conn.CallNoResponse("Arith.Multiply"+mock, req) // 乘法运算
-		if err==nil{
-			return 0,0,true
+		if err == nil {
+			return 0, 0, true
 		}
-	}else {
+	} else {
 		var res service.ArithResponse
 		err = c.Conn.Call("Arith.Multiply"+mock, req, &res) // 乘法运算
-		if res.Pro==A*B{
-			return 0,0,true
-		}else {
-			fmt.Printf("err %d * %d = %d\n",A,B,res.Pro,)
+		if res.Pro == A*B {
+			return 0, 0, true
+		} else {
+			fmt.Printf("err %d * %d = %d\n", A, B, res.Pro)
 		}
 		if err != nil {
 			fmt.Println("arith error: ", err)
 		}
 	}
-	return 0,0,false
+	return 0, 0, false
 }

@@ -1,14 +1,14 @@
 package rpc
 
 import (
-	"crypto/tls"
-	"crypto/rsa"
-	"math/big"
-	"encoding/pem"
 	"crypto/rand"
+	"crypto/rsa"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/binary"
+	"encoding/pem"
 	"math"
+	"math/big"
 )
 
 func uint16ToBytes(n uint16) []byte {
@@ -18,9 +18,9 @@ func uint16ToBytes(n uint16) []byte {
 	}
 }
 func bytesToUint16(array []byte) uint16 {
-	var data uint16 =0
-	for i:=0;i< len(array);i++  {
-		data = data+uint16(uint(array[i])<<uint(8*i))
+	var data uint16 = 0
+	for i := 0; i < len(array); i++ {
+		data = data + uint16(uint(array[i])<<uint(8*i))
 	}
 	return data
 }
@@ -33,9 +33,9 @@ func uint32ToBytes(n uint32) []byte {
 	}
 }
 func bytesToUint32(array []byte) uint32 {
-	var data uint32 =0
-	for i:=0;i< len(array);i++  {
-		data = data+uint32(uint(array[i])<<uint(8*i))
+	var data uint32 = 0
+	for i := 0; i < len(array); i++ {
+		data = data + uint32(uint(array[i])<<uint(8*i))
 	}
 	return data
 }
@@ -68,9 +68,9 @@ func checkSum(b []byte) uint16 {
 	for n := 1; n < len(b)-1; n += 2 {
 		sum += int(b[n])<<8 + int(b[n+1])
 	}
-	lowbit:=sum & 0xffff
-	highbit:=sum >> 16
-	checksum := lowbit +highbit
+	lowbit := sum & 0xffff
+	highbit := sum >> 16
+	checksum := lowbit + highbit
 	checksum += (checksum >> 16)
 	var ans = uint16(^checksum)
 	return ans

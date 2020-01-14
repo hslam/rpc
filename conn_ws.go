@@ -1,87 +1,91 @@
 package rpc
+
 import (
-	"github.com/hslam/protocol"
 	"github.com/gorilla/websocket"
+	"github.com/hslam/protocol"
 	"net/url"
 )
 
 type WSConn struct {
-	conn			*protocol.WSConn
-	address			string
-	CanWork			bool
-	readChan 		chan []byte
-	writeChan 		chan []byte
-	stopChan 		chan bool
-	finishChan 		chan bool
-	closed			bool
+	conn       *protocol.MsgConn
+	address    string
+	CanWork    bool
+	readChan   chan []byte
+	writeChan  chan []byte
+	stopChan   chan bool
+	finishChan chan bool
+	closed     bool
 }
 
-func DialWS(address string)  (Conn, error)  {
+func DialWS(address string) (Conn, error) {
 	u := url.URL{Scheme: "ws", Host: address, Path: "/"}
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
 		Errorf("fatal error: %s", err)
-		return nil,err
+		return nil, err
 	}
-	t:=&WSConn{
-		conn:&protocol.WSConn{Conn:c},
-		address:address,
+	t := &WSConn{
+		conn:    &protocol.MsgConn{MessageConn: &wsConn{c}},
+		address: address,
 	}
-	t.CanWork=true
+	t.CanWork = true
 	return t, nil
 }
-func (t *WSConn)NoDelay(enable bool){
+func (t *WSConn) NoDelay(enable bool) {
 }
-func (t *WSConn)Multiplexing(enable bool){
+func (t *WSConn) Multiplexing(enable bool) {
 }
-func (t *WSConn)Handle(readChan chan []byte,writeChan chan []byte, stopChan chan bool,finishChan chan bool){
-	t.readChan=readChan
-	t.writeChan=writeChan
-	t.stopChan=stopChan
-	t.finishChan=finishChan
+func (t *WSConn) Handle(readChan chan []byte, writeChan chan []byte, stopChan chan bool, finishChan chan bool) {
+	t.readChan = readChan
+	t.writeChan = writeChan
+	t.stopChan = stopChan
+	t.finishChan = finishChan
 	t.handle()
 }
-func (t *WSConn)handle(){
-	readChan:=make(chan []byte,1)
-	writeChan:=make(chan []byte,1)
-	finishChan:= make(chan bool,2)
-	stopReadConnChan := make(chan bool,1)
-	stopWriteConnChan := make(chan bool,1)
-	go protocol.ReadConn(t.conn, readChan, stopReadConnChan,finishChan)
-	go protocol.WriteConn(t.conn, writeChan, stopWriteConnChan,finishChan)
+func (t *WSConn) handle() {
+	readChan := make(chan []byte, 1)
+	writeChan := make(chan []byte, 1)
+	finishChan := make(chan bool, 2)
+	stopReadConnChan := make(chan bool, 1)
+	stopWriteConnChan := make(chan bool, 1)
+	go protocol.ReadConn(t.conn, readChan, stopReadConnChan, finishChan)
+	go protocol.WriteConn(t.conn, writeChan, stopWriteConnChan, finishChan)
 	go func() {
-		t.closed=false
+		t.closed = false
 		for {
 			select {
-			case v:=<-readChan:
+			case v := <-readChan:
 				func() {
 					defer func() {
 						if err := recover(); err != nil {
 						}
 					}()
-					t.readChan<-v
+					t.readChan <- v
 				}()
-			case v:=<-t.writeChan:
+			case v := <-t.writeChan:
 				func() {
 					defer func() {
 						if err := recover(); err != nil {
 						}
 					}()
-					writeChan<-v
+					writeChan <- v
 				}()
 			case stop := <-finishChan:
 				if stop {
-					stopReadConnChan<-true
-					stopWriteConnChan<-true
-					func(){
-						defer func() {if err := recover(); err != nil {}}()
-						t.finishChan<-true
+					stopReadConnChan <- true
+					stopWriteConnChan <- true
+					func() {
+						defer func() {
+							if err := recover(); err != nil {
+							}
+						}()
+						t.finishChan <- true
 					}()
 					goto endfor
 				}
 			case <-t.stopChan:
-				stopReadConnChan<-true
-				stopWriteConnChan<-true
+				stopReadConnChan <- true
+				stopWriteConnChan <- true
 				goto endfor
 			}
 		}
@@ -91,16 +95,16 @@ func (t *WSConn)handle(){
 		close(finishChan)
 		close(stopReadConnChan)
 		close(stopWriteConnChan)
-		t.closed=true
+		t.closed = true
 	}()
 }
-func (t *WSConn)TickerFactor()(int){
+func (t *WSConn) TickerFactor() int {
 	return 100
 }
-func (t *WSConn)BatchFactor()(int){
+func (t *WSConn) BatchFactor() int {
 	return 512
 }
-func (t *WSConn)Retry()(error){
+func (t *WSConn) Retry() error {
 	u := url.URL{Scheme: "ws", Host: t.address, Path: "/"}
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 
@@ -108,13 +112,13 @@ func (t *WSConn)Retry()(error){
 		Errorf("fatal error: %s", err)
 		return err
 	}
-	t.conn=&protocol.WSConn{Conn:c}
+	t.conn = &protocol.MsgConn{MessageConn: &wsConn{c}}
 	t.handle()
 	return nil
 }
-func (t *WSConn)Close()(error){
-	return 	t.conn.Close()
+func (t *WSConn) Close() error {
+	return t.conn.Close()
 }
-func (t *WSConn)Closed()(bool){
+func (t *WSConn) Closed() bool {
 	return t.closed
 }

@@ -3,20 +3,20 @@ package rpc
 import (
 	"errors"
 )
+
 //Dialer
 type Conn interface {
-	Handle(readChan chan []byte,writeChan chan []byte, stopChan chan bool,finishChan chan bool)
+	Handle(readChan chan []byte, writeChan chan []byte, stopChan chan bool, finishChan chan bool)
 	NoDelay(enable bool)
 	Multiplexing(enable bool)
-	TickerFactor()(int)
-	BatchFactor()(int)
-	Retry()(error)
-	Close()(error)
-	Closed()(bool)
+	TickerFactor() int
+	BatchFactor() int
+	Retry() error
+	Close() error
+	Closed() bool
 }
 
-
-func dial(network,address string) (Conn, error) {
+func dial(network, address string) (Conn, error) {
 	switch network {
 	case IPC:
 		return DialIPC(address)
