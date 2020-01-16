@@ -16,12 +16,12 @@ type UDPListener struct {
 func ListenUDP(address string, server *Server) (Listener, error) {
 	addr, err := net.ResolveUDPAddr("udp", address)
 	if err != nil {
-		Errorf("fatal error: %s", err)
+		logger.Errorf("fatal error: %s", err)
 		return nil, err
 	}
 	conn, err := net.ListenUDP("udp", addr)
 	if err != nil {
-		Errorf("fatal error: %s", err)
+		logger.Errorf("fatal error: %s", err)
 		return nil, err
 	}
 	listener := &UDPListener{address: address, netUDPConn: conn, server: server, maxConnNum: DefaultMaxConnNum * server.asyncMax}
@@ -29,7 +29,7 @@ func ListenUDP(address string, server *Server) (Listener, error) {
 }
 
 func (l *UDPListener) Serve() error {
-	Allf("%s\n", "waiting for clients")
+	logger.Noticef("%s\n", "waiting for clients")
 	workerChan := make(chan bool, l.maxConnNum)
 	connChange := make(chan int)
 	go func() {
@@ -53,9 +53,9 @@ func (l *UDPListener) Serve() error {
 				}()
 				connChange <- 1
 				var RemoteAddr = udp_msg.RemoteAddr.String()
-				AllInfof("client %s comming\n", RemoteAddr)
+				logger.Noticef("client %s comming\n", RemoteAddr)
 				l.ServeUDPConn(udp_msg, writeChan)
-				AllInfof("client %s exiting\n", RemoteAddr)
+				logger.Noticef("client %s exiting\n", RemoteAddr)
 				connChange <- -1
 			}()
 		}

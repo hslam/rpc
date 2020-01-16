@@ -22,14 +22,14 @@ func ListenIPC(address string, server *Server) (Listener, error) {
 	}
 	lis, err := net.ListenUnix("unix", addr)
 	if err != nil {
-		Errorf("fatal error: %s", err)
+		logger.Errorf("fatal error: %s", err)
 		return nil, err
 	}
 	listener := &IPCListener{address: address, netListener: lis, server: server, maxConnNum: DefaultMaxConnNum}
 	return listener, nil
 }
 func (l *IPCListener) Serve() error {
-	Allf("%s\n", "waiting for clients")
+	logger.Noticef("%s\n", "waiting for clients")
 	workerChan := make(chan bool, l.maxConnNum)
 	connChange := make(chan int)
 	go func() {
@@ -40,7 +40,7 @@ func (l *IPCListener) Serve() error {
 	for {
 		conn, err := l.netListener.Accept()
 		if err != nil {
-			Warnf("Accept: %s\n", err)
+			logger.Warnf("Accept: %s\n", err)
 			continue
 		}
 		workerChan <- true
@@ -52,8 +52,8 @@ func (l *IPCListener) Serve() error {
 			}()
 			connChange <- 1
 			defer func() { connChange <- -1 }()
-			defer func() { Infof("client %s exiting\n", conn.RemoteAddr()) }()
-			Infof("client %s comming\n", conn.RemoteAddr())
+			defer func() { logger.Infof("client %s exiting\n", conn.RemoteAddr()) }()
+			logger.Infof("client %s comming\n", conn.RemoteAddr())
 			l.server.ServeConn(conn)
 		}()
 	}

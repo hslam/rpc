@@ -1,299 +1,48 @@
 package rpc
 
 import (
-	"log"
-	"os"
+	"github.com/hslam/log"
 )
 
-type Level int
+// LogLevel defines the level for log.
+// Higher levels log less info.
+type LogLevel int
 
 const (
-	LogPrefix          = "rpc"
-	DebugLevel   Level = 1
-	TraceLevel   Level = 2
-	AllInfoLevel Level = 3
-	InfoLevel    Level = 4
-	WarnLevel    Level = 5
-	ErrorLevel   Level = 6
-	PanicLevel   Level = 7
-	FatalLevel   Level = 8
-	OffLevel     Level = 9
-	ALLLevel     Level = 10
-	NoLevel      Level = 99
+	logPrefix = "rpc"
+	//DebugLevel defines the level of debug in test environments.
+	DebugLevel LogLevel = 1
+	//TraceLevel defines the level of trace in test environments.
+	TraceLevel LogLevel = 2
+	//AllLevel defines the lowest level in production environments.
+	AllLevel LogLevel = 3
+	//InfoLevel defines the level of info.
+	InfoLevel LogLevel = 4
+	//NoticeLevel defines the level of notice.
+	NoticeLevel LogLevel = 5
+	//WarnLevel defines the level of warn.
+	WarnLevel LogLevel = 6
+	//ErrorLevel defines the level of error.
+	ErrorLevel LogLevel = 7
+	//PanicLevel defines the level of panic.
+	PanicLevel LogLevel = 8
+	//FatalLevel defines the level of fatal.
+	FatalLevel LogLevel = 9
+	//OffLevel defines the level of no log.
+	OffLevel LogLevel = 10
 )
 
-var logLevel Level
-var Logger *log.Logger
+var logger = log.New()
 
 func init() {
+	logger.SetPrefix(logPrefix)
 	SetLogLevel(InfoLevel)
-	InitLog()
-}
-func InitLog() {
-	Logger = log.New(os.Stdout, "["+LogPrefix+"] ", log.Ldate|log.Ltime|log.Lmicroseconds|log.LUTC)
-}
-func LogLevel() Level {
-	return logLevel
 }
 
-func SetLogLevel(level Level) {
-	logLevel = level
+func SetLogLevel(level LogLevel) {
+	logger.SetLevel(log.Level(level))
 }
 
-func All(v ...interface{}) {
-	if Logger == nil {
-		return
-	}
-	if logLevel <= ALLLevel {
-		Logger.Print(v...)
-	}
-}
-
-func Allf(format string, v ...interface{}) {
-	if Logger == nil {
-		return
-	}
-	if logLevel <= ALLLevel {
-		Logger.Printf(format, v...)
-	}
-}
-func Allln(v ...interface{}) {
-	if Logger == nil {
-		return
-	}
-	if logLevel <= ALLLevel {
-		Logger.Println(v...)
-	}
-}
-
-func Debug(v ...interface{}) {
-	if Logger == nil {
-		return
-	}
-	if logLevel <= DebugLevel {
-		Logger.Print(v...)
-	}
-}
-
-func Debugf(format string, v ...interface{}) {
-	if Logger == nil {
-		return
-	}
-	if logLevel <= DebugLevel {
-		Logger.Printf(format, v...)
-	}
-}
-func Debugln(v ...interface{}) {
-	if Logger == nil {
-		return
-	}
-	if logLevel <= DebugLevel {
-		Logger.Println(v...)
-	}
-}
-
-func Trace(v ...interface{}) {
-	if Logger == nil {
-		return
-	}
-	if logLevel <= TraceLevel {
-		Logger.Print(v...)
-	}
-}
-
-func Tracef(format string, v ...interface{}) {
-	if Logger == nil {
-		return
-	}
-	if logLevel <= TraceLevel {
-		Logger.Printf(format, v...)
-	}
-}
-func Traceln(v ...interface{}) {
-	if Logger == nil {
-		return
-	}
-	if logLevel <= TraceLevel {
-		Logger.Println(v...)
-	}
-}
-func AllInfo(v ...interface{}) {
-	if Logger == nil {
-		return
-	}
-	if logLevel <= AllInfoLevel {
-		Logger.Print(v...)
-	}
-}
-
-func AllInfof(format string, v ...interface{}) {
-	if Logger == nil {
-		return
-	}
-	if logLevel <= AllInfoLevel {
-		Logger.Printf(format, v...)
-	}
-}
-func AllInfoln(v ...interface{}) {
-	if Logger == nil {
-		return
-	}
-	if logLevel <= AllInfoLevel {
-		Logger.Println(v...)
-	}
-}
-func Info(v ...interface{}) {
-	if Logger == nil {
-		return
-	}
-	if logLevel <= InfoLevel {
-		Logger.Print(v...)
-	}
-}
-
-func Infof(format string, v ...interface{}) {
-	if Logger == nil {
-		return
-	}
-	if logLevel <= InfoLevel {
-		Logger.Printf(format, v...)
-	}
-}
-func Infoln(v ...interface{}) {
-	if Logger == nil {
-		return
-	}
-	if logLevel <= InfoLevel {
-		Logger.Println(v...)
-	}
-}
-
-func Warn(v ...interface{}) {
-	if Logger == nil {
-		return
-	}
-	if logLevel <= WarnLevel {
-		Logger.Print(v...)
-	}
-}
-
-func Warnf(format string, v ...interface{}) {
-	if Logger == nil {
-		return
-	}
-	if logLevel <= InfoLevel {
-		Logger.Printf(format, v...)
-	}
-}
-func Warnln(v ...interface{}) {
-	if Logger == nil {
-		return
-	}
-	if logLevel <= WarnLevel {
-		Logger.Println(v...)
-	}
-}
-
-func Error(v ...interface{}) {
-	if Logger == nil {
-		return
-	}
-	if logLevel <= ErrorLevel {
-		Logger.Print(v...)
-	}
-}
-
-func Errorf(format string, v ...interface{}) {
-	if Logger == nil {
-		return
-	}
-	if logLevel <= ErrorLevel {
-		Logger.Printf(format, v...)
-	}
-}
-func Errorln(v ...interface{}) {
-	if Logger == nil {
-		return
-	}
-	if logLevel <= ErrorLevel {
-		Logger.Println(v...)
-	}
-}
-
-func Panic(v ...interface{}) {
-	if Logger == nil {
-		return
-	}
-	if logLevel <= PanicLevel {
-		Logger.Panic(v...)
-	}
-}
-
-func Panicf(format string, v ...interface{}) {
-	if Logger == nil {
-		return
-	}
-	if logLevel <= PanicLevel {
-		Logger.Panicf(format, v...)
-	}
-}
-func Panicln(v ...interface{}) {
-	if Logger == nil {
-		return
-	}
-	if logLevel <= PanicLevel {
-		Logger.Panicln(v...)
-	}
-}
-
-func Fatal(v ...interface{}) {
-	if Logger == nil {
-		return
-	}
-	if logLevel <= FatalLevel {
-		Logger.Fatal(v...)
-	}
-}
-
-func Fatalf(format string, v ...interface{}) {
-	if Logger == nil {
-		return
-	}
-	if logLevel <= FatalLevel {
-		Logger.Fatalf(format, v...)
-	}
-}
-func Fatalln(v ...interface{}) {
-	if Logger == nil {
-		return
-	}
-	if logLevel <= FatalLevel {
-		Logger.Fatalln(v...)
-	}
-}
-
-func Off(v ...interface{}) {
-	if Logger == nil {
-		return
-	}
-	if logLevel <= OffLevel {
-		Logger.Print(v...)
-	}
-}
-
-func Offf(format string, v ...interface{}) {
-	if Logger == nil {
-		return
-	}
-	if logLevel <= OffLevel {
-		Logger.Printf(format, v...)
-	}
-}
-func Offln(v ...interface{}) {
-	if Logger == nil {
-		return
-	}
-	if logLevel <= OffLevel {
-		Logger.Println(v...)
-	}
+func GetLogLevel() LogLevel {
+	return LogLevel(logger.GetLevel())
 }

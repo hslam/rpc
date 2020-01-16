@@ -5,32 +5,32 @@ import (
 	"time"
 )
 
-type BatchRequestChan chan *BatchRequest
+type batchRequestChan chan *batchRequest
 
-type BatchRequest struct {
-	id          uint64
-	name        string
-	args_bytes  []byte
-	reply_bytes chan []byte
-	reply_error chan error
-	noRequest   bool
-	noResponse  bool
+type batchRequest struct {
+	id         uint64
+	name       string
+	argsBytes  []byte
+	replyBytes chan []byte
+	replyError chan error
+	noRequest  bool
+	noResponse bool
 }
-type Batch struct {
+type batch struct {
 	mut                sync.Mutex
-	reqChan            BatchRequestChan
+	reqChan            batchRequestChan
 	client             *client
-	readyRequests      []*BatchRequest
+	readyRequests      []*batchRequest
 	maxBatchRequest    int
 	maxDelayNanoSecond int
 	closeChan          chan bool
 }
 
-func NewBatch(c *client, maxDelayNanoSecond int, maxBatchRequest int) *Batch {
-	b := &Batch{
-		reqChan:            make(chan *BatchRequest, DefaultMaxCacheRequest),
+func newBatch(c *client, maxDelayNanoSecond int, maxBatchRequest int) *batch {
+	b := &batch{
+		reqChan:            make(chan *batchRequest, DefaultMaxCacheRequest),
 		client:             c,
-		readyRequests:      make([]*BatchRequest, 0),
+		readyRequests:      make([]*batchRequest, 0),
 		maxBatchRequest:    maxBatchRequest,
 		maxDelayNanoSecond: maxDelayNanoSecond,
 		closeChan:          make(chan bool, 1),
@@ -39,13 +39,13 @@ func NewBatch(c *client, maxDelayNanoSecond int, maxBatchRequest int) *Batch {
 	return b
 }
 
-func (b *Batch) GetMaxBatchRequest() int {
+func (b *batch) GetMaxBatchRequest() int {
 	return b.maxBatchRequest
 }
-func (b *Batch) SetMaxBatchRequest(maxBatchRequest int) {
+func (b *batch) SetMaxBatchRequest(maxBatchRequest int) {
 	b.maxBatchRequest = maxBatchRequest
 }
-func (b *Batch) run() {
+func (b *batch) run() {
 	go func() {
 		for cr := range b.reqChan {
 			func() {
@@ -55,7 +55,7 @@ func (b *Batch) run() {
 				if len(b.readyRequests) >= b.maxBatchRequest {
 					crs := b.readyRequests[:]
 					b.readyRequests = nil
-					b.readyRequests = make([]*BatchRequest, 0)
+					b.readyRequests = make([]*batchRequest, 0)
 					b.Ticker(crs)
 				}
 			}()
@@ -87,7 +87,7 @@ func (b *Batch) run() {
 	}
 endfor:
 }
-func (b *Batch) Ticker(brs []*BatchRequest) {
+func (b *batch) Ticker(brs []*batchRequest) {
 	NoResponseCnt := 0
 	var noResponse bool
 	clientCodec := &ClientCodec{}
@@ -108,10 +108,10 @@ func (b *Batch) Ticker(brs []*BatchRequest) {
 	} else {
 		noResponse = false
 	}
-	msg_bytes, err := clientCodec.Encode()
+	msgBytes, err := clientCodec.Encode()
 	if err == nil {
 		if noResponse == false {
-			data, err := b.client.RemoteCall(msg_bytes)
+			data, err := b.client.RemoteCall(msgBytes)
 			if err == nil {
 				err := clientCodec.Decode(data)
 				if err != nil {
@@ -123,13 +123,13 @@ func (b *Batch) Ticker(brs []*BatchRequest) {
 							func() {
 								defer func() {
 									if err := recover(); err != nil {
-										Errorln("v.reply err", err)
+										logger.Errorln("v.reply err", err)
 									}
 								}()
 								if clientCodec.responses[i].err != nil {
-									v.reply_error <- clientCodec.responses[i].err
+									v.replyError <- clientCodec.responses[i].err
 								} else {
-									v.reply_bytes <- clientCodec.responses[i].data
+									v.replyBytes <- clientCodec.responses[i].data
 								}
 							}()
 						}
@@ -137,13 +137,13 @@ func (b *Batch) Ticker(brs []*BatchRequest) {
 				}
 			}
 		} else {
-			_ = b.client.RemoteCallNoResponse(msg_bytes)
+			_ = b.client.RemoteCallNoResponse(msgBytes)
 		}
 
 	}
 }
 
-func (b *Batch) Close() {
+func (b *batch) Close() {
 	close(b.reqChan)
 	b.client = nil
 	b.readyRequests = nil

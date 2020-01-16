@@ -25,7 +25,7 @@ func DialIPC(address string) (Conn, error) {
 	}
 	conn, err := net.DialUnix("unix", nil, addr)
 	if err != nil {
-		Errorf("fatal error: %s", err)
+		logger.Errorf("fatal error: %s", err)
 		return nil, err
 	}
 	t := &IPCConn{
@@ -57,7 +57,7 @@ func (t *IPCConn) handle() {
 	go protocol.WriteStream(t.conn, writeChan, stopWriteStreamChan, finishChan, t.noDelay)
 	go func() {
 		t.closed = false
-		//Traceln("TCPConn.handle start")
+		//logger.Traceln("TCPConn.handle start")
 		for {
 			select {
 			case v := <-readChan:
@@ -101,7 +101,7 @@ func (t *IPCConn) handle() {
 		close(finishChan)
 		close(stopReadStreamChan)
 		close(stopWriteStreamChan)
-		//Traceln("TCPConn.handle end")
+		//logger.Traceln("TCPConn.handle end")
 		t.closed = true
 	}()
 }
@@ -119,12 +119,12 @@ func (t *IPCConn) Retry() error {
 	}
 	conn, err := net.DialUnix("unix", nil, addr)
 	if err != nil {
-		Errorf("fatal error: %s", err)
+		logger.Errorf("fatal error: %s", err)
 		return err
 	}
 	t.conn = conn
 	t.handle()
-	//Traceln("IPCConn.Retry")
+	//logger.Traceln("IPCConn.Retry")
 	return nil
 }
 func (t *IPCConn) Close() error {

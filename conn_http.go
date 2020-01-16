@@ -72,7 +72,7 @@ func (t *HTTPConn) handle() {
 	go protocol.WriteStream(t.conn, writeChan, stopWriteStreamChan, finishChan, t.noDelay)
 	go func() {
 		t.closed = false
-		//Traceln("TCPConn.handle start")
+		//logger.Traceln("TCPConn.handle start")
 		for {
 			select {
 			case v := <-readChan:
@@ -116,7 +116,7 @@ func (t *HTTPConn) handle() {
 		close(finishChan)
 		close(stopReadStreamChan)
 		close(stopWriteStreamChan)
-		//Traceln("TCPConn.handle end")
+		//logger.Traceln("TCPConn.handle end")
 		t.closed = true
 	}()
 }

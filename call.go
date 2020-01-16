@@ -2,6 +2,7 @@ package rpc
 
 import "time"
 
+// Call represents an active RPC.
 type Call struct {
 	ServiceMethod string
 	Args          interface{}

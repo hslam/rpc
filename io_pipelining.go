@@ -57,7 +57,7 @@ func (c *Pipeline) run() {
 				func() {
 					defer func() {
 						if err := recover(); err != nil {
-							Errorln("v.reply err", err)
+							logger.Errorln("v.reply err", err)
 						}
 					}()
 					c.writeChan <- cr.data
@@ -118,7 +118,7 @@ func (c *Pipeline) Retry() {
 			func() {
 				defer func() {
 					if err := recover(); err != nil {
-						Errorln("Pipeline.retry", err)
+						logger.Errorln("Pipeline.retry", err)
 					}
 				}()
 				c.writeChan <- cr.data

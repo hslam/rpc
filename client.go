@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+//Client defines the interface of client.
 type Client interface {
 	GetMaxRequests() int
 	GetMaxBatchRequest() int
@@ -27,6 +28,7 @@ type Client interface {
 	Closed() bool
 }
 
+// Dial connects to an RPC server at the specified network address codec.
 func Dial(network, address, codec string) (Client, error) {
 	transporter, err := dial(network, address)
 	if err != nil {
@@ -56,7 +58,7 @@ type client struct {
 	hystrix          bool
 	batchEnabled     bool
 	batchingAsync    bool
-	batch            *Batch
+	batch            *batch
 	io               IO
 	maxRequests      int
 	requestChan      chan bool
@@ -125,7 +127,7 @@ func (c *client) run() {
 	for {
 		select {
 		case <-c.finishChan:
-			//Traceln(c.client_id,"client.run finishChan")
+			//logger.Traceln(c.client_id,"client.run finishChan")
 			c.retryConnect()
 		case <-heartbeatTicker.C:
 			if c.disconnect == false && c.retry {
@@ -180,9 +182,9 @@ func (c *client) retryConnect() {
 	err := c.conn.Retry()
 	if err != nil {
 		c.hystrix = true
-		Traceln(c.client_id, "retry connection err ", err)
+		logger.Traceln(c.client_id, "retry connection err ", err)
 	} else {
-		Traceln(c.client_id, "retry connection success")
+		logger.Traceln(c.client_id, "retry connection success")
 		c.disconnect = false
 		c.hystrix = false
 		c.io.Retry()
@@ -259,7 +261,7 @@ func (c *client) enableMultiplexing() {
 }
 func (c *client) enableBatching() {
 	c.batchEnabled = true
-	c.batch = NewBatch(c, DefaultMaxDelayNanoSecond*c.conn.TickerFactor(), DefaultMaxBatchRequest*c.conn.BatchFactor())
+	c.batch = newBatch(c, DefaultMaxDelayNanoSecond*c.conn.TickerFactor(), DefaultMaxBatchRequest*c.conn.BatchFactor())
 	c.batch.SetMaxBatchRequest(DefaultMaxBatchRequest * c.conn.BatchFactor())
 }
 func (c *client) enableBatchingAsync() {
@@ -353,7 +355,7 @@ func (c *client) CodecType() CodecType {
 func (c *client) Go(name string, args interface{}, reply interface{}, done chan *Call) *Call {
 	defer func() {
 		if err := recover(); err != nil {
-			Errorln("Go failed:", err)
+			logger.Errorln("Go failed:", err)
 		}
 	}()
 	call := new(Call)
@@ -369,7 +371,7 @@ func (c *client) Go(name string, args interface{}, reply interface{}, done chan 
 		// RPCs that will be using that channel. If the channel
 		// is totally unbuffered, it's best not to run at all.
 		if cap(done) == 0 {
-			Panic("rpc: done channel is unbuffered")
+			logger.Panic("rpc: done channel is unbuffered")
 		}
 	}
 	call.Done = done
@@ -398,7 +400,7 @@ func (c *client) Call(name string, args interface{}, reply interface{}) (err err
 	}
 	defer func() {
 		if err := recover(); err != nil {
-			Errorln("Call failed:", err)
+			logger.Errorln("Call failed:", err)
 		}
 	}()
 	if c.hystrix {
@@ -417,7 +419,7 @@ func (c *client) CallNoRequest(name string, reply interface{}) (err error) {
 	}
 	defer func() {
 		if err := recover(); err != nil {
-			Errorln("Call failed:", err)
+			logger.Errorln("Call failed:", err)
 		}
 	}()
 	if c.hystrix {
@@ -436,7 +438,7 @@ func (c *client) CallNoResponse(name string, args interface{}) (err error) {
 	}
 	defer func() {
 		if err := recover(); err != nil {
-			Errorln("CallNoResponse failed:", err)
+			logger.Errorln("CallNoResponse failed:", err)
 		}
 	}()
 	if c.hystrix {
@@ -456,7 +458,7 @@ func (c *client) OnlyCall(name string) (err error) {
 	}
 	defer func() {
 		if err := recover(); err != nil {
-			Errorln("OnlyCall failed:", err)
+			logger.Errorln("OnlyCall failed:", err)
 		}
 	}()
 	if c.hystrix {
@@ -472,7 +474,7 @@ func (c *client) OnlyCall(name string) (err error) {
 func (c *client) Ping() bool {
 	defer func() {
 		if err := recover(); err != nil {
-			Errorln("client.Ping failed:", err)
+			logger.Errorln("client.Ping failed:", err)
 		}
 	}()
 	err := c.heartbeat()
@@ -487,7 +489,7 @@ func (c *client) disableRetry() {
 func (c *client) RemoteCall(b []byte) ([]byte, error) {
 	defer func() {
 		if err := recover(); err != nil {
-			Errorln("client.RemoteCall failed:", err)
+			logger.Errorln("client.RemoteCall failed:", err)
 		}
 	}()
 	c.requestChan <- true
@@ -503,7 +505,7 @@ func (c *client) RemoteCall(b []byte) ([]byte, error) {
 func (c *client) RemoteGo(b []byte, cbChan chan []byte) {
 	defer func() {
 		if err := recover(); err != nil {
-			Errorln("client.RemoteCall failed:", err)
+			logger.Errorln("client.RemoteCall failed:", err)
 		}
 	}()
 	c.requestChan <- true
@@ -512,7 +514,7 @@ func (c *client) RemoteGo(b []byte, cbChan chan []byte) {
 func (c *client) RemoteCallNoResponse(b []byte) error {
 	defer func() {
 		if err := recover(); err != nil {
-			Errorln("client.RemoteCallNoResponse failed:", err)
+			logger.Errorln("client.RemoteCallNoResponse failed:", err)
 		}
 	}()
 	c.requestChan <- true
@@ -525,11 +527,11 @@ func (c *client) RemoteCallNoResponse(b []byte) error {
 func (c *client) Disconnect() (err error) {
 	defer func() {
 		if err := recover(); err != nil {
-			Errorln("client.Disconnect failed:", err)
+			logger.Errorln("client.Disconnect failed:", err)
 		}
 	}()
 	if !c.conn.Closed() {
-		Traceln(c.client_id, "client conn Closed", c.conn.Closed())
+		logger.Traceln(c.client_id, "client conn Closed", c.conn.Closed())
 		c.stopChan <- true
 		time.Sleep(time.Millisecond * 200)
 	}
@@ -540,7 +542,7 @@ func (c *client) Close() (err error) {
 	c.closing = true
 	defer func() {
 		if err := recover(); err != nil {
-			Errorln("client.Close failed:", err)
+			logger.Errorln("client.Close failed:", err)
 		}
 		c.closing = false
 	}()
@@ -579,7 +581,7 @@ func (c *client) heartbeat() (err error) {
 		var data []byte
 		data, err = c.RemoteCall(msg_bytes)
 		if err != nil {
-			Errorln("Write error: ", err)
+			logger.Errorln("Write error: ", err)
 			ch <- 1
 			return
 		}
@@ -602,25 +604,25 @@ func (c *client) heartbeat() (err error) {
 
 func (c *client) call(name string, args interface{}, reply interface{}) (err error) {
 	if c.batchEnabled {
-		cr := &BatchRequest{
+		cr := &batchRequest{
 			id:         uint64(c.Seq()),
 			name:       name,
 			noResponse: false,
 		}
 		if args != nil {
-			args_bytes, err := ArgsEncode(args, c.funcsCodecType)
+			argsBytes, err := ArgsEncode(args, c.funcsCodecType)
 			if err != nil {
-				Errorln("ArgsEncode error: ", err)
+				logger.Errorln("ArgsEncode error: ", err)
 			}
-			cr.args_bytes = args_bytes
+			cr.argsBytes = argsBytes
 			cr.noRequest = false
 		} else {
-			cr.args_bytes = nil
+			cr.argsBytes = nil
 			cr.noRequest = true
 		}
 		if reply != nil {
-			cr.reply_bytes = make(chan []byte, 1)
-			cr.reply_error = make(chan error, 1)
+			cr.replyBytes = make(chan []byte, 1)
+			cr.replyError = make(chan error, 1)
 			cr.noResponse = false
 		} else {
 			cr.noResponse = true
@@ -631,27 +633,27 @@ func (c *client) call(name string, args interface{}, reply interface{}) (err err
 		} else {
 			if c.timeout > 0 {
 				select {
-				case bytes, ok := <-cr.reply_bytes:
+				case bytes, ok := <-cr.replyBytes:
 					if ok {
 						return ReplyDecode(bytes, reply, c.funcsCodecType)
 					}
-				case err, ok := <-cr.reply_error:
+				case err, ok := <-cr.replyError:
 					if ok {
 						return err
 					}
 				case <-time.After(time.Millisecond * time.Duration(c.timeout)):
-					close(cr.reply_bytes)
-					close(cr.reply_error)
+					close(cr.replyBytes)
+					close(cr.replyError)
 					return ErrTimeOut
 				}
 				return nil
 			} else {
 				select {
-				case bytes, ok := <-cr.reply_bytes:
+				case bytes, ok := <-cr.replyBytes:
 					if ok {
 						return ReplyDecode(bytes, reply, c.funcsCodecType)
 					}
-				case err, ok := <-cr.reply_error:
+				case err, ok := <-cr.replyError:
 					if ok {
 						return err
 					}
@@ -683,7 +685,7 @@ func (c *client) call(name string, args interface{}, reply interface{}) (err err
 		if clientCodec.noResponse {
 			err = c.RemoteCallNoResponse(rpc_req_bytes)
 			if err != nil {
-				Errorln("Write error: ", err)
+				logger.Errorln("Write error: ", err)
 				return err
 			}
 			return nil
@@ -693,7 +695,7 @@ func (c *client) call(name string, args interface{}, reply interface{}) (err err
 				var data []byte
 				data, err = c.RemoteCall(rpc_req_bytes)
 				if err != nil {
-					Errorln("Write error: ", err)
+					logger.Errorln("Write error: ", err)
 					ch <- 1
 					return
 				}
@@ -804,25 +806,25 @@ func (c *client) send(call *Call) {
 			}(c, cbChan, call)
 		}
 	} else {
-		cr := &BatchRequest{
+		cr := &batchRequest{
 			id:         uint64(c.Seq()),
 			name:       call.ServiceMethod,
 			noResponse: false,
 		}
 		if call.Args != nil {
-			args_bytes, err := ArgsEncode(call.Args, c.funcsCodecType)
+			argsBytes, err := ArgsEncode(call.Args, c.funcsCodecType)
 			if err != nil {
-				Errorln("ArgsEncode error: ", err)
+				logger.Errorln("ArgsEncode error: ", err)
 			}
-			cr.args_bytes = args_bytes
+			cr.argsBytes = argsBytes
 			cr.noRequest = false
 		} else {
-			cr.args_bytes = nil
+			cr.argsBytes = nil
 			cr.noRequest = true
 		}
 		if call.Reply != nil {
-			cr.reply_bytes = make(chan []byte, 1)
-			cr.reply_error = make(chan error, 1)
+			cr.replyBytes = make(chan []byte, 1)
+			cr.replyError = make(chan error, 1)
 			cr.noResponse = false
 		} else {
 			cr.noResponse = true
@@ -837,9 +839,9 @@ func (c *client) send(call *Call) {
 			//c.mutex.Lock()
 			//c.pending[seq] = call
 			//c.mutex.Unlock()
-			go func(cr *BatchRequest, call *Call) {
+			go func(cr *batchRequest, call *Call) {
 				select {
-				case bytes, ok := <-cr.reply_bytes:
+				case bytes, ok := <-cr.replyBytes:
 					if ok {
 						err := ReplyDecode(bytes, call.Reply, c.funcsCodecType)
 						//c.mutex.Lock()
@@ -858,7 +860,7 @@ func (c *client) send(call *Call) {
 						call.Done <- call
 						return
 					}
-				case err, ok := <-cr.reply_error:
+				case err, ok := <-cr.replyError:
 					if ok {
 						if err != nil {
 							//c.mutex.Lock()

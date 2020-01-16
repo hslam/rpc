@@ -20,12 +20,12 @@ type TCPConn struct {
 func DialTCP(address string) (Conn, error) {
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", address)
 	if err != nil {
-		Errorf("fatal error: %s", err)
+		logger.Errorf("fatal error: %s", err)
 		return nil, err
 	}
 	conn, err := net.DialTCP("tcp", nil, tcpAddr)
 	if err != nil {
-		Errorf("fatal error: %s", err)
+		logger.Errorf("fatal error: %s", err)
 		return nil, err
 	}
 	conn.SetNoDelay(true)
@@ -58,7 +58,7 @@ func (t *TCPConn) handle() {
 	go protocol.WriteStream(t.conn, writeChan, stopWriteStreamChan, finishChan, t.noDelay)
 	go func() {
 		t.closed = false
-		//Traceln("TCPConn.handle start")
+		//logger.Traceln("TCPConn.handle start")
 		for {
 			select {
 			case v := <-readChan:
@@ -102,7 +102,7 @@ func (t *TCPConn) handle() {
 		close(finishChan)
 		close(stopReadStreamChan)
 		close(stopWriteStreamChan)
-		//Traceln("TCPConn.handle end")
+		//logger.Traceln("TCPConn.handle end")
 		t.closed = true
 	}()
 }
@@ -115,17 +115,17 @@ func (t *TCPConn) BatchFactor() int {
 func (t *TCPConn) Retry() error {
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", t.address)
 	if err != nil {
-		Errorf("fatal error: %s", err)
+		logger.Errorf("fatal error: %s", err)
 		return err
 	}
 	conn, err := net.DialTCP("tcp", nil, tcpAddr)
 	if err != nil {
-		Errorf("fatal error: %s", err)
+		logger.Errorf("fatal error: %s", err)
 		return err
 	}
 	t.conn = conn
 	t.handle()
-	//Traceln("TCPConn.Retry")
+	//logger.Traceln("TCPConn.Retry")
 	return nil
 }
 func (t *TCPConn) Close() error {

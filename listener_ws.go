@@ -26,7 +26,7 @@ type WSListener struct {
 func ListenWS(address string, server *Server) (Listener, error) {
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
-		Errorf("fatal error: %s", err)
+		logger.Errorf("fatal error: %s", err)
 		return nil, err
 	}
 	var httpServer http.Server
@@ -36,7 +36,7 @@ func ListenWS(address string, server *Server) (Listener, error) {
 	return l, nil
 }
 func (l *WSListener) Serve() error {
-	Allf("%s\n", "waiting for clients")
+	logger.Noticef("%s\n", "waiting for clients")
 	workerChan := make(chan bool, l.maxConnNum)
 	connChange := make(chan int)
 	go func() {
@@ -48,7 +48,7 @@ func (l *WSListener) Serve() error {
 		r.Header.Del("Origin")
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
-			Warnf("upgrade : %s\n", err)
+			logger.Warnf("upgrade : %s\n", err)
 			return
 		}
 		workerChan <- true
@@ -60,14 +60,14 @@ func (l *WSListener) Serve() error {
 			}()
 			connChange <- 1
 			defer func() { connChange <- -1 }()
-			defer func() { Infof("client %s exiting\n", conn.RemoteAddr()) }()
-			Infof("client %s comming\n", conn.RemoteAddr())
+			defer func() { logger.Infof("client %s exiting\n", conn.RemoteAddr()) }()
+			logger.Infof("client %s comming\n", conn.RemoteAddr())
 			l.server.ServeMessage(&protocol.MsgConn{MessageConn: &wsConn{conn}})
 		}()
 	})
 	err := l.httpServer.Serve(l.listener)
 	if err != nil {
-		Errorf("fatal error: %s", err)
+		logger.Errorf("fatal error: %s", err)
 		return err
 	}
 	return nil

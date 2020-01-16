@@ -22,12 +22,12 @@ type QUICConn struct {
 func DialQUIC(address string) (Conn, error) {
 	session, err := quic.DialAddr(address, &tls.Config{InsecureSkipVerify: true, NextProtos: []string{"quic-rpc"}}, nil)
 	if err != nil {
-		Errorf("fatal error: %s", err)
+		logger.Errorf("fatal error: %s", err)
 		return nil, err
 	}
 	stream, err := session.OpenStreamSync(context.Background())
 	if err != nil {
-		Errorf("fatal error: %s", err)
+		logger.Errorf("fatal error: %s", err)
 		return nil, err
 	}
 	t := &QUICConn{
@@ -114,12 +114,12 @@ func (t *QUICConn) BatchFactor() int {
 func (t *QUICConn) Retry() error {
 	session, err := quic.DialAddr(t.address, &tls.Config{InsecureSkipVerify: true}, nil)
 	if err != nil {
-		Errorf("fatal error: %s", err)
+		logger.Errorf("fatal error: %s", err)
 		return err
 	}
 	stream, err := session.OpenStreamSync(context.Background())
 	if err != nil {
-		Errorf("fatal error: %s", err)
+		logger.Errorf("fatal error: %s", err)
 		return err
 	}
 	t.conn = stream

@@ -140,7 +140,7 @@ func (p *Pool) CodecType() CodecType {
 func (p *Pool) Go(name string, args interface{}, reply interface{}, done chan *Call) *Call {
 	defer func() {
 		if err := recover(); err != nil {
-			Errorln("Go failed:", err)
+			logger.Errorln("Go failed:", err)
 		}
 	}()
 	return p.conn().Go(name, args, reply, done)
@@ -148,7 +148,7 @@ func (p *Pool) Go(name string, args interface{}, reply interface{}, done chan *C
 func (p *Pool) Call(name string, args interface{}, reply interface{}) (err error) {
 	defer func() {
 		if err := recover(); err != nil {
-			Errorln("Call failed:", err)
+			logger.Errorln("Call failed:", err)
 		}
 	}()
 	return p.conn().Call(name, args, reply)
@@ -156,7 +156,7 @@ func (p *Pool) Call(name string, args interface{}, reply interface{}) (err error
 func (p *Pool) CallNoRequest(name string, reply interface{}) (err error) {
 	defer func() {
 		if err := recover(); err != nil {
-			Errorln("CallNoRequest failed:", err)
+			logger.Errorln("CallNoRequest failed:", err)
 		}
 	}()
 	return p.conn().CallNoRequest(name, reply)
@@ -164,7 +164,7 @@ func (p *Pool) CallNoRequest(name string, reply interface{}) (err error) {
 func (p *Pool) CallNoResponse(name string, args interface{}) (err error) {
 	defer func() {
 		if err := recover(); err != nil {
-			Errorln("CallNoResponse failed:", err)
+			logger.Errorln("CallNoResponse failed:", err)
 		}
 	}()
 	return p.conn().CallNoResponse(name, args)
@@ -172,7 +172,7 @@ func (p *Pool) CallNoResponse(name string, args interface{}) (err error) {
 func (p *Pool) OnlyCall(name string) (err error) {
 	defer func() {
 		if err := recover(); err != nil {
-			Errorln("OnlyCall failed:", err)
+			logger.Errorln("OnlyCall failed:", err)
 		}
 	}()
 	return p.conn().OnlyCall(name)
@@ -180,7 +180,7 @@ func (p *Pool) OnlyCall(name string) (err error) {
 func (p *Pool) Ping() bool {
 	defer func() {
 		if err := recover(); err != nil {
-			Errorln("Ping failed:", err)
+			logger.Errorln("Ping failed:", err)
 		}
 	}()
 	return p.head().Ping()

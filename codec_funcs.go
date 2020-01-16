@@ -9,7 +9,7 @@ func ArgsEncode(args interface{}, funcsCodecType CodecType) ([]byte, error) {
 	codec := FuncsCodec(funcsCodecType)
 	req_bytes, err := codec.Encode(args)
 	if err != nil {
-		Errorln("ArgsEncode error: ", err)
+		logger.Errorln("ArgsEncode error: ", err)
 		return nil, err
 	}
 	return req_bytes, nil
@@ -19,7 +19,7 @@ func ArgsDecode(args_bytes []byte, args interface{}, funcsCodecType CodecType) e
 	codec := FuncsCodec(funcsCodecType)
 	err := codec.Decode(args_bytes, args)
 	if err != nil {
-		Errorln("ArgsDecode error: ", err)
+		logger.Errorln("ArgsDecode error: ", err)
 		return err
 	}
 	return nil
@@ -29,7 +29,7 @@ func ReplyEncode(reply interface{}, funcsCodecType CodecType) ([]byte, error) {
 	codec := FuncsCodec(funcsCodecType)
 	res_bytes, err := codec.Encode(reply)
 	if err != nil {
-		Errorln("ReplyEncode error: ", err)
+		logger.Errorln("ReplyEncode error: ", err)
 		return nil, err
 	}
 	return res_bytes, nil
@@ -39,7 +39,7 @@ func ReplyDecode(reply_bytes []byte, reply interface{}, funcsCodecType CodecType
 	codec := FuncsCodec(funcsCodecType)
 	err := codec.Decode(reply_bytes, reply)
 	if err != nil {
-		Errorln("ArgsDecode error: ", err)
+		logger.Errorln("ArgsDecode error: ", err)
 		return err
 	}
 	return nil

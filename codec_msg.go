@@ -21,7 +21,7 @@ type Msg struct {
 func (m *Msg) Encode() ([]byte, error) {
 	compressor := getCompressor(m.compressType, m.compressLevel)
 	if compressor != nil {
-		m.data, _ = compressor.Compress(m.data)
+		m.data = compressor.Compress(m.data)
 	}
 	m.version = Version
 	switch rpc_codec {
@@ -44,7 +44,7 @@ func (m *Msg) Encode() ([]byte, error) {
 			msg = pb.Msg{Version: m.version, Id: m.id, MsgType: pb.MsgType(m.msgType)}
 		}
 		if data, err := msg.Marshal(); err != nil {
-			Errorln("MsgEncode proto.Unmarshal error: ", err)
+			logger.Errorln("MsgEncode proto.Unmarshal error: ", err)
 			return nil, err
 		} else {
 			return data, nil
@@ -65,13 +65,13 @@ func (m *Msg) Decode(b []byte) error {
 		err := m.Unmarshal(b)
 		compressor := getCompressor(m.compressType, m.compressLevel)
 		if compressor != nil {
-			m.data, _ = compressor.Uncompress(m.data)
+			m.data = compressor.Uncompress(m.data)
 		}
 		return err
 	case RPC_CODEC_PROTOBUF:
 		var msg = &pb.Msg{}
 		if err := msg.Unmarshal(b); err != nil {
-			Errorln("MsgDecode proto.Unmarshal error: ", err)
+			logger.Errorln("MsgDecode proto.Unmarshal error: ", err)
 			return err
 		}
 		m.version = msg.Version
@@ -85,7 +85,7 @@ func (m *Msg) Decode(b []byte) error {
 			m.compressLevel = CompressLevel(msg.CompressLevel)
 			compressor := getCompressor(m.compressType, m.compressLevel)
 			if compressor != nil {
-				m.data, _ = compressor.Uncompress(m.data)
+				m.data = compressor.Uncompress(m.data)
 			}
 		}
 		return nil
@@ -160,17 +160,17 @@ func (m *Msg) Unmarshal(b []byte) error {
 }
 func (m *Msg) Reset() {
 }
-func getCompressor(compressType CompressType, level CompressLevel) compress.Compressor {
+func getCompressor(compressType CompressType, level CompressLevel) *compress.Compressor {
 	if level == NoCompression {
 		return nil
 	}
 	switch compressType {
 	case CompressTypeFlate:
-		return &compress.FlateCompressor{Level: compress.Level(level)}
+		return &compress.Compressor{Type: compress.Flate, Level: compress.Level(level)}
 	case CompressTypeZlib:
-		return &compress.ZlibCompressor{Level: compress.Level(level)}
+		return &compress.Compressor{Type: compress.Zlib, Level: compress.Level(level)}
 	case CompressTypeGzip:
-		return &compress.GzipCompressor{Level: compress.Level(level)}
+		return &compress.Compressor{Type: compress.Gzip, Level: compress.Level(level)}
 	default:
 		return nil
 	}

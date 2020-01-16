@@ -21,7 +21,7 @@ func DialWS(address string) (Conn, error) {
 	u := url.URL{Scheme: "ws", Host: address, Path: "/"}
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
-		Errorf("fatal error: %s", err)
+		logger.Errorf("fatal error: %s", err)
 		return nil, err
 	}
 	t := &WSConn{
@@ -109,7 +109,7 @@ func (t *WSConn) Retry() error {
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 
 	if err != nil {
-		Errorf("fatal error: %s", err)
+		logger.Errorf("fatal error: %s", err)
 		return err
 	}
 	t.conn = &protocol.MsgConn{MessageConn: &wsConn{c}}

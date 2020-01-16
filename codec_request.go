@@ -27,7 +27,7 @@ func (r *Request) Encode() ([]byte, error) {
 			Data:       r.data,
 		}
 		if data, err := req.Marshal(); err != nil {
-			Errorln("RequestEncode proto.Unmarshal error: ", err)
+			logger.Errorln("RequestEncode proto.Unmarshal error: ", err)
 			return nil, err
 		} else {
 			return data, nil
@@ -45,7 +45,7 @@ func (r *Request) Decode(b []byte) error {
 	case RPC_CODEC_PROTOBUF:
 		var rpc_req_decode = &pb.Request{}
 		if err := rpc_req_decode.Unmarshal(b); err != nil {
-			Errorln("RequestDecode proto.Unmarshal error: ", err)
+			logger.Errorln("RequestDecode proto.Unmarshal error: ", err)
 			return err
 		}
 		r.id = rpc_req_decode.Id

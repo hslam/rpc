@@ -20,7 +20,7 @@ func ListenHTTP(address string, server *Server) (Listener, error) {
 }
 
 func (l *HTTPListener) Serve() error {
-	Allf("%s\n", "waiting for clients")
+	logger.Noticef("%s\n", "waiting for clients")
 	handler := new(Handler)
 	handler.server = l.server
 	handler.workerChan = make(chan bool, l.maxConnNum)
@@ -33,7 +33,7 @@ func (l *HTTPListener) Serve() error {
 	err := http.ListenAndServe(l.address, handler)
 
 	if err != nil {
-		Errorf("fatal error: %s", err)
+		logger.Errorf("fatal error: %s", err)
 		return err
 	}
 	return nil
@@ -66,8 +66,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}()
 			h.connChange <- 1
 			defer func() { h.connChange <- -1 }()
-			defer func() { AllInfof("client %s exiting\n", RemoteAddr) }()
-			AllInfof("client %s comming\n", RemoteAddr)
+			defer func() { logger.Noticef("client %s exiting\n", RemoteAddr) }()
+			logger.Noticef("client %s comming\n", RemoteAddr)
 			h.Serve(w, data)
 		}()
 	} else if r.Method == "CONNECT" {
@@ -84,8 +84,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}()
 			h.connChange <- 1
 			defer func() { h.connChange <- -1 }()
-			defer func() { Infof("client %s exiting\n", conn.RemoteAddr()) }()
-			Infof("client %s comming\n", conn.RemoteAddr())
+			defer func() { logger.Infof("client %s exiting\n", conn.RemoteAddr()) }()
+			logger.Infof("client %s comming\n", conn.RemoteAddr())
 			h.server.ServeConn(conn)
 		}()
 	} else {

@@ -22,11 +22,11 @@ func (c *ServerCodec) Decode(b []byte) error {
 	err := msg.Decode(b)
 	c.msg = msg
 	if err != nil {
-		Warnf("ServerCodec.Decode msg error: %s", err)
+		logger.Warnf("ServerCodec.Decode msg error: %s", err)
 		return fmt.Errorf("ServerCodec.Decode msg error: %s", err)
 	}
 	if msg.version != Version {
-		Warnf("%.2f %.2f Version is not matched", Version, msg.version)
+		logger.Warnf("%.2f %.2f Version is not matched", Version, msg.version)
 		return fmt.Errorf("%.2f %.2f Version is not matched", Version, msg.version)
 	}
 	if msg.msgType == MsgTypeHea {
@@ -53,7 +53,7 @@ func (c *ServerCodec) Decode(b []byte) error {
 		req := &Request{}
 		err := req.Decode(msg.data)
 		if err != nil {
-			Warnf("ServerCodec.Decode id:%d req:%d error:%s ", msg.id, req.id, err)
+			logger.Warnf("ServerCodec.Decode id:%d req:%d error:%s ", msg.id, req.id, err)
 			return fmt.Errorf("ServerCodec.Decode id:%d req:%d error:%s ", msg.id, req.id, err)
 		}
 		c.request = req

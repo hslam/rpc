@@ -91,12 +91,12 @@ func (s *Server) ListenAndServe(network, address string) error {
 	s.network = network
 	listener, err := Listen(network, address, s)
 	if err != nil {
-		Errorln(err)
+		logger.Errorln(err)
 		return err
 	}
 	err = listener.Serve()
 	if err != nil {
-		Errorln(err)
+		logger.Errorln(err)
 		return err
 	}
 	return nil
@@ -273,13 +273,13 @@ func (s *Server) Handler(ctx *ServerCodec, req *Request, res *Response) {
 }
 func (s *Server) CallService(ctx *ServerCodec, req *Request, res *Response) {
 	if s.Funcs.GetFunc(req.method) == nil {
-		AllInfof("Server.CallService method %s is not supposted", req.method)
+		logger.Noticef("Server.CallService method %s is not supposted", req.method)
 		res.err = fmt.Errorf("Server.CallService method %s is not supposted", req.method)
 		return
 	}
 	if req.noRequest && req.noResponse {
 		if err := s.Funcs.Call(req.method); err != nil {
-			AllInfof("Server.CallService OnlyCall err %s", err)
+			logger.Noticef("Server.CallService OnlyCall err %s", err)
 			res.err = fmt.Errorf("Server.CallService OnlyCall err %s", err)
 			return
 		}
@@ -287,7 +287,7 @@ func (s *Server) CallService(ctx *ServerCodec, req *Request, res *Response) {
 	} else if req.noRequest && !req.noResponse {
 		reply := s.Funcs.GetFuncIn(req.method, 0)
 		if err := s.Funcs.Call(req.method, reply); err != nil {
-			AllInfof("Server.CallService CallNoRequest err %s", err)
+			logger.Noticef("Server.CallService CallNoRequest err %s", err)
 			res.err = fmt.Errorf("Server.CallService CallNoRequest err %s", err)
 			return
 		}

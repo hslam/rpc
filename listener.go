@@ -10,8 +10,8 @@ type Listener interface {
 }
 
 func Listen(network, address string, server *Server) (Listener, error) {
-	Allf("network - %s", network)
-	Allf("listening on %s", address)
+	logger.Noticef("network - %s", network)
+	logger.Noticef("listening on %s", address)
 	switch network {
 	case IPC:
 		return ListenIPC(address, server)
