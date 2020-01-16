@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-type HTTP1Conn struct {
+type http1Conn struct {
 	conn         *http.Client
 	address      string
 	url          string
@@ -20,9 +20,9 @@ type HTTP1Conn struct {
 	multiplexing bool
 }
 
-func DialHTTP1(address string) (Conn, error) {
+func dialHTTP1(address string) (Conn, error) {
 	u := url.URL{Scheme: "http", Host: address, Path: "/"}
-	t := &HTTP1Conn{
+	t := &http1Conn{
 		conn: &http.Client{
 			Transport: &http.Transport{
 				DisableKeepAlives: false,
@@ -34,9 +34,9 @@ func DialHTTP1(address string) (Conn, error) {
 	}
 	return t, nil
 }
-func (t *HTTP1Conn) NoDelay(enable bool) {
+func (t *http1Conn) NoDelay(enable bool) {
 }
-func (t *HTTP1Conn) Multiplexing(enable bool) {
+func (t *http1Conn) Multiplexing(enable bool) {
 	t.multiplexing = enable
 	if t.multiplexing {
 		t.conn.Transport = &http.Transport{
@@ -52,16 +52,16 @@ func (t *HTTP1Conn) Multiplexing(enable bool) {
 		}
 	}
 }
-func (t *HTTP1Conn) Handle(readChan chan []byte, writeChan chan []byte, stopChan chan bool, finishChan chan bool) {
+func (t *http1Conn) Handle(readChan chan []byte, writeChan chan []byte, stopChan chan bool, finishChan chan bool) {
 	go protocol.HandleSyncConn(t, readChan, writeChan, stopChan, 64)
 }
-func (t *HTTP1Conn) TickerFactor() int {
+func (t *http1Conn) TickerFactor() int {
 	return 100
 }
-func (t *HTTP1Conn) BatchFactor() int {
+func (t *http1Conn) BatchFactor() int {
 	return 512
 }
-func (t *HTTP1Conn) Retry() error {
+func (t *http1Conn) Retry() error {
 	var Transport *http.Transport
 	if t.multiplexing {
 		Transport = &http.Transport{
@@ -84,16 +84,17 @@ func (t *HTTP1Conn) Retry() error {
 	}
 	return nil
 }
-func (t *HTTP1Conn) Close() error {
+func (t *http1Conn) Close() error {
 	return nil
 }
-func (c *HTTP1Conn) Do(requestBody []byte) ([]byte, error) {
+
+func (t *http1Conn) Do(requestBody []byte) ([]byte, error) {
 	var requestBodyReader io.Reader
 	if requestBody != nil {
 		requestBodyReader = bytes.NewReader(requestBody)
 	}
-	req, _ := http.NewRequest("POST", c.url, requestBodyReader)
-	resp, err := c.conn.Do(req)
+	req, _ := http.NewRequest("POST", t.url, requestBodyReader)
+	resp, err := t.conn.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -101,6 +102,6 @@ func (c *HTTP1Conn) Do(requestBody []byte) ([]byte, error) {
 	return ioutil.ReadAll(resp.Body)
 }
 
-func (t *HTTP1Conn) Closed() bool {
+func (t *http1Conn) Closed() bool {
 	return t.closed
 }

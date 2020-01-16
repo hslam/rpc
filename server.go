@@ -10,13 +10,11 @@ import (
 )
 
 var (
+	//DefaultServer defines the default server
 	DefaultServer = NewServer()
 )
 
-type registerObject struct {
-	name string
-	obj  interface{}
-}
+//Server defines the struct of server
 type Server struct {
 	network      string
 	Funcs        *funcs.Funcs
@@ -26,67 +24,92 @@ type Server struct {
 	multiplexing bool
 	asyncMax     int
 	noDelay      bool
-	objs         []*registerObject
 }
 
+//NewServer creates a new server
 func NewServer() *Server {
 	return &Server{Funcs: funcs.New(), timeout: DefaultServerTimeout, asyncMax: DefaultMaxAsyncPerConn, multiplexing: true, batching: false}
 }
+
+//SetBatching enables batching.
 func SetBatching(enable bool) {
 	DefaultServer.SetBatching(enable)
 }
+
+//SetBatching enables batching.
 func (s *Server) SetBatching(enable bool) {
 	s.batching = enable
 }
+
+//SetNoDelay enables no delay.
 func SetNoDelay(enable bool) {
 	DefaultServer.SetNoDelay(enable)
 }
+
+//SetNoDelay enables no delay.
 func (s *Server) SetNoDelay(enable bool) {
 	s.noDelay = enable
 }
+
+//SetPipelining enables pipelining.
 func SetPipelining(enable bool) {
 	DefaultServer.SetPipelining(enable)
 }
+
+//SetPipelining enables pipelining.
 func (s *Server) SetPipelining(enable bool) {
 	s.pipelining = enable
 	s.multiplexing = !enable
 }
+
+//SetMultiplexing enables multiplexing.
 func SetMultiplexing(enable bool) {
 	DefaultServer.SetMultiplexing(enable)
 }
+
+//SetMultiplexing enables multiplexing.
 func (s *Server) SetMultiplexing(enable bool) {
 	s.multiplexing = enable
 	s.pipelining = !enable
 	s.SetSize(DefaultMaxMultiplexingPerConn)
 }
+
+//SetSize sets the size of max async requests.
 func SetSize(size int) {
 	DefaultServer.SetSize(size)
 }
+
+//SetSize sets the size of max async requests.
 func (s *Server) SetSize(size int) {
 	s.asyncMax = size
 }
 
+// Register publishes in the server the set of methods.
 func Register(obj interface{}) error {
 	return DefaultServer.Register(obj)
 }
+
+// Register publishes in the server the set of methods.
 func (s *Server) Register(obj interface{}) error {
-	s.objs = append(s.objs, &registerObject{"", obj})
 	return s.Funcs.Register(obj)
 }
 
+// RegisterName is like Register but uses the provided name.
 func RegisterName(name string, obj interface{}) error {
 	return DefaultServer.RegisterName(name, obj)
 }
 
+// RegisterName is like Register but uses the provided name.
 func (s *Server) RegisterName(name string, obj interface{}) error {
-	s.objs = append(s.objs, &registerObject{name, obj})
 	return s.Funcs.RegisterName(name, obj)
 }
 
+// ListenAndServe listens on the network address addr and then calls Serve.
 func ListenAndServe(network, address string) error {
 	return DefaultServer.ListenAndServe(network, address)
 }
 
+// ListenAndServe listens on the network address addr and then calls Serve.
 func (s *Server) ListenAndServe(network, address string) error {
 	s.network = network
 	listener, err := Listen(network, address, s)
@@ -101,15 +124,23 @@ func (s *Server) ListenAndServe(network, address string) error {
 	}
 	return nil
 }
+
+// ServeMessage serves message
 func ServeMessage(ReadWriteCloser io.ReadWriteCloser) error {
 	return DefaultServer.ServeMessage(ReadWriteCloser)
 }
+
+// ServeMessage serves message
 func (s *Server) ServeMessage(ReadWriteCloser io.ReadWriteCloser) error {
 	return s.serve(ReadWriteCloser, false)
 }
+
+// ServeConn serves conn
 func ServeConn(ReadWriteCloser io.ReadWriteCloser) error {
 	return DefaultServer.ServeConn(ReadWriteCloser)
 }
+
+// ServeConn serves conn
 func (s *Server) ServeConn(ReadWriteCloser io.ReadWriteCloser) error {
 	return s.serve(ReadWriteCloser, true)
 }
@@ -150,9 +181,9 @@ func (s *Server) serve(ReadWriteCloser io.ReadWriteCloser, Stream bool) error {
 					if err != nil {
 						return
 					}
-					_, res_bytes := s.Serve(body)
-					if res_bytes != nil {
-						frameBytes := protocol.PacketFrame(priority, id, res_bytes)
+					_, resBytes := s.Serve(body)
+					if resBytes != nil {
+						frameBytes := protocol.PacketFrame(priority, id, resBytes)
 						writeChan <- frameBytes
 					}
 				}(data, writeChan)
@@ -168,9 +199,9 @@ func (s *Server) serve(ReadWriteCloser io.ReadWriteCloser, Stream bool) error {
 		for {
 			select {
 			case data := <-readChan:
-				_, res_bytes := s.Serve(data)
-				if res_bytes != nil {
-					writeChan <- res_bytes
+				_, resBytes := s.Serve(data)
+				if resBytes != nil {
+					writeChan <- resBytes
 				}
 			case stop := <-finishChan:
 				if stop {
@@ -192,11 +223,14 @@ endfor:
 	return ErrConnExit
 }
 
+// Serve serves bytes
 func Serve(b []byte) (bool, []byte) {
 	return DefaultServer.Serve(b)
 }
+
+// Serve serves bytes
 func (s *Server) Serve(b []byte) (ok bool, body []byte) {
-	ctx := &ServerCodec{}
+	ctx := &serverCodec{}
 	ctx.Decode(b)
 	if ctx.msg.msgType == MsgTypeHea {
 		return true, b
@@ -205,14 +239,14 @@ func (s *Server) Serve(b []byte) (ok bool, body []byte) {
 	var noResponse = false
 	var responseBytes []byte
 	if ctx.msg.batch {
-		NoResponseCnt := &Count{}
+		NoResponseCnt := &count{}
 		if ctx.batchCodec.async {
 			waitGroup := sync.WaitGroup{}
 			for i, v := range ctx.requests {
 				waitGroup.Add(1)
-				go func(i int, req *Request, res *Response, NoResponseCnt *Count, waitGroup *sync.WaitGroup) {
+				go func(i int, req *request, res *response, NoResponseCnt *count, waitGroup *sync.WaitGroup) {
 					defer waitGroup.Done()
-					s.Handler(ctx, req, res)
+					s.handle(ctx, req, res)
 					if req.noResponse == true {
 						NoResponseCnt.add(1)
 						ctx.responses[i].data = []byte("")
@@ -225,7 +259,7 @@ func (s *Server) Serve(b []byte) (ok bool, body []byte) {
 			waitGroup.Wait()
 		} else {
 			for i, v := range ctx.requests {
-				s.Handler(ctx, v, ctx.responses[i])
+				s.handle(ctx, v, ctx.responses[i])
 				if v.noResponse == true {
 					NoResponseCnt.add(1)
 					ctx.responses[i].data = []byte("")
@@ -241,7 +275,7 @@ func (s *Server) Serve(b []byte) (ok bool, body []byte) {
 			responseBytes, _ = ctx.batchCodec.Encode()
 		}
 	} else {
-		s.Handler(ctx, ctx.request, ctx.response)
+		s.handle(ctx, ctx.request, ctx.response)
 		noResponse = ctx.request.noResponse
 		responseBytes, _ = ctx.response.Encode()
 	}
@@ -253,12 +287,12 @@ func (s *Server) Serve(b []byte) (ok bool, body []byte) {
 	return true, body
 }
 
-func (s *Server) Handler(ctx *ServerCodec, req *Request, res *Response) {
+func (s *Server) handle(ctx *serverCodec, req *request, res *response) {
 	res.id = req.id
 	if s.timeout > 0 {
 		ch := make(chan int)
 		go func() {
-			s.CallService(ctx, req, res)
+			s.callService(ctx, req, res)
 			ch <- 1
 		}()
 		select {
@@ -269,9 +303,9 @@ func (s *Server) Handler(ctx *ServerCodec, req *Request, res *Response) {
 			return
 		}
 	}
-	s.CallService(ctx, req, res)
+	s.callService(ctx, req, res)
 }
-func (s *Server) CallService(ctx *ServerCodec, req *Request, res *Response) {
+func (s *Server) callService(ctx *serverCodec, req *request, res *response) {
 	if s.Funcs.GetFunc(req.method) == nil {
 		logger.Noticef("Server.CallService method %s is not supposted", req.method)
 		res.err = fmt.Errorf("Server.CallService method %s is not supposted", req.method)
@@ -291,16 +325,16 @@ func (s *Server) CallService(ctx *ServerCodec, req *Request, res *Response) {
 			res.err = fmt.Errorf("Server.CallService CallNoRequest err %s", err)
 			return
 		}
-		reply_bytes, err := ReplyEncode(reply, ctx.msg.codecType)
+		replyBytes, err := replyEncode(reply, ctx.msg.codecType)
 		if err != nil {
 			res.err = fmt.Errorf("Server.CallService ReplyEncode err %s", err)
 			return
 		}
-		res.data = reply_bytes
+		res.data = replyBytes
 		return
 	} else if !req.noRequest && req.noResponse {
 		args := s.Funcs.GetFuncIn(req.method, 0)
-		err := ArgsDecode(req.data, args, ctx.msg.codecType)
+		err := argsDecode(req.data, args, ctx.msg.codecType)
 		if err != nil {
 			res.err = fmt.Errorf("Server.CallService ArgsDecode err %s", err)
 			return
@@ -321,7 +355,7 @@ func (s *Server) CallService(ctx *ServerCodec, req *Request, res *Response) {
 
 	} else {
 		args := s.Funcs.GetFuncIn(req.method, 0)
-		err := ArgsDecode(req.data, args, ctx.msg.codecType)
+		err := argsDecode(req.data, args, ctx.msg.codecType)
 		if err != nil {
 			res.err = fmt.Errorf("Server.CallService ArgsDecode err %s", err)
 			return
@@ -331,13 +365,13 @@ func (s *Server) CallService(ctx *ServerCodec, req *Request, res *Response) {
 			res.err = fmt.Errorf("Server.CallService Call err %s", err)
 			return
 		}
-		var reply_bytes []byte
-		reply_bytes, err = ReplyEncode(reply, ctx.msg.codecType)
+		var replyBytes []byte
+		replyBytes, err = replyEncode(reply, ctx.msg.codecType)
 		if err != nil {
 			res.err = fmt.Errorf("Server.CallService ReplyEncode err %s", err)
 			return
 		}
-		res.data = reply_bytes
+		res.data = replyBytes
 		return
 	}
 }

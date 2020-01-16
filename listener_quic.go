@@ -5,7 +5,7 @@ import (
 	"github.com/lucas-clemente/quic-go"
 )
 
-type QUICListener struct {
+type quicListener struct {
 	server       *Server
 	address      string
 	quicListener quic.Listener
@@ -13,22 +13,22 @@ type QUICListener struct {
 	connNum      int
 }
 
-func ListenQUIC(address string, server *Server) (Listener, error) {
-	quic_listener, err := quic.ListenAddr(address, generateQuicTLSConfig(), nil)
+func listenQUIC(address string, server *Server) (Listener, error) {
+	l, err := quic.ListenAddr(address, generateQuicTLSConfig(), nil)
 	if err != nil {
 		logger.Errorf("fatal error: %s", err)
 		return nil, err
 	}
-	listener := &QUICListener{address: address, quicListener: quic_listener, server: server, maxConnNum: DefaultMaxConnNum}
+	listener := &quicListener{address: address, quicListener: l, server: server, maxConnNum: DefaultMaxConnNum}
 	return listener, nil
 }
-func (l *QUICListener) Serve() error {
+func (l *quicListener) Serve() error {
 	logger.Noticef("%s\n", "waiting for clients")
 	workerChan := make(chan bool, l.maxConnNum)
 	connChange := make(chan int)
 	go func() {
-		for conn_change := range connChange {
-			l.connNum += conn_change
+		for c := range connChange {
+			l.connNum += c
 		}
 	}()
 	for {
@@ -59,6 +59,6 @@ func (l *QUICListener) Serve() error {
 	}
 	return nil
 }
-func (l *QUICListener) Addr() string {
+func (l *quicListener) Addr() string {
 	return l.address
 }

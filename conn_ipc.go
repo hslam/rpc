@@ -5,7 +5,7 @@ import (
 	"net"
 )
 
-type IPCConn struct {
+type ipcConn struct {
 	conn       *net.UnixConn
 	address    string
 	CanWork    bool
@@ -17,7 +17,7 @@ type IPCConn struct {
 	noDelay    bool
 }
 
-func DialIPC(address string) (Conn, error) {
+func dialIPC(address string) (Conn, error) {
 	var addr *net.UnixAddr
 	var err error
 	if addr, err = net.ResolveUnixAddr("unix", address); err != nil {
@@ -28,26 +28,26 @@ func DialIPC(address string) (Conn, error) {
 		logger.Errorf("fatal error: %s", err)
 		return nil, err
 	}
-	t := &IPCConn{
+	t := &ipcConn{
 		conn:    conn,
 		address: address,
 	}
 	return t, nil
 }
 
-func (t *IPCConn) Handle(readChan chan []byte, writeChan chan []byte, stopChan chan bool, finishChan chan bool) {
+func (t *ipcConn) Handle(readChan chan []byte, writeChan chan []byte, stopChan chan bool, finishChan chan bool) {
 	t.readChan = readChan
 	t.writeChan = writeChan
 	t.stopChan = stopChan
 	t.finishChan = finishChan
 	t.handle()
 }
-func (t *IPCConn) NoDelay(enable bool) {
+func (t *ipcConn) NoDelay(enable bool) {
 	t.noDelay = enable
 }
-func (t *IPCConn) Multiplexing(enable bool) {
+func (t *ipcConn) Multiplexing(enable bool) {
 }
-func (t *IPCConn) handle() {
+func (t *ipcConn) handle() {
 	readChan := make(chan []byte, 1)
 	writeChan := make(chan []byte, 1)
 	finishChan := make(chan bool, 2)
@@ -105,13 +105,13 @@ func (t *IPCConn) handle() {
 		t.closed = true
 	}()
 }
-func (t *IPCConn) TickerFactor() int {
+func (t *ipcConn) TickerFactor() int {
 	return 300
 }
-func (t *IPCConn) BatchFactor() int {
+func (t *ipcConn) BatchFactor() int {
 	return 512
 }
-func (t *IPCConn) Retry() error {
+func (t *ipcConn) Retry() error {
 	var addr *net.UnixAddr
 	var err error
 	if addr, err = net.ResolveUnixAddr("unix", t.address); err != nil {
@@ -127,9 +127,9 @@ func (t *IPCConn) Retry() error {
 	//logger.Traceln("IPCConn.Retry")
 	return nil
 }
-func (t *IPCConn) Close() error {
+func (t *ipcConn) Close() error {
 	return t.conn.Close()
 }
-func (t *IPCConn) Closed() bool {
+func (t *ipcConn) Closed() bool {
 	return t.closed
 }

@@ -9,7 +9,7 @@ import (
 	"net/http"
 )
 
-type HTTPConn struct {
+type httpConn struct {
 	conn       net.Conn
 	address    string
 	CanWork    bool
@@ -21,18 +21,18 @@ type HTTPConn struct {
 	finishChan chan bool
 }
 
-func DialHTTP(address string) (Conn, error) {
+func dialHTTP(address string) (Conn, error) {
 	var err error
 	conn, err := net.Dial("tcp", address)
 	if err != nil {
 		return nil, err
 	}
-	io.WriteString(conn, "CONNECT "+HttpPath+" HTTP/1.1\n\n")
+	io.WriteString(conn, "CONNECT "+HTTPPath+" HTTP/1.1\n\n")
 
 	// Require successful HTTP response
 	// before switching to RPC protocol.
 	resp, err := http.ReadResponse(bufio.NewReader(conn), &http.Request{Method: "CONNECT"})
-	if err != nil || resp.Status != HttpConnected {
+	if err != nil || resp.Status != HTTPConnected {
 		if err == nil {
 			err = errors.New("unexpected HTTP response: " + resp.Status)
 		}
@@ -44,25 +44,25 @@ func DialHTTP(address string) (Conn, error) {
 			Err:  err,
 		}
 	}
-	t := &HTTPConn{
+	t := &httpConn{
 		address: address,
 		conn:    conn,
 	}
 	return t, nil
 }
-func (t *HTTPConn) NoDelay(enable bool) {
+func (t *httpConn) NoDelay(enable bool) {
 	t.noDelay = enable
 }
-func (t *HTTPConn) Multiplexing(enable bool) {
+func (t *httpConn) Multiplexing(enable bool) {
 }
-func (t *HTTPConn) Handle(readChan chan []byte, writeChan chan []byte, stopChan chan bool, finishChan chan bool) {
+func (t *httpConn) Handle(readChan chan []byte, writeChan chan []byte, stopChan chan bool, finishChan chan bool) {
 	t.readChan = readChan
 	t.writeChan = writeChan
 	t.stopChan = stopChan
 	t.finishChan = finishChan
 	t.handle()
 }
-func (t *HTTPConn) handle() {
+func (t *httpConn) handle() {
 	readChan := make(chan []byte, 1)
 	writeChan := make(chan []byte, 1)
 	finishChan := make(chan bool, 2)
@@ -120,13 +120,13 @@ func (t *HTTPConn) handle() {
 		t.closed = true
 	}()
 }
-func (t *HTTPConn) TickerFactor() int {
+func (t *httpConn) TickerFactor() int {
 	return 300
 }
-func (t *HTTPConn) BatchFactor() int {
+func (t *httpConn) BatchFactor() int {
 	return 512
 }
-func (t *HTTPConn) Retry() error {
+func (t *httpConn) Retry() error {
 	var err error
 	conn, err := net.Dial("tcp", t.address)
 	if err != nil {
@@ -138,7 +138,7 @@ func (t *HTTPConn) Retry() error {
 	// Require successful HTTP response
 	// before switching to RPC protocol.
 	resp, err := http.ReadResponse(bufio.NewReader(conn), &http.Request{Method: "CONNECT"})
-	if err != nil || resp.Status != HttpConnected {
+	if err != nil || resp.Status != HTTPConnected {
 		if err == nil {
 			err = errors.New("unexpected HTTP response: " + resp.Status)
 		}
@@ -153,10 +153,10 @@ func (t *HTTPConn) Retry() error {
 	t.conn = conn
 	return nil
 }
-func (t *HTTPConn) Close() error {
+func (t *httpConn) Close() error {
 	return nil
 }
 
-func (t *HTTPConn) Closed() bool {
+func (t *httpConn) Closed() bool {
 	return t.closed
 }

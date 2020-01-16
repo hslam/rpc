@@ -2,16 +2,17 @@ package rpc
 
 import "time"
 
+//IO defines the interface of io
 type IO interface {
-	NewRequest(priority uint8, data []byte, noResponse bool, cbChan chan []byte) *IORequest
-	RequestChan() RequestChan
+	NewRequest(priority uint8, data []byte, noResponse bool, cbChan chan []byte) *ioRequest
+	RequestChan() requestChan
 	ResetMaxRequests(max int)
 	Reset(readChan chan []byte, writeChan chan []byte)
 	Retry()
 	Close()
 }
 
-type IORequest struct {
+type ioRequest struct {
 	id         uint32
 	priority   uint8
 	data       []byte
@@ -20,4 +21,4 @@ type IORequest struct {
 	startTime  time.Time
 }
 
-type RequestChan chan *IORequest
+type requestChan chan *ioRequest

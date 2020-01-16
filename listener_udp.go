@@ -5,7 +5,7 @@ import (
 	"net"
 )
 
-type UDPListener struct {
+type udpListener struct {
 	server     *Server
 	address    string
 	netUDPConn *net.UDPConn
@@ -13,7 +13,7 @@ type UDPListener struct {
 	connNum    int
 }
 
-func ListenUDP(address string, server *Server) (Listener, error) {
+func listenUDP(address string, server *Server) (Listener, error) {
 	addr, err := net.ResolveUDPAddr("udp", address)
 	if err != nil {
 		logger.Errorf("fatal error: %s", err)
@@ -24,17 +24,17 @@ func ListenUDP(address string, server *Server) (Listener, error) {
 		logger.Errorf("fatal error: %s", err)
 		return nil, err
 	}
-	listener := &UDPListener{address: address, netUDPConn: conn, server: server, maxConnNum: DefaultMaxConnNum * server.asyncMax}
+	listener := &udpListener{address: address, netUDPConn: conn, server: server, maxConnNum: DefaultMaxConnNum * server.asyncMax}
 	return listener, nil
 }
 
-func (l *UDPListener) Serve() error {
+func (l *udpListener) Serve() error {
 	logger.Noticef("%s\n", "waiting for clients")
 	workerChan := make(chan bool, l.maxConnNum)
 	connChange := make(chan int)
 	go func() {
-		for conn_change := range connChange {
-			l.connNum += conn_change
+		for c := range connChange {
+			l.connNum += c
 		}
 	}()
 	readChan := make(chan *protocol.UDPMsg, l.maxConnNum)
@@ -43,7 +43,7 @@ func (l *UDPListener) Serve() error {
 	go protocol.WriteUDPConn(l.netUDPConn, writeChan)
 	for {
 		select {
-		case udp_msg := <-readChan:
+		case udpMsg := <-readChan:
 			workerChan <- true
 			go func() {
 				defer func() {
@@ -52,9 +52,9 @@ func (l *UDPListener) Serve() error {
 					<-workerChan
 				}()
 				connChange <- 1
-				var RemoteAddr = udp_msg.RemoteAddr.String()
+				var RemoteAddr = udpMsg.RemoteAddr.String()
 				logger.Noticef("client %s comming\n", RemoteAddr)
-				l.ServeUDPConn(udp_msg, writeChan)
+				l.ServeUDPConn(udpMsg, writeChan)
 				logger.Noticef("client %s exiting\n", RemoteAddr)
 				connChange <- -1
 			}()
@@ -65,28 +65,28 @@ func (l *UDPListener) Serve() error {
 	close(readChan)
 	return nil
 }
-func (l *UDPListener) Addr() string {
+func (l *udpListener) Addr() string {
 	return l.address
 }
-func (l *UDPListener) ServeUDPConn(udp_msg *protocol.UDPMsg, writeChan chan *protocol.UDPMsg) error {
+func (l *udpListener) ServeUDPConn(udpMsg *protocol.UDPMsg, writeChan chan *protocol.UDPMsg) error {
 	if l.server.multiplexing {
-		priority, id, body, err := protocol.UnpackFrame(udp_msg.Data)
+		priority, id, body, err := protocol.UnpackFrame(udpMsg.Data)
 		if err != nil {
 			return ErrConnExit
 		}
-		ok, res_bytes := l.server.Serve(body)
-		if res_bytes != nil {
-			frameBytes := protocol.PacketFrame(priority, id, res_bytes)
-			writeChan <- &protocol.UDPMsg{udp_msg.ID, frameBytes, udp_msg.RemoteAddr}
+		ok, resBytes := l.server.Serve(body)
+		if resBytes != nil {
+			frameBytes := protocol.PacketFrame(priority, id, resBytes)
+			writeChan <- &protocol.UDPMsg{udpMsg.ID, frameBytes, udpMsg.RemoteAddr}
 		} else if ok {
-			writeChan <- &protocol.UDPMsg{udp_msg.ID, nil, udp_msg.RemoteAddr}
+			writeChan <- &protocol.UDPMsg{udpMsg.ID, nil, udpMsg.RemoteAddr}
 		}
 	} else {
-		ok, res_bytes := l.server.Serve(udp_msg.Data)
-		if res_bytes != nil {
-			writeChan <- &protocol.UDPMsg{udp_msg.ID, res_bytes, udp_msg.RemoteAddr}
+		ok, resBytes := l.server.Serve(udpMsg.Data)
+		if resBytes != nil {
+			writeChan <- &protocol.UDPMsg{udpMsg.ID, resBytes, udpMsg.RemoteAddr}
 		} else if ok {
-			writeChan <- &protocol.UDPMsg{udp_msg.ID, nil, udp_msg.RemoteAddr}
+			writeChan <- &protocol.UDPMsg{udpMsg.ID, nil, udpMsg.RemoteAddr}
 		}
 	}
 	return ErrConnExit

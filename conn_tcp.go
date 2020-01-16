@@ -5,7 +5,7 @@ import (
 	"net"
 )
 
-type TCPConn struct {
+type tcpConn struct {
 	conn       *net.TCPConn
 	address    string
 	CanWork    bool
@@ -17,7 +17,7 @@ type TCPConn struct {
 	noDelay    bool
 }
 
-func DialTCP(address string) (Conn, error) {
+func dialTCP(address string) (Conn, error) {
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", address)
 	if err != nil {
 		logger.Errorf("fatal error: %s", err)
@@ -29,26 +29,26 @@ func DialTCP(address string) (Conn, error) {
 		return nil, err
 	}
 	conn.SetNoDelay(true)
-	t := &TCPConn{
+	t := &tcpConn{
 		conn:    conn,
 		address: address,
 	}
 	return t, nil
 }
 
-func (t *TCPConn) Handle(readChan chan []byte, writeChan chan []byte, stopChan chan bool, finishChan chan bool) {
+func (t *tcpConn) Handle(readChan chan []byte, writeChan chan []byte, stopChan chan bool, finishChan chan bool) {
 	t.readChan = readChan
 	t.writeChan = writeChan
 	t.stopChan = stopChan
 	t.finishChan = finishChan
 	t.handle()
 }
-func (t *TCPConn) NoDelay(enable bool) {
+func (t *tcpConn) NoDelay(enable bool) {
 	t.noDelay = enable
 }
-func (t *TCPConn) Multiplexing(enable bool) {
+func (t *tcpConn) Multiplexing(enable bool) {
 }
-func (t *TCPConn) handle() {
+func (t *tcpConn) handle() {
 	readChan := make(chan []byte, 1)
 	writeChan := make(chan []byte, 1)
 	finishChan := make(chan bool, 2)
@@ -106,13 +106,13 @@ func (t *TCPConn) handle() {
 		t.closed = true
 	}()
 }
-func (t *TCPConn) TickerFactor() int {
+func (t *tcpConn) TickerFactor() int {
 	return 300
 }
-func (t *TCPConn) BatchFactor() int {
+func (t *tcpConn) BatchFactor() int {
 	return 512
 }
-func (t *TCPConn) Retry() error {
+func (t *tcpConn) Retry() error {
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", t.address)
 	if err != nil {
 		logger.Errorf("fatal error: %s", err)
@@ -128,9 +128,9 @@ func (t *TCPConn) Retry() error {
 	//logger.Traceln("TCPConn.Retry")
 	return nil
 }
-func (t *TCPConn) Close() error {
+func (t *tcpConn) Close() error {
 	return t.conn.Close()
 }
-func (t *TCPConn) Closed() bool {
+func (t *tcpConn) Closed() bool {
 	return t.closed
 }

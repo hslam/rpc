@@ -7,7 +7,7 @@ import (
 	"github.com/hslam/rpc/pb"
 )
 
-type Msg struct {
+type msg struct {
 	version       float32
 	id            uint64
 	msgType       MsgType
@@ -18,16 +18,16 @@ type Msg struct {
 	data          []byte
 }
 
-func (m *Msg) Encode() ([]byte, error) {
+func (m *msg) Encode() ([]byte, error) {
 	compressor := getCompressor(m.compressType, m.compressLevel)
 	if compressor != nil {
 		m.data = compressor.Compress(m.data)
 	}
 	m.version = Version
-	switch rpc_codec {
-	case RPC_CODEC_CODE:
+	switch rpcCodec {
+	case RPCCodecCode:
 		return m.Marshal(nil)
-	case RPC_CODEC_PROTOBUF:
+	case RPCCodecProtobuf:
 		var msg pb.Msg
 		if m.msgType == MsgType(pb.MsgType_req) || m.msgType == MsgType(pb.MsgType_res) {
 			msg = pb.Msg{
@@ -43,32 +43,34 @@ func (m *Msg) Encode() ([]byte, error) {
 		} else if m.msgType == MsgType(pb.MsgType_hea) {
 			msg = pb.Msg{Version: m.version, Id: m.id, MsgType: pb.MsgType(m.msgType)}
 		}
-		if data, err := msg.Marshal(); err != nil {
+		var data []byte
+		var err error
+		if data, err = msg.Marshal(); err != nil {
 			logger.Errorln("MsgEncode proto.Unmarshal error: ", err)
 			return nil, err
-		} else {
-			return data, nil
 		}
+		return data, nil
+
 	}
 	return nil, errors.New("this rpc_serialize is not supported")
 }
-func (m *Msg) Decode(b []byte) error {
+func (m *msg) Decode(b []byte) error {
 	m.version = 0
 	m.id = 0
 	m.data = nil
 	m.batch = false
-	m.codecType = FUNCS_CODEC_INVALID
+	m.codecType = FuncsCodecINVALID
 	m.compressType = CompressTypeNo
 	m.compressLevel = NoCompression
-	switch rpc_codec {
-	case RPC_CODEC_CODE:
+	switch rpcCodec {
+	case RPCCodecCode:
 		err := m.Unmarshal(b)
 		compressor := getCompressor(m.compressType, m.compressLevel)
 		if compressor != nil {
 			m.data = compressor.Uncompress(m.data)
 		}
 		return err
-	case RPC_CODEC_PROTOBUF:
+	case RPCCodecProtobuf:
 		var msg = &pb.Msg{}
 		if err := msg.Unmarshal(b); err != nil {
 			logger.Errorln("MsgDecode proto.Unmarshal error: ", err)
@@ -94,15 +96,15 @@ func (m *Msg) Decode(b []byte) error {
 	}
 }
 
-func (m *Msg) Marshal(buf []byte) ([]byte, error) {
+func (m *msg) Marshal(buf []byte) ([]byte, error) {
 	var size uint64
 	size += 4
 	size += 8
-	size += 1
-	size += 1
-	size += 1
-	size += 1
-	size += 1
+	size++
+	size++
+	size++
+	size++
+	size++
 	size += code.SizeofBytes(m.data)
 	if uint64(cap(buf)) >= size {
 		buf = buf[:size]
@@ -129,7 +131,7 @@ func (m *Msg) Marshal(buf []byte) ([]byte, error) {
 	offset += n
 	return buf, nil
 }
-func (m *Msg) Unmarshal(b []byte) error {
+func (m *msg) Unmarshal(b []byte) error {
 	var offset uint64
 	var n uint64
 	n = code.DecodeFloat32(b[offset:], &m.version)
@@ -158,7 +160,7 @@ func (m *Msg) Unmarshal(b []byte) error {
 	offset += n
 	return nil
 }
-func (m *Msg) Reset() {
+func (m *msg) Reset() {
 }
 func getCompressor(compressType CompressType, level CompressLevel) *compress.Compressor {
 	if level == NoCompression {

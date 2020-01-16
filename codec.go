@@ -1,13 +1,15 @@
 package rpc
 
+//Codec defines the interface of codec.
 type Codec interface {
 	Marshal() ([]byte, error)
 	Unmarshal(b []byte) error
 	Reset()
 }
 
-var rpc_codec = RPC_CODEC_CODE
+var rpcCodec = RPCCodecCode
 
-func SETRPCCODEC(t RPC_CODEC_TYPE) {
-	rpc_codec = t
+//SETRPCCODEC sets rpc codec.
+func SETRPCCODEC(t BasicCodecType) {
+	rpcCodec = t
 }

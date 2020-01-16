@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	rpc.SETRPCCODEC(rpc.RPC_CODEC_PROTOBUF)
+	rpc.SETRPCCODEC(rpc.RPCCodecProtobuf)
 	opts := rpc.DefaultOptions()
 	opts.SetPipelining(true)
 	conn, err := rpc.DialWithOptions("http", "127.0.0.1:8080", "json", opts)

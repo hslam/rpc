@@ -7,7 +7,7 @@ import (
 	"github.com/hslam/protocol"
 )
 
-type QUICConn struct {
+type quicConn struct {
 	conn       quic.Stream
 	address    string
 	CanWork    bool
@@ -19,7 +19,7 @@ type QUICConn struct {
 	noDelay    bool
 }
 
-func DialQUIC(address string) (Conn, error) {
+func dialQUIC(address string) (Conn, error) {
 	session, err := quic.DialAddr(address, &tls.Config{InsecureSkipVerify: true, NextProtos: []string{"quic-rpc"}}, nil)
 	if err != nil {
 		logger.Errorf("fatal error: %s", err)
@@ -30,25 +30,25 @@ func DialQUIC(address string) (Conn, error) {
 		logger.Errorf("fatal error: %s", err)
 		return nil, err
 	}
-	t := &QUICConn{
+	t := &quicConn{
 		conn:    stream,
 		address: address,
 	}
 	return t, nil
 }
-func (t *QUICConn) NoDelay(enable bool) {
+func (t *quicConn) NoDelay(enable bool) {
 	t.noDelay = enable
 }
-func (t *QUICConn) Multiplexing(enable bool) {
+func (t *quicConn) Multiplexing(enable bool) {
 }
-func (t *QUICConn) Handle(readChan chan []byte, writeChan chan []byte, stopChan chan bool, finishChan chan bool) {
+func (t *quicConn) Handle(readChan chan []byte, writeChan chan []byte, stopChan chan bool, finishChan chan bool) {
 	t.readChan = readChan
 	t.writeChan = writeChan
 	t.stopChan = stopChan
 	t.finishChan = finishChan
 	t.handle()
 }
-func (t *QUICConn) handle() {
+func (t *quicConn) handle() {
 	readChan := make(chan []byte, 1)
 	writeChan := make(chan []byte, 1)
 	finishChan := make(chan bool, 2)
@@ -105,13 +105,13 @@ func (t *QUICConn) handle() {
 	}()
 }
 
-func (t *QUICConn) TickerFactor() int {
+func (t *quicConn) TickerFactor() int {
 	return 1000
 }
-func (t *QUICConn) BatchFactor() int {
+func (t *quicConn) BatchFactor() int {
 	return 32
 }
-func (t *QUICConn) Retry() error {
+func (t *quicConn) Retry() error {
 	session, err := quic.DialAddr(t.address, &tls.Config{InsecureSkipVerify: true}, nil)
 	if err != nil {
 		logger.Errorf("fatal error: %s", err)
@@ -126,9 +126,9 @@ func (t *QUICConn) Retry() error {
 	t.handle()
 	return nil
 }
-func (t *QUICConn) Close() error {
+func (t *quicConn) Close() error {
 	return t.conn.Close()
 }
-func (t *QUICConn) Closed() bool {
+func (t *quicConn) Closed() bool {
 	return t.closed
 }

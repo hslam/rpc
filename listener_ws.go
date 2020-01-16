@@ -14,7 +14,7 @@ var (
 	}
 )
 
-type WSListener struct {
+type wsListener struct {
 	server     *Server
 	address    string
 	httpServer http.Server
@@ -23,7 +23,7 @@ type WSListener struct {
 	connNum    int
 }
 
-func ListenWS(address string, server *Server) (Listener, error) {
+func listenWS(address string, server *Server) (Listener, error) {
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
 		logger.Errorf("fatal error: %s", err)
@@ -32,16 +32,16 @@ func ListenWS(address string, server *Server) (Listener, error) {
 	var httpServer http.Server
 	httpServer.Addr = address
 
-	l := &WSListener{address: address, httpServer: httpServer, listener: lis, server: server, maxConnNum: DefaultMaxConnNum}
+	l := &wsListener{address: address, httpServer: httpServer, listener: lis, server: server, maxConnNum: DefaultMaxConnNum}
 	return l, nil
 }
-func (l *WSListener) Serve() error {
+func (l *wsListener) Serve() error {
 	logger.Noticef("%s\n", "waiting for clients")
 	workerChan := make(chan bool, l.maxConnNum)
 	connChange := make(chan int)
 	go func() {
-		for conn_change := range connChange {
-			l.connNum += conn_change
+		for c := range connChange {
+			l.connNum += c
 		}
 	}()
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -62,7 +62,7 @@ func (l *WSListener) Serve() error {
 			defer func() { connChange <- -1 }()
 			defer func() { logger.Infof("client %s exiting\n", conn.RemoteAddr()) }()
 			logger.Infof("client %s comming\n", conn.RemoteAddr())
-			l.server.ServeMessage(&protocol.MsgConn{MessageConn: &wsConn{conn}})
+			l.server.ServeMessage(&protocol.MsgConn{MessageConn: &websocketConn{conn}})
 		}()
 	})
 	err := l.httpServer.Serve(l.listener)
@@ -72,6 +72,6 @@ func (l *WSListener) Serve() error {
 	}
 	return nil
 }
-func (l *WSListener) Addr() string {
+func (l *wsListener) Addr() string {
 	return l.address
 }

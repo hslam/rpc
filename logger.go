@@ -39,10 +39,12 @@ func init() {
 	SetLogLevel(InfoLevel)
 }
 
+//SetLogLevel sets log's level
 func SetLogLevel(level LogLevel) {
 	logger.SetLevel(log.Level(level))
 }
 
+//GetLogLevel returns log's level
 func GetLogLevel() LogLevel {
 	return LogLevel(logger.GetLevel())
 }

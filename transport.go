@@ -7,11 +7,14 @@ import (
 )
 
 const (
-	MaxConnsPerHost     = 8
+	//MaxConnsPerHost defines the max conn per host
+	MaxConnsPerHost = 8
+	//MaxIdleConnsPerHost defines the max idle conn per host
 	MaxIdleConnsPerHost = 2
 	keepAlive           = time.Minute
 )
 
+//Transport defines the struct of transport
 type Transport struct {
 	mut                 sync.Mutex
 	once                sync.Once
@@ -23,6 +26,7 @@ type Transport struct {
 	Options             *Options
 }
 
+//NewTransport creates a new transport.
 func NewTransport(MaxConnsPerHost int, MaxIdleConnsPerHost int, network, codec string, opts *Options) *Transport {
 	if MaxConnsPerHost < 1 {
 		MaxConnsPerHost = 1
@@ -66,6 +70,8 @@ func (t *Transport) run() {
 
 	}
 }
+
+//GetProxy returns a proxy
 func (t *Transport) GetProxy() *Proxy {
 	t.once.Do(func() {
 		go t.run()
@@ -82,6 +88,7 @@ func (t *Transport) GetProxy() *Proxy {
 	return rpcs
 }
 
+//GetConn returns a proxy client
 func (t *Transport) GetConn(addr string) *ProxyClient {
 	proxy := t.GetProxy()
 	if proxy != nil {
@@ -92,6 +99,8 @@ func (t *Transport) GetConn(addr string) *ProxyClient {
 	}
 	return nil
 }
+
+// Ping is NOT ICMP ping, this is just used to test whether a connection is still alive.
 func (t *Transport) Ping(address string) bool {
 	proxy := t.GetProxy()
 	if proxy != nil {
@@ -99,6 +108,8 @@ func (t *Transport) Ping(address string) bool {
 	}
 	return false
 }
+
+// Call invokes the named function, waits for it to complete, and returns its error status.
 func (t *Transport) Call(name string, args interface{}, reply interface{}, address string) error {
 	proxy := t.GetProxy()
 	if proxy != nil {
@@ -106,6 +117,11 @@ func (t *Transport) Call(name string, args interface{}, reply interface{}, addre
 	}
 	return nil
 }
+
+// Go invokes the function asynchronously. It returns the Call structure representing
+// the invocation. The done channel will signal when the call is complete by returning
+// the same Call object. If done is nil, Go will allocate a new channel.
+// If non-nil, done must be buffered or Go will deliberately crash.
 func (t *Transport) Go(name string, args interface{}, reply interface{}, done chan *Call, address string) *Call {
 	proxy := t.GetProxy()
 	if proxy != nil {
@@ -114,6 +130,7 @@ func (t *Transport) Go(name string, args interface{}, reply interface{}, done ch
 	return nil
 }
 
+//Proxy defines the struct of proxy.
 type Proxy struct {
 	mu      sync.RWMutex
 	clients map[string]*ProxyClient
@@ -121,12 +138,15 @@ type Proxy struct {
 	Codec   string
 	Options *Options
 }
+
+//ProxyClient defines the struct of proxy client.
 type ProxyClient struct {
 	Client
 	lastTime  time.Time
 	keepAlive time.Duration
 }
 
+//NewProxy creates a new proxy.
 func NewProxy(network, codec string, opts *Options) *Proxy {
 	t := &Proxy{
 		clients: make(map[string]*ProxyClient),
@@ -136,12 +156,14 @@ func NewProxy(network, codec string, opts *Options) *Proxy {
 	}
 	return t
 }
+
 func (t *Proxy) getClients() map[string]*ProxyClient {
 	if t.clients == nil {
 		t.clients = make(map[string]*ProxyClient)
 	}
 	return t.clients
 }
+
 func (t *Proxy) check() {
 	for addr, conn := range t.getClients() {
 		if conn.lastTime.Add(conn.keepAlive).Before(time.Now()) {
@@ -149,6 +171,8 @@ func (t *Proxy) check() {
 		}
 	}
 }
+
+//GetConn returns a proxy client
 func (t *Proxy) GetConn(address string) *ProxyClient {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -164,6 +188,7 @@ func (t *Proxy) GetConn(address string) *ProxyClient {
 	return nil
 }
 
+//RemoveConn remove a proxy client by address.
 func (t *Proxy) RemoveConn(address string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -175,9 +200,13 @@ func (t *Proxy) RemoveConn(address string) {
 		}(conn)
 	}
 }
+
+//NewConn creates a client by address.
 func (t *Proxy) NewConn(address string) (Client, error) {
 	return DialWithOptions(t.Network, address, t.Codec, t.Options)
 }
+
+// Ping is NOT ICMP ping, this is just used to test whether a connection is still alive.
 func (t *Proxy) Ping(addr string) bool {
 	conn := t.GetConn(addr)
 	if conn != nil {
@@ -189,6 +218,7 @@ func (t *Proxy) Ping(addr string) bool {
 	return false
 }
 
+// Call invokes the named function, waits for it to complete, and returns its error status.
 func (t *Proxy) Call(name string, args interface{}, reply interface{}, addr string) error {
 	conn := t.GetConn(addr)
 	if conn != nil {
@@ -203,6 +233,10 @@ func (t *Proxy) Call(name string, args interface{}, reply interface{}, addr stri
 	return errors.New("Proxy.Call can not connect to " + addr)
 }
 
+// Go invokes the function asynchronously. It returns the Call structure representing
+// the invocation. The done channel will signal when the call is complete by returning
+// the same Call object. If done is nil, Go will allocate a new channel.
+// If non-nil, done must be buffered or Go will deliberately crash.
 func (t *Proxy) Go(name string, args interface{}, reply interface{}, done chan *Call, addr string) *Call {
 	conn := t.GetConn(addr)
 	if conn != nil {

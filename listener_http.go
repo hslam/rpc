@@ -7,30 +7,30 @@ import (
 	"net/http"
 )
 
-type HTTPListener struct {
+type httpListener struct {
 	server     *Server
 	address    string
 	maxConnNum int
 	connNum    int
 }
 
-func ListenHTTP(address string, server *Server) (Listener, error) {
-	listener := &HTTPListener{address: address, server: server, maxConnNum: DefaultMaxConnNum * server.asyncMax}
+func listenHTTP(address string, server *Server) (Listener, error) {
+	listener := &httpListener{address: address, server: server, maxConnNum: DefaultMaxConnNum * server.asyncMax}
 	return listener, nil
 }
 
-func (l *HTTPListener) Serve() error {
+func (l *httpListener) Serve() error {
 	logger.Noticef("%s\n", "waiting for clients")
-	handler := new(Handler)
-	handler.server = l.server
-	handler.workerChan = make(chan bool, l.maxConnNum)
-	handler.connChange = make(chan int)
+	h := new(handler)
+	h.server = l.server
+	h.workerChan = make(chan bool, l.maxConnNum)
+	h.connChange = make(chan int)
 	go func() {
-		for conn_change := range handler.connChange {
-			l.connNum += conn_change
+		for c := range h.connChange {
+			l.connNum += c
 		}
 	}()
-	err := http.ListenAndServe(l.address, handler)
+	err := http.ListenAndServe(l.address, h)
 
 	if err != nil {
 		logger.Errorf("fatal error: %s", err)
@@ -39,17 +39,17 @@ func (l *HTTPListener) Serve() error {
 	return nil
 }
 
-func (l *HTTPListener) Addr() string {
+func (l *httpListener) Addr() string {
 	return l.address
 }
 
-type Handler struct {
+type handler struct {
 	server     *Server
 	workerChan chan bool
 	connChange chan int
 }
 
-func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	var RemoteAddr = r.RemoteAddr
 	if r.Method == "POST" {
@@ -75,7 +75,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return
 		}
-		io.WriteString(conn, "HTTP/1.1 "+HttpConnected+"\n\n")
+		io.WriteString(conn, "HTTP/1.1 "+HTTPConnected+"\n\n")
 		func() {
 			defer func() {
 				if err := recover(); err != nil {
@@ -95,26 +95,25 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handler) Serve(w io.Writer, data []byte) error {
+func (h *handler) Serve(w io.Writer, data []byte) error {
 	if h.server.multiplexing {
 		priority, id, body, err := protocol.UnpackFrame(data)
 		if err != nil {
 			return err
 		}
-		_, res_bytes := h.server.Serve(body)
-		if res_bytes != nil {
-			frameBytes := protocol.PacketFrame(priority, id, res_bytes)
+		_, resBytes := h.server.Serve(body)
+		if resBytes != nil {
+			frameBytes := protocol.PacketFrame(priority, id, resBytes)
 			_, err := w.Write(frameBytes)
 			return err
 		}
 	} else {
-		_, res_bytes := h.server.Serve(data)
-		if res_bytes != nil {
-			_, err := w.Write(res_bytes)
+		_, resBytes := h.server.Serve(data)
+		if resBytes != nil {
+			_, err := w.Write(resBytes)
 			return err
-		} else {
-			return nil
 		}
+		return nil
 	}
 	return ErrConnExit
 }

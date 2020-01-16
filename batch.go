@@ -90,8 +90,8 @@ endfor:
 func (b *batch) Ticker(brs []*batchRequest) {
 	NoResponseCnt := 0
 	var noResponse bool
-	clientCodec := &ClientCodec{}
-	clientCodec.client_id = b.client.GetID()
+	clientCodec := &clientCodec{}
+	clientCodec.clientID = b.client.GetID()
 	clientCodec.batch = true
 	clientCodec.batchingAsync = b.client.batchingAsync
 	clientCodec.requests = brs
@@ -111,7 +111,7 @@ func (b *batch) Ticker(brs []*batchRequest) {
 	msgBytes, err := clientCodec.Encode()
 	if err == nil {
 		if noResponse == false {
-			data, err := b.client.RemoteCall(msgBytes)
+			data, err := b.client.remoteCall(msgBytes)
 			if err == nil {
 				err := clientCodec.Decode(data)
 				if err != nil {
@@ -137,7 +137,7 @@ func (b *batch) Ticker(brs []*batchRequest) {
 				}
 			}
 		} else {
-			_ = b.client.RemoteCallNoResponse(msgBytes)
+			_ = b.client.remoteCallNoResponse(msgBytes)
 		}
 
 	}

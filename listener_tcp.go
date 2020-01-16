@@ -4,7 +4,7 @@ import (
 	"net"
 )
 
-type TCPListener struct {
+type tcpListener struct {
 	server      *Server
 	address     string
 	netListener net.Listener
@@ -12,22 +12,22 @@ type TCPListener struct {
 	connNum     int
 }
 
-func ListenTCP(address string, server *Server) (Listener, error) {
+func listenTCP(address string, server *Server) (Listener, error) {
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
 		logger.Errorf("fatal error: %s", err)
 		return nil, err
 	}
-	listener := &TCPListener{address: address, netListener: lis, server: server, maxConnNum: DefaultMaxConnNum}
+	listener := &tcpListener{address: address, netListener: lis, server: server, maxConnNum: DefaultMaxConnNum}
 	return listener, nil
 }
-func (l *TCPListener) Serve() error {
+func (l *tcpListener) Serve() error {
 	logger.Noticef("%s\n", "waiting for clients")
 	workerChan := make(chan bool, l.maxConnNum)
 	connChange := make(chan int)
 	go func() {
-		for conn_change := range connChange {
-			l.connNum += conn_change
+		for c := range connChange {
+			l.connNum += c
 		}
 	}()
 	for {
@@ -52,6 +52,6 @@ func (l *TCPListener) Serve() error {
 	}
 	return nil
 }
-func (l *TCPListener) Addr() string {
+func (l *tcpListener) Addr() string {
 	return l.address
 }

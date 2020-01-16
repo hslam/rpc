@@ -5,7 +5,7 @@ import (
 	"os"
 )
 
-type IPCListener struct {
+type ipcListener struct {
 	server      *Server
 	address     string
 	netListener net.Listener
@@ -13,7 +13,7 @@ type IPCListener struct {
 	connNum     int
 }
 
-func ListenIPC(address string, server *Server) (Listener, error) {
+func listenIPC(address string, server *Server) (Listener, error) {
 	os.Remove(address)
 	var addr *net.UnixAddr
 	var err error
@@ -25,16 +25,16 @@ func ListenIPC(address string, server *Server) (Listener, error) {
 		logger.Errorf("fatal error: %s", err)
 		return nil, err
 	}
-	listener := &IPCListener{address: address, netListener: lis, server: server, maxConnNum: DefaultMaxConnNum}
+	listener := &ipcListener{address: address, netListener: lis, server: server, maxConnNum: DefaultMaxConnNum}
 	return listener, nil
 }
-func (l *IPCListener) Serve() error {
+func (l *ipcListener) Serve() error {
 	logger.Noticef("%s\n", "waiting for clients")
 	workerChan := make(chan bool, l.maxConnNum)
 	connChange := make(chan int)
 	go func() {
-		for conn_change := range connChange {
-			l.connNum += conn_change
+		for c := range connChange {
+			l.connNum += c
 		}
 	}()
 	for {
@@ -59,6 +59,6 @@ func (l *IPCListener) Serve() error {
 	}
 	return nil
 }
-func (l *IPCListener) Addr() string {
+func (l *ipcListener) Addr() string {
 	return l.address
 }

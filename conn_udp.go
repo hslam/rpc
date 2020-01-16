@@ -5,7 +5,7 @@ import (
 	"net"
 )
 
-type UDPConn struct {
+type udpConn struct {
 	conn       net.Conn
 	address    string
 	CanWork    bool
@@ -16,30 +16,30 @@ type UDPConn struct {
 	closed     bool
 }
 
-func DialUDP(address string) (Conn, error) {
+func dialUDP(address string) (Conn, error) {
 	conn, err := net.Dial(UDP, address)
 	if err != nil {
 		logger.Errorf("fatal error: %s", err)
 		return nil, err
 	}
-	t := &UDPConn{
+	t := &udpConn{
 		conn:    conn,
 		address: address,
 	}
 	return t, nil
 }
-func (t *UDPConn) NoDelay(enable bool) {
+func (t *udpConn) NoDelay(enable bool) {
 }
-func (t *UDPConn) Multiplexing(enable bool) {
+func (t *udpConn) Multiplexing(enable bool) {
 }
-func (t *UDPConn) Handle(readChan chan []byte, writeChan chan []byte, stopChan chan bool, finishChan chan bool) {
+func (t *udpConn) Handle(readChan chan []byte, writeChan chan []byte, stopChan chan bool, finishChan chan bool) {
 	t.readChan = readChan
 	t.writeChan = writeChan
 	t.stopChan = stopChan
 	t.finishChan = finishChan
 	t.handle()
 }
-func (t *UDPConn) handle() {
+func (t *udpConn) handle() {
 	readChan := make(chan []byte, 1)
 	writeChan := make(chan []byte, 1)
 	finishChan := make(chan bool, 1)
@@ -93,13 +93,13 @@ func (t *UDPConn) handle() {
 		t.closed = true
 	}()
 }
-func (t *UDPConn) TickerFactor() int {
+func (t *udpConn) TickerFactor() int {
 	return 1
 }
-func (t *UDPConn) BatchFactor() int {
+func (t *udpConn) BatchFactor() int {
 	return 1
 }
-func (t *UDPConn) Retry() error {
+func (t *udpConn) Retry() error {
 	conn, err := net.Dial(UDP, t.address)
 	if err != nil {
 		logger.Errorf("fatal error: %s", err)
@@ -109,10 +109,10 @@ func (t *UDPConn) Retry() error {
 	t.handle()
 	return nil
 }
-func (t *UDPConn) Close() error {
+func (t *udpConn) Close() error {
 	return t.conn.Close()
 }
 
-func (t *UDPConn) Closed() bool {
+func (t *udpConn) Closed() bool {
 	return t.closed
 }

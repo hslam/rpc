@@ -7,12 +7,12 @@ import (
 	"time"
 )
 
-type Multiplex struct {
+type multiplex struct {
 	mu             sync.RWMutex
 	client         *client
-	requestChan    chan *IORequest
-	cache          map[uint32]*IORequest
-	noResponseChan chan *IORequest
+	requestChan    chan *ioRequest
+	cache          map[uint32]*ioRequest
+	noResponseChan chan *ioRequest
 	idChan         chan uint32
 	readChan       chan []byte
 	writeChan      chan []byte
@@ -21,12 +21,12 @@ type Multiplex struct {
 	closeChan      chan bool
 }
 
-func NewMultiplex(c *client, maxRequests int, readChan chan []byte, writeChan chan []byte) *Multiplex {
-	m := &Multiplex{
+func newMultiplex(c *client, maxRequests int, readChan chan []byte, writeChan chan []byte) *multiplex {
+	m := &multiplex{
 		client:         c,
-		requestChan:    make(chan *IORequest, maxRequests),
-		cache:          make(map[uint32]*IORequest, maxRequests*2),
-		noResponseChan: make(chan *IORequest, maxRequests*2),
+		requestChan:    make(chan *ioRequest, maxRequests),
+		cache:          make(map[uint32]*ioRequest, maxRequests*2),
+		noResponseChan: make(chan *ioRequest, maxRequests*2),
 		idChan:         make(chan uint32, maxRequests),
 		readChan:       readChan,
 		writeChan:      writeChan,
@@ -36,8 +36,8 @@ func NewMultiplex(c *client, maxRequests int, readChan chan []byte, writeChan ch
 	go m.run()
 	return m
 }
-func (c *Multiplex) NewRequest(priority uint8, data []byte, noResponse bool, cbChan chan []byte) *IORequest {
-	r := &IORequest{
+func (c *multiplex) NewRequest(priority uint8, data []byte, noResponse bool, cbChan chan []byte) *ioRequest {
+	r := &ioRequest{
 		priority:   priority,
 		data:       data,
 		noResponse: noResponse,
@@ -46,21 +46,21 @@ func (c *Multiplex) NewRequest(priority uint8, data []byte, noResponse bool, cbC
 	}
 	return r
 }
-func (c *Multiplex) RequestChan() RequestChan {
+func (c *multiplex) RequestChan() requestChan {
 	return c.requestChan
 }
-func (c *Multiplex) ResetMaxRequests(max int) {
+func (c *multiplex) ResetMaxRequests(max int) {
 	c.maxRequests = max
 }
-func (c *Multiplex) Reset(readChan chan []byte, writeChan chan []byte) {
+func (c *multiplex) Reset(readChan chan []byte, writeChan chan []byte) {
 	c.readChan = readChan
 	c.writeChan = writeChan
 }
-func (c *Multiplex) run() {
+func (c *multiplex) run() {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	var startbit = uint(r.Intn(13))
 	id := uint32(r.Int31n(int32(1 << startbit)))
-	max_id := uint32(1<<32 - 1)
+	maxID := uint32(1<<32 - 1)
 	go func() {
 		for mr := range c.requestChan {
 			func() {
@@ -72,7 +72,7 @@ func (c *Multiplex) run() {
 						}
 					}()
 					for {
-						id = (id + 1) % max_id
+						id = (id + 1) % maxID
 						if !c.IsExisted(id) {
 							break
 						}
@@ -128,28 +128,28 @@ func (c *Multiplex) run() {
 	}
 endfor:
 }
-func (m *Multiplex) deleteOld() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if len(m.cache) > 0 {
-		for _, mr := range m.cache {
+func (c *multiplex) deleteOld() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if len(c.cache) > 0 {
+		for _, mr := range c.cache {
 			func() {
 				defer func() {
 					if err := recover(); err != nil {
 					}
 				}()
-				if m.client.timeout > 0 {
-					if mr.startTime.Add(time.Millisecond * time.Duration(m.client.timeout)).Before(time.Now()) {
-						m.Delete(mr.id)
-						if len(m.idChan) > 0 {
-							<-m.idChan
+				if c.client.timeout > 0 {
+					if mr.startTime.Add(time.Millisecond * time.Duration(c.client.timeout)).Before(time.Now()) {
+						c.Delete(mr.id)
+						if len(c.idChan) > 0 {
+							<-c.idChan
 						}
 					}
 				} else {
 					if mr.startTime.Add(time.Minute * 5).Before(time.Now()) {
-						m.Delete(mr.id)
-						if len(m.idChan) > 0 {
-							<-m.idChan
+						c.Delete(mr.id)
+						if len(c.idChan) > 0 {
+							<-c.idChan
 						}
 					}
 				}
@@ -157,7 +157,7 @@ func (m *Multiplex) deleteOld() {
 		}
 	}
 }
-func (c *Multiplex) Retry() {
+func (c *multiplex) Retry() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.idChan = make(chan uint32, c.maxRequests*2)
@@ -195,31 +195,31 @@ func (c *Multiplex) Retry() {
 	}
 }
 
-func (c *Multiplex) IsExisted(id uint32) bool {
+func (c *multiplex) IsExisted(id uint32) bool {
 	if _, ok := c.cache[id]; !ok {
 		return false
 	}
 	return true
 }
-func (c *Multiplex) Set(id uint32, multiplexRequest *IORequest) {
+func (c *multiplex) Set(id uint32, multiplexRequest *ioRequest) {
 	c.cache[id] = multiplexRequest
 }
-func (c *Multiplex) Get(id uint32) *IORequest {
+func (c *multiplex) Get(id uint32) *ioRequest {
 	if _, ok := c.cache[id]; !ok {
 		return nil
 	}
 	return c.cache[id]
 }
-func (c *Multiplex) Delete(id uint32) {
+func (c *multiplex) Delete(id uint32) {
 	if _, ok := c.cache[id]; !ok {
 		return
 	}
 	delete(c.cache, id)
 }
-func (c *Multiplex) Length() int {
+func (c *multiplex) Length() int {
 	return len(c.cache)
 }
-func (c *Multiplex) Close() {
+func (c *multiplex) Close() {
 	close(c.requestChan)
 	close(c.noResponseChan)
 	close(c.idChan)

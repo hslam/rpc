@@ -4,23 +4,23 @@ import (
 	"sync"
 )
 
-type Pipeline struct {
+type pipeline struct {
 	retryMu        sync.RWMutex
 	client         *client
-	requestChan    RequestChan
-	actionChan     RequestChan
-	noResponseChan RequestChan
+	requestChan    requestChan
+	actionChan     requestChan
+	noResponseChan requestChan
 	readChan       chan []byte
 	writeChan      chan []byte
 	maxRequests    int
 	closeChan      chan bool
 }
 
-func NewPipeline(maxRequests int, readChan chan []byte, writeChan chan []byte) *Pipeline {
-	p := &Pipeline{
-		requestChan:    make(RequestChan, maxRequests),
-		actionChan:     make(RequestChan, maxRequests*2),
-		noResponseChan: make(RequestChan, maxRequests*2),
+func newPipeline(maxRequests int, readChan chan []byte, writeChan chan []byte) *pipeline {
+	p := &pipeline{
+		requestChan:    make(requestChan, maxRequests),
+		actionChan:     make(requestChan, maxRequests*2),
+		noResponseChan: make(requestChan, maxRequests*2),
 		readChan:       readChan,
 		writeChan:      writeChan,
 		maxRequests:    maxRequests,
@@ -29,8 +29,8 @@ func NewPipeline(maxRequests int, readChan chan []byte, writeChan chan []byte) *
 	go p.run()
 	return p
 }
-func (c *Pipeline) NewRequest(priority uint8, data []byte, noResponse bool, cbChan chan []byte) *IORequest {
-	r := &IORequest{
+func (c *pipeline) NewRequest(priority uint8, data []byte, noResponse bool, cbChan chan []byte) *ioRequest {
+	r := &ioRequest{
 		priority:   priority,
 		data:       data,
 		noResponse: noResponse,
@@ -38,17 +38,17 @@ func (c *Pipeline) NewRequest(priority uint8, data []byte, noResponse bool, cbCh
 	}
 	return r
 }
-func (c *Pipeline) RequestChan() RequestChan {
+func (c *pipeline) RequestChan() requestChan {
 	return c.requestChan
 }
-func (c *Pipeline) ResetMaxRequests(max int) {
+func (c *pipeline) ResetMaxRequests(max int) {
 	c.maxRequests = max
 }
-func (c *Pipeline) Reset(readChan chan []byte, writeChan chan []byte) {
+func (c *pipeline) Reset(readChan chan []byte, writeChan chan []byte) {
 	c.readChan = readChan
 	c.writeChan = writeChan
 }
-func (c *Pipeline) run() {
+func (c *pipeline) run() {
 	go func() {
 		for cr := range c.requestChan {
 			func() {
@@ -92,7 +92,7 @@ func (c *Pipeline) run() {
 	}
 endfor:
 }
-func (c *Pipeline) Retry() {
+func (c *pipeline) Retry() {
 	c.retryMu.Lock()
 	defer c.retryMu.Unlock()
 	if len(c.readChan) > 0 {
@@ -130,7 +130,7 @@ func (c *Pipeline) Retry() {
 		}
 	}
 }
-func (c *Pipeline) Close() {
+func (c *pipeline) Close() {
 	close(c.requestChan)
 	close(c.actionChan)
 	close(c.noResponseChan)

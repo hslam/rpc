@@ -4,7 +4,7 @@ import (
 	"errors"
 )
 
-//Dialer
+//Conn defines the interface of conn.
 type Conn interface {
 	Handle(readChan chan []byte, writeChan chan []byte, stopChan chan bool, finishChan chan bool)
 	NoDelay(enable bool)
@@ -19,19 +19,19 @@ type Conn interface {
 func dial(network, address string) (Conn, error) {
 	switch network {
 	case IPC:
-		return DialIPC(address)
+		return dialIPC(address)
 	case TCP:
-		return DialTCP(address)
+		return dialTCP(address)
 	case UDP:
-		return DialUDP(address)
+		return dialUDP(address)
 	case QUIC:
-		return DialQUIC(address)
+		return dialQUIC(address)
 	case WS:
-		return DialWS(address)
+		return dialWS(address)
 	case HTTP:
-		return DialHTTP(address)
+		return dialHTTP(address)
 	case HTTP1:
-		return DialHTTP1(address)
+		return dialHTTP1(address)
 	default:
 		return nil, errors.New("this network is not suported")
 	}

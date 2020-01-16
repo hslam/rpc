@@ -4,19 +4,19 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-type wsConn struct {
+type websocketConn struct {
 	*websocket.Conn
 }
 
-func (s *wsConn) ReadMessage() (p []byte, err error) {
+func (s *websocketConn) ReadMessage() (p []byte, err error) {
 	_, data, err := s.Conn.ReadMessage()
 	return data, err
 }
 
-func (s *wsConn) WriteMessage(b []byte) (err error) {
+func (s *websocketConn) WriteMessage(b []byte) (err error) {
 	return s.Conn.WriteMessage(websocket.BinaryMessage, b)
 }
 
-func (s *wsConn) Close() error {
+func (s *websocketConn) Close() error {
 	return s.Conn.Close()
 }

@@ -4,14 +4,14 @@ import (
 	"sync/atomic"
 )
 
-type Count struct {
+type count struct {
 	v int64
 }
 
-func (c *Count) add(delta int64) int64 {
+func (c *count) add(delta int64) int64 {
 	return atomic.AddInt64(&c.v, delta)
 }
 
-func (c *Count) load() int64 {
+func (c *count) load() int64 {
 	return atomic.LoadInt64(&c.v)
 }

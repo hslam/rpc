@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	rpc.SETRPCCODEC(rpc.RPC_CODEC_PROTOBUF)
+	rpc.SETRPCCODEC(rpc.RPCCodecProtobuf)
 	rpc.Register(new(service.Arith))
 	rpc.SetPipelining(true)
 	rpc.ListenAndServe("http", ":8080")

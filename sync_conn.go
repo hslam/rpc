@@ -1,17 +1,17 @@
 package rpc
 
-type SyncConn struct {
+type syncConn struct {
 	server *Server
 }
 
-func newSyncConn(server *Server) *SyncConn {
-	return &SyncConn{server: server}
+func newSyncConn(server *Server) *syncConn {
+	return &syncConn{server: server}
 }
 
-func (s *SyncConn) Do(requestBody []byte) ([]byte, error) {
-	_, res_bytes := s.server.Serve(requestBody)
-	if res_bytes != nil {
-		return res_bytes, nil
+func (s *syncConn) Do(requestBody []byte) ([]byte, error) {
+	_, resBytes := s.server.Serve(requestBody)
+	if resBytes != nil {
+		return resBytes, nil
 	}
 	return nil, nil
 }

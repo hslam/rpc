@@ -6,7 +6,7 @@ import (
 	"github.com/hslam/rpc/pb"
 )
 
-type Request struct {
+type request struct {
 	id         uint64
 	method     string
 	noRequest  bool
@@ -14,11 +14,11 @@ type Request struct {
 	data       []byte
 }
 
-func (r *Request) Encode() ([]byte, error) {
-	switch rpc_codec {
-	case RPC_CODEC_CODE:
+func (r *request) Encode() ([]byte, error) {
+	switch rpcCodec {
+	case RPCCodecCode:
 		return r.Marshal(nil)
-	case RPC_CODEC_PROTOBUF:
+	case RPCCodecProtobuf:
 		req := pb.Request{
 			Id:         r.id,
 			Method:     r.method,
@@ -26,45 +26,46 @@ func (r *Request) Encode() ([]byte, error) {
 			NoResponse: r.noResponse,
 			Data:       r.data,
 		}
-		if data, err := req.Marshal(); err != nil {
+		var data []byte
+		var err error
+		if data, err = req.Marshal(); err != nil {
 			logger.Errorln("RequestEncode proto.Unmarshal error: ", err)
 			return nil, err
-		} else {
-			return data, nil
 		}
+		return data, nil
 	default:
 		return nil, errors.New("this rpc_serialize is not supported")
 	}
 }
 
-func (r *Request) Decode(b []byte) error {
+func (r *request) Decode(b []byte) error {
 	r.noResponse = false
-	switch rpc_codec {
-	case RPC_CODEC_CODE:
+	switch rpcCodec {
+	case RPCCodecCode:
 		return r.Unmarshal(b)
-	case RPC_CODEC_PROTOBUF:
-		var rpc_req_decode = &pb.Request{}
-		if err := rpc_req_decode.Unmarshal(b); err != nil {
+	case RPCCodecProtobuf:
+		var rpcReqDecode = &pb.Request{}
+		if err := rpcReqDecode.Unmarshal(b); err != nil {
 			logger.Errorln("RequestDecode proto.Unmarshal error: ", err)
 			return err
 		}
-		r.id = rpc_req_decode.Id
-		r.method = rpc_req_decode.Method
-		r.noRequest = rpc_req_decode.NoRequest
-		r.noResponse = rpc_req_decode.NoResponse
-		r.data = rpc_req_decode.Data
+		r.id = rpcReqDecode.Id
+		r.method = rpcReqDecode.Method
+		r.noRequest = rpcReqDecode.NoRequest
+		r.noResponse = rpcReqDecode.NoResponse
+		r.data = rpcReqDecode.Data
 	default:
 		return errors.New("this rpc_serialize is not supported")
 	}
 	return nil
 }
 
-func (r *Request) Marshal(buf []byte) ([]byte, error) {
+func (r *request) Marshal(buf []byte) ([]byte, error) {
 	var size uint64
 	size += 8
 	size += code.SizeofString(r.method)
-	size += 1
-	size += 1
+	size++
+	size++
 	size += code.SizeofBytes(r.data)
 	if uint64(cap(buf)) >= size {
 		buf = buf[:size]
@@ -85,7 +86,7 @@ func (r *Request) Marshal(buf []byte) ([]byte, error) {
 	offset += n
 	return buf, nil
 }
-func (r *Request) Unmarshal(b []byte) error {
+func (r *request) Unmarshal(b []byte) error {
 	var offset uint64
 	var n uint64
 	n = code.DecodeUint64(b[offset:], &r.id)
@@ -100,5 +101,5 @@ func (r *Request) Unmarshal(b []byte) error {
 	offset += n
 	return nil
 }
-func (r *Request) Reset() {
+func (r *request) Reset() {
 }

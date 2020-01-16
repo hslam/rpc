@@ -6,32 +6,32 @@ import (
 	"github.com/hslam/rpc/pb"
 )
 
-type BatchCodec struct {
+type batchCodec struct {
 	async bool
 	data  [][]byte
 }
 
-func (c *BatchCodec) Encode() ([]byte, error) {
-	switch rpc_codec {
-	case RPC_CODEC_CODE:
+func (c *batchCodec) Encode() ([]byte, error) {
+	switch rpcCodec {
+	case RPCCodecCode:
 		return c.Marshal(nil)
-	case RPC_CODEC_PROTOBUF:
+	case RPCCodecProtobuf:
 		batch := pb.Batch{Async: c.async, Data: c.data}
-		batch_bytes, err := batch.Marshal()
+		batchBytes, err := batch.Marshal()
 		if err != nil {
 			logger.Errorln("BatchEncode proto.Marshal error: ", err)
 			return nil, err
 		}
-		return batch_bytes, nil
+		return batchBytes, nil
 	default:
 		return nil, errors.New("this rpc_serialize is not supported")
 	}
 }
-func (c *BatchCodec) Decode(b []byte) error {
-	switch rpc_codec {
-	case RPC_CODEC_CODE:
+func (c *batchCodec) Decode(b []byte) error {
+	switch rpcCodec {
+	case RPCCodecCode:
 		return c.Unmarshal(b)
-	case RPC_CODEC_PROTOBUF:
+	case RPCCodecProtobuf:
 		var batch = &pb.Batch{}
 		if err := batch.Unmarshal(b); err != nil {
 			logger.Errorln("BatchDecode proto.Unmarshal error: ", err)
@@ -45,9 +45,9 @@ func (c *BatchCodec) Decode(b []byte) error {
 	}
 }
 
-func (c *BatchCodec) Marshal(buf []byte) ([]byte, error) {
+func (c *batchCodec) Marshal(buf []byte) ([]byte, error) {
 	var size uint64
-	size += 1
+	size++
 	size += code.SizeofBytesSlice(c.data)
 	if uint64(cap(buf)) >= size {
 		buf = buf[:size]
@@ -62,7 +62,7 @@ func (c *BatchCodec) Marshal(buf []byte) ([]byte, error) {
 	offset += n
 	return buf, nil
 }
-func (c *BatchCodec) Unmarshal(b []byte) error {
+func (c *batchCodec) Unmarshal(b []byte) error {
 	var offset uint64
 	var n uint64
 	n = code.DecodeBool(b[offset:], &c.async)
@@ -71,7 +71,7 @@ func (c *BatchCodec) Unmarshal(b []byte) error {
 	offset += n
 	return nil
 }
-func (c *BatchCodec) Reset() {
+func (c *batchCodec) Reset() {
 	for i, v := range c.data {
 		c.data[i] = v[len(v):]
 	}

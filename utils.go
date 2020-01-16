@@ -119,7 +119,7 @@ func generateTLSConfig() *tls.Config {
 	}
 }
 
-func DefalutTLSConfig() *tls.Config {
+func defalutTLSConfig() *tls.Config {
 	keyPEM := []byte(`-----BEGIN PRIVATE KEY-----
 MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDQx2lxR73msUrD
 EthvjZCG8nmxY/m6ZXBRdaygc++Ie4baSHgS5DsLUcMEPhUOzzkUjjvc9dFy/ROD
