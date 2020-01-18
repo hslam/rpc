@@ -9,13 +9,17 @@ import (
 
 type httpListener struct {
 	server     *Server
+	httpServer *http.Server
 	address    string
 	maxConnNum int
 	connNum    int
 }
 
 func listenHTTP(address string, server *Server) (Listener, error) {
-	listener := &httpListener{address: address, server: server, maxConnNum: DefaultMaxConnNum * server.asyncMax}
+	httpServer := &http.Server{
+		Addr: address,
+	}
+	listener := &httpListener{address: address, server: server, httpServer: httpServer, maxConnNum: DefaultMaxConnNum * server.asyncMax}
 	return listener, nil
 }
 
@@ -30,9 +34,12 @@ func (l *httpListener) Serve() error {
 			l.connNum += c
 		}
 	}()
-	err := http.ListenAndServe(l.address, h)
-
+	l.httpServer.Handler = h
+	err := l.httpServer.ListenAndServe()
 	if err != nil {
+		if stringsContains(err.Error(), "http: Server closed") {
+			return nil
+		}
 		logger.Errorf("fatal error: %s", err)
 		return err
 	}
@@ -41,6 +48,9 @@ func (l *httpListener) Serve() error {
 
 func (l *httpListener) Addr() string {
 	return l.address
+}
+func (l *httpListener) Close() error {
+	return l.httpServer.Close()
 }
 
 type handler struct {

@@ -33,6 +33,9 @@ func (l *tcpListener) Serve() error {
 	for {
 		conn, err := l.netListener.Accept()
 		if err != nil {
+			if stringsContains(err.Error(), "use of closed network connection") {
+				break
+			}
 			logger.Warnf("Accept: %s\n", err)
 			continue
 		}
@@ -54,4 +57,7 @@ func (l *tcpListener) Serve() error {
 }
 func (l *tcpListener) Addr() string {
 	return l.address
+}
+func (l *tcpListener) Close() error {
+	return l.netListener.Close()
 }

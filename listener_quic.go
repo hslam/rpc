@@ -34,6 +34,9 @@ func (l *quicListener) Serve() error {
 	for {
 		sess, err := l.quicListener.Accept(context.Background())
 		if err != nil {
+			if stringsContains(err.Error(), "server closed") {
+				break
+			}
 			logger.Warnf("Accept: %s\n", err)
 			continue
 		} else {
@@ -61,4 +64,7 @@ func (l *quicListener) Serve() error {
 }
 func (l *quicListener) Addr() string {
 	return l.address
+}
+func (l *quicListener) Close() error {
+	return l.quicListener.Close()
 }

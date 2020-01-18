@@ -9,6 +9,7 @@ import (
 	"encoding/pem"
 	"math"
 	"math/big"
+	"strings"
 )
 
 func uint16ToBytes(n uint16) []byte {
@@ -62,7 +63,9 @@ func byteToFloat64(bytes []byte) float64 {
 	bits := binary.LittleEndian.Uint64(bytes)
 	return math.Float64frombits(bits)
 }
-
+func stringsContains(s, substr string) bool {
+	return strings.Contains(s, substr)
+}
 func checkSum(b []byte) uint16 {
 	sum := 0
 	for n := 1; n < len(b)-1; n += 2 {

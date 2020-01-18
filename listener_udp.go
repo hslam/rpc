@@ -68,6 +68,10 @@ func (l *udpListener) Serve() error {
 func (l *udpListener) Addr() string {
 	return l.address
 }
+func (l *udpListener) Close() error {
+	return l.netUDPConn.Close()
+}
+
 func (l *udpListener) ServeUDPConn(udpMsg *protocol.UDPMsg, writeChan chan *protocol.UDPMsg) error {
 	if l.server.multiplexing {
 		priority, id, body, err := protocol.UnpackFrame(udpMsg.Data)

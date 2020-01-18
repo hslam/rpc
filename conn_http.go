@@ -154,7 +154,7 @@ func (t *httpConn) Retry() error {
 	return nil
 }
 func (t *httpConn) Close() error {
-	return nil
+	return t.conn.Close()
 }
 
 func (t *httpConn) Closed() bool {

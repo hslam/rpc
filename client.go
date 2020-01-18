@@ -185,6 +185,9 @@ func (c *client) run() {
 endfor:
 }
 func (c *client) retryConnect() {
+	if !c.retry {
+		return
+	}
 	c.disconnect()
 	err := c.conn.Retry()
 	if err != nil {

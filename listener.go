@@ -8,6 +8,7 @@ import (
 type Listener interface {
 	Serve() error
 	Addr() string
+	Close() error
 }
 
 // Listen announces on the local network address.

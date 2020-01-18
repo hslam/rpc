@@ -217,7 +217,10 @@ func (o *Options) SetRetry(enable bool) {
 	o.Retry = enable
 }
 
-//SetNoDelay enables no delay.
+// SetNoDelay controls whether the operating system should delay
+// packet transmission in hopes of sending fewer packets (Nagle's
+// algorithm).  The default is true (no delay), meaning that data is
+// sent as soon as possible after a Write.
 func (o *Options) SetNoDelay(enabled bool) {
 	o.mu.Lock()
 	defer o.mu.Unlock()

@@ -40,6 +40,9 @@ func (l *ipcListener) Serve() error {
 	for {
 		conn, err := l.netListener.Accept()
 		if err != nil {
+			if stringsContains(err.Error(), "use of closed network connection") {
+				return nil
+			}
 			logger.Warnf("Accept: %s\n", err)
 			continue
 		}
@@ -61,4 +64,7 @@ func (l *ipcListener) Serve() error {
 }
 func (l *ipcListener) Addr() string {
 	return l.address
+}
+func (l *ipcListener) Close() error {
+	return l.netListener.Close()
 }

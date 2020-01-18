@@ -17,6 +17,7 @@ var (
 //Server defines the struct of server
 type Server struct {
 	network      string
+	listener     Listener
 	Funcs        *funcs.Funcs
 	timeout      int64
 	batching     bool
@@ -117,12 +118,23 @@ func (s *Server) ListenAndServe(network, address string) error {
 		logger.Errorln(err)
 		return err
 	}
+	s.listener = listener
 	err = listener.Serve()
 	if err != nil {
 		logger.Errorln(err)
 		return err
 	}
 	return nil
+}
+
+// Close closes listener
+func Close() error {
+	return DefaultServer.Close()
+}
+
+// Close closes listener
+func (s *Server) Close() error {
+	return s.listener.Close()
 }
 
 // ServeMessage serves message
