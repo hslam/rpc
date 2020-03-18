@@ -110,10 +110,10 @@ func (t *Transport) Ping(address string) bool {
 }
 
 // Call invokes the named function, waits for it to complete, and returns its error status.
-func (t *Transport) Call(name string, args interface{}, reply interface{}, address string) error {
+func (t *Transport) Call(address string, name string, args interface{}, reply interface{}) error {
 	proxy := t.GetProxy()
 	if proxy != nil {
-		return proxy.Call(name, args, reply, address)
+		return proxy.Call(address, name, args, reply)
 	}
 	return nil
 }
@@ -122,10 +122,10 @@ func (t *Transport) Call(name string, args interface{}, reply interface{}, addre
 // the invocation. The done channel will signal when the call is complete by returning
 // the same Call object. If done is nil, Go will allocate a new channel.
 // If non-nil, done must be buffered or Go will deliberately crash.
-func (t *Transport) Go(name string, args interface{}, reply interface{}, done chan *Call, address string) *Call {
+func (t *Transport) Go(address string, name string, args interface{}, reply interface{}, done chan *Call) *Call {
 	proxy := t.GetProxy()
 	if proxy != nil {
-		return proxy.Go(name, args, reply, done, address)
+		return proxy.Go(address, name, args, reply, done)
 	}
 	return nil
 }
@@ -219,30 +219,30 @@ func (t *Proxy) Ping(addr string) bool {
 }
 
 // Call invokes the named function, waits for it to complete, and returns its error status.
-func (t *Proxy) Call(name string, args interface{}, reply interface{}, addr string) error {
-	conn := t.GetConn(addr)
+func (t *Proxy) Call(address string, name string, args interface{}, reply interface{}) error {
+	conn := t.GetConn(address)
 	if conn != nil {
 		err := conn.Call(name, args, reply)
 		if err != nil {
-			t.RemoveConn(addr)
+			t.RemoveConn(address)
 			return err
 		}
 		conn.lastTime = time.Now()
 		return nil
 	}
-	return errors.New("Proxy.Call can not connect to " + addr)
+	return errors.New("Proxy.Call can not connect to " + address)
 }
 
 // Go invokes the function asynchronously. It returns the Call structure representing
 // the invocation. The done channel will signal when the call is complete by returning
 // the same Call object. If done is nil, Go will allocate a new channel.
 // If non-nil, done must be buffered or Go will deliberately crash.
-func (t *Proxy) Go(name string, args interface{}, reply interface{}, done chan *Call, addr string) *Call {
-	conn := t.GetConn(addr)
+func (t *Proxy) Go(address string, name string, args interface{}, reply interface{}, done chan *Call) *Call {
+	conn := t.GetConn(address)
 	if conn != nil {
 		call := conn.Go(name, args, reply, nil)
 		if call.Error != nil {
-			t.RemoveConn(addr)
+			t.RemoveConn(address)
 			return call
 		}
 		conn.lastTime = time.Now()

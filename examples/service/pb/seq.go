@@ -2,21 +2,24 @@ package pb
 
 import "errors"
 
+//Seq defines a seq.
 type Seq struct {
 	seq int32
 }
 
-func (this *Seq) Reset(res *SeqResponse) error {
-	this.seq = -1
+//Reset resets the seq.
+func (s *Seq) Reset(res *SeqResponse) error {
+	s.seq = -1
 	res.B = 1
 	return nil
 }
-func (this *Seq) Check(req *SeqRequest, res *SeqResponse) error {
-	if req.A == this.seq+1 {
-		this.seq = req.A
+
+//Check checks the seq.
+func (s *Seq) Check(req *SeqRequest, res *SeqResponse) error {
+	if req.A == s.seq+1 {
+		s.seq = req.A
 		res.B = req.A
 		return nil
-	} else {
-		return errors.New("pipelining error")
 	}
+	return errors.New("pipelining error")
 }

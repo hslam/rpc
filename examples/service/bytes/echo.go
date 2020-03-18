@@ -1,10 +1,12 @@
 package bytes
 
+//Echo defines a value.
 type Echo struct {
 	value []byte
 }
 
-func (this *Echo) ToLower(req *[]byte, res *[]byte) error {
+//ToLower returns the lowercase character
+func (e *Echo) ToLower(req *[]byte, res *[]byte) error {
 	*res = *req
 	for i := 0; i < len(*req); i++ {
 		if (*req)[i] > 64 && (*req)[i] < 91 {
@@ -14,16 +16,20 @@ func (this *Echo) ToLower(req *[]byte, res *[]byte) error {
 	return nil
 }
 
-func (this *Echo) Set(req *[]byte) error {
-	this.value = *req
+//Set sets the value.
+func (e *Echo) Set(req *[]byte) error {
+	e.value = *req
 	return nil
 }
 
-func (this *Echo) Get(res *[]byte) error {
-	*res = this.value
+//Get gets the value.
+func (e *Echo) Get(res *[]byte) error {
+	*res = e.value
 	return nil
 }
-func (this *Echo) Clear() error {
-	this.value = nil
+
+//Clear clears the value.
+func (e *Echo) Clear() error {
+	e.value = nil
 	return nil
 }

@@ -24,7 +24,7 @@ var multiplexing bool
 var noresponse bool
 var mock string
 var clients int
-var total_calls int
+var totalCalls int
 var bar bool
 
 func init() {
@@ -34,7 +34,7 @@ func init() {
 	flag.StringVar(&compress, "compress", "no", "compress: -compress=no|flate|zlib|gzip")
 	flag.StringVar(&host, "h", "127.0.0.1", "host: -h=127.0.0.1")
 	flag.IntVar(&port, "p", 8080, "port: -p=8080")
-	flag.IntVar(&total_calls, "total", 1000000, "total_calls: -total=10000")
+	flag.IntVar(&totalCalls, "total", 1000000, "totalCalls: -total=10000")
 	flag.BoolVar(&batching, "batching", false, "batching: -batching=false")
 	flag.BoolVar(&pipelining, "pipelining", false, "pipelining: -pipelining=false")
 	flag.BoolVar(&multiplexing, "multiplexing", true, "pipelining: -pipelining=false")
@@ -49,7 +49,7 @@ func init() {
 }
 
 func main() {
-	fmt.Printf("./client -network=%s -codec=%s -compress=%s -h=%s -p=%d -total=%d -pipelining=%t -multiplexing=%t -batching=%t -noresponse=%t -clients=%d\n", network, codec, compress, host, port, total_calls, pipelining, multiplexing, batching, noresponse, clients)
+	fmt.Printf("./client -network=%s -codec=%s -compress=%s -h=%s -p=%d -total=%d -pipelining=%t -multiplexing=%t -batching=%t -noresponse=%t -clients=%d\n", network, codec, compress, host, port, totalCalls, pipelining, multiplexing, batching, noresponse, clients)
 	var wrkClients []stats.Client
 	opts := rpc.DefaultOptions()
 	opts.SetCompressType(compress)
@@ -100,13 +100,15 @@ func main() {
 	} else {
 		return
 	}
-	stats.StartPrint(parallel, total_calls, wrkClients)
+	stats.StartPrint(parallel, totalCalls, wrkClients)
 }
 
+//WrkClient defines a stats client.
 type WrkClient struct {
 	Conn rpc.Client
 }
 
+//Call returns RequestSize, ResponseSize, Ok.
 func (c *WrkClient) Call() (int64, int64, bool) {
 	var err error
 	A := rand.Int31n(1000)
@@ -122,9 +124,8 @@ func (c *WrkClient) Call() (int64, int64, bool) {
 		err = c.Conn.Call("Arith.Multiply"+mock, req, &res) // 乘法运算
 		if res.Pro == A*B {
 			return 0, 0, true
-		} else {
-			fmt.Printf("err %d * %d = %d\n", A, B, res.Pro)
 		}
+		fmt.Printf("err %d * %d = %d\n", A, B, res.Pro)
 		if err != nil {
 			fmt.Println("arith error: ", err)
 		}

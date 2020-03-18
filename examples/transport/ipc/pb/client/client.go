@@ -14,12 +14,12 @@ func main() {
 	req := &service.ArithRequest{A: 9, B: 2}
 	var res service.ArithResponse
 	var err error
-	err = transport.Call("Arith.Multiply", req, &res, "/tmp/ipc1")
+	err = transport.Call("/tmp/ipc1", "Arith.Multiply", req, &res)
 	if err != nil {
 		log.Fatalln("arith error: ", err)
 	}
 	fmt.Printf("%d * %d = %d\n", req.A, req.B, res.Pro)
-	err = transport.Call("Arith.Divide", req, &res, "/tmp/ipc")
+	err = transport.Call("/tmp/ipc", "Arith.Divide", req, &res)
 	if err != nil {
 		log.Fatalln("arith error: ", err)
 	}

@@ -14,12 +14,12 @@ func main() {
 	req := &service.ArithRequest{A: 9, B: 2}
 	var res service.ArithResponse
 	var err error
-	err = transport.Call("Arith.Multiply", req, &res, "127.0.0.1:8081")
+	err = transport.Call("127.0.0.1:8081", "Arith.Multiply", req, &res)
 	if err != nil {
 		log.Fatalln("arith error: ", err)
 	}
 	fmt.Printf("%d * %d = %d\n", req.A, req.B, res.Pro)
-	err = transport.Call("Arith.Divide", req, &res, "127.0.0.1:8080")
+	err = transport.Call("127.0.0.1:8080", "Arith.Divide", req, &res)
 	if err != nil {
 		log.Fatalln("arith error: ", err)
 	}

@@ -21,7 +21,7 @@ var noresponse bool
 var norequest bool
 var onlycall bool
 var clients int
-var total_calls int
+var totalCalls int
 var bar bool
 
 func init() {
@@ -30,7 +30,7 @@ func init() {
 	flag.StringVar(&codec, "codec", "bytes", "codec: -codec=pb|json|xml|bytes|gen")
 	flag.StringVar(&compress, "compress", "no", "compress: -compress=no|flate|zlib|gzip")
 	flag.StringVar(&addr, "addr", "/tmp/ipc", "addr: -addr=/tmp/ipc")
-	flag.IntVar(&total_calls, "total", 1000000, "total_calls: -total=10000")
+	flag.IntVar(&totalCalls, "total", 1000000, "totalCalls: -total=10000")
 	flag.BoolVar(&batching, "batching", false, "batching: -batching=false")
 	flag.BoolVar(&pipelining, "pipelining", false, "pipelining: -pipelining=false")
 	flag.BoolVar(&multiplexing, "multiplexing", true, "pipelining: -pipelining=false")
@@ -45,7 +45,7 @@ func init() {
 }
 
 func main() {
-	fmt.Printf("./client -network=%s -codec=%s -compress=%s -addr=%s -total=%d -pipelining=%t -multiplexing=%t -batching=%t -norequest=%t -noresponse=%t -onlycall=%t -clients=%d\n", network, codec, compress, addr, total_calls, pipelining, multiplexing, batching, norequest, noresponse, onlycall, clients)
+	fmt.Printf("./client -network=%s -codec=%s -compress=%s -addr=%s -total=%d -pipelining=%t -multiplexing=%t -batching=%t -norequest=%t -noresponse=%t -onlycall=%t -clients=%d\n", network, codec, compress, addr, totalCalls, pipelining, multiplexing, batching, norequest, noresponse, onlycall, clients)
 	var wrkClients []stats.Client
 	opts := rpc.DefaultOptions()
 	opts.SetCompressType(compress)
@@ -106,15 +106,17 @@ func main() {
 	} else {
 		return
 	}
-	stats.StartPrint(parallel, total_calls, wrkClients)
+	stats.StartPrint(parallel, totalCalls, wrkClients)
 }
 
+//WrkClient defines a stats client.
 type WrkClient struct {
 	Conn   rpc.Client
 	body   []byte
 	result []byte
 }
 
+//Call returns RequestSize, ResponseSize, Ok.
 func (c *WrkClient) Call() (int64, int64, bool) {
 	var err error
 	var req = c.body
@@ -134,17 +136,15 @@ func (c *WrkClient) Call() (int64, int64, bool) {
 		err = c.Conn.CallNoRequest("Echo.Get", &res)
 		if bytes.Equal(res, []byte("Hello World")) {
 			return 0, int64(len(res)), true
-		} else {
-			fmt.Printf("Echo.Get is not equal: req-%s res-%s\n", string(req), string(res))
 		}
+		fmt.Printf("Echo.Get is not equal: req-%s res-%s\n", string(req), string(res))
 	} else {
 		var res []byte
 		err = c.Conn.Call("Echo.ToLower", &req, &res)
 		if bytes.Equal(res, c.result) {
 			return int64(len(req)), int64(len(res)), true
-		} else {
-			fmt.Printf("Echo.ToLower is not equal: req-%s res-%s\n", string(req), string(res))
 		}
+		fmt.Printf("Echo.ToLower is not equal: req-%s res-%s\n", string(req), string(res))
 		if err != nil {
 			fmt.Println("Echo error: ", err)
 		}

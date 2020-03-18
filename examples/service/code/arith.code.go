@@ -4,11 +4,13 @@ import (
 	"github.com/hslam/code"
 )
 
+//ArithRequest defines the request of arith.
 type ArithRequest struct {
 	A int32
 	B int32
 }
 
+//Marshal takes a buffer and encodes the ArithRequest to bytes
 func (a *ArithRequest) Marshal(buf []byte) ([]byte, error) {
 	var size uint64
 	size += 4
@@ -27,6 +29,7 @@ func (a *ArithRequest) Marshal(buf []byte) ([]byte, error) {
 	return buf, nil
 }
 
+//Unmarshal parses the encoded data.
 func (a *ArithRequest) Unmarshal(b []byte) (uint64, error) {
 	var offset uint64
 	var n uint64
@@ -41,12 +44,14 @@ func (a *ArithRequest) Unmarshal(b []byte) (uint64, error) {
 	return offset, nil
 }
 
+//ArithResponse defines the response of arith.
 type ArithResponse struct {
 	Pro int32
 	Quo int32
 	Rem int32
 }
 
+//Marshal takes a buffer and encodes the ArithResponse to bytes
 func (a *ArithResponse) Marshal(buf []byte) ([]byte, error) {
 	var size uint64
 	size += 4
@@ -68,6 +73,7 @@ func (a *ArithResponse) Marshal(buf []byte) ([]byte, error) {
 	return buf, nil
 }
 
+//Unmarshal parses the encoded data.
 func (a *ArithResponse) Unmarshal(b []byte) (uint64, error) {
 	var offset uint64
 	var n uint64

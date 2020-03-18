@@ -131,7 +131,7 @@ go get github.com/hslam/rpc
 import "github.com/hslam/rpc"
 ```
 
-## [Example](https://github.com/hslam/rpc/tree/master/examples "examples")
+## [Example](https://github.com/hslam/rpc/tree/masterll/examples "examples")
 ### arith.proto
 ```
 syntax = "proto3";
@@ -218,7 +218,7 @@ func main()  {
 	req := &service.ArithRequest{A:9,B:2}
 	var res service.ArithResponse
 	var err error
-	err = transport.Call("Arith.Multiply", req, &res,"127.0.0.1:8081")
+	err = transport.Call("127.0.0.1:8081","Arith.Multiply", req, &res)
 	if err != nil {
 		log.Fatalln("arith error: ", err)
 	}
