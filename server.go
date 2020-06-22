@@ -18,7 +18,7 @@ var (
 type Server struct {
 	network      string
 	listener     Listener
-	Funcs        *funcs.Funcs
+	Registry     *funcs.Funcs
 	timeout      int64
 	batching     bool
 	pipelining   bool
@@ -29,7 +29,7 @@ type Server struct {
 
 //NewServer creates a new server
 func NewServer() *Server {
-	return &Server{Funcs: funcs.New(), timeout: DefaultServerTimeout, asyncMax: DefaultMaxAsyncPerConn, multiplexing: true, batching: false}
+	return &Server{Registry: funcs.New(), timeout: DefaultServerTimeout, asyncMax: DefaultMaxAsyncPerConn, multiplexing: true, batching: false}
 }
 
 //SetBatching enables batching.
@@ -92,7 +92,7 @@ func Register(obj interface{}) error {
 
 // Register publishes in the server the set of methods.
 func (s *Server) Register(obj interface{}) error {
-	return s.Funcs.Register(obj)
+	return s.Registry.Register(obj)
 }
 
 // RegisterName is like Register but uses the provided name.
@@ -102,7 +102,7 @@ func RegisterName(name string, obj interface{}) error {
 
 // RegisterName is like Register but uses the provided name.
 func (s *Server) RegisterName(name string, obj interface{}) error {
-	return s.Funcs.RegisterName(name, obj)
+	return s.Registry.RegisterName(name, obj)
 }
 
 // ListenAndServe listens on the network address addr and then calls Serve.
@@ -318,21 +318,21 @@ func (s *Server) handle(ctx *serverCodec, req *request, res *response) {
 	s.callService(ctx, req, res)
 }
 func (s *Server) callService(ctx *serverCodec, req *request, res *response) {
-	if s.Funcs.GetFunc(req.method) == nil {
+	if s.Registry.GetFunc(req.method) == nil {
 		logger.Noticef("Server.CallService method %s is not supposted", req.method)
 		res.err = fmt.Errorf("Server.CallService method %s is not supposted", req.method)
 		return
 	}
 	if req.noRequest && req.noResponse {
-		if err := s.Funcs.Call(req.method); err != nil {
+		if err := s.Registry.Call(req.method); err != nil {
 			logger.Noticef("Server.CallService OnlyCall err %s", err)
 			res.err = fmt.Errorf("Server.CallService OnlyCall err %s", err)
 			return
 		}
 		return
 	} else if req.noRequest && !req.noResponse {
-		reply := s.Funcs.GetFuncIn(req.method, 0)
-		if err := s.Funcs.Call(req.method, reply); err != nil {
+		reply := s.Registry.GetFuncIn(req.method, 0)
+		if err := s.Registry.Call(req.method, reply); err != nil {
 			logger.Noticef("Server.CallService CallNoRequest err %s", err)
 			res.err = fmt.Errorf("Server.CallService CallNoRequest err %s", err)
 			return
@@ -345,20 +345,20 @@ func (s *Server) callService(ctx *serverCodec, req *request, res *response) {
 		res.data = replyBytes
 		return
 	} else if !req.noRequest && req.noResponse {
-		args := s.Funcs.GetFuncIn(req.method, 0)
+		args := s.Registry.GetFuncIn(req.method, 0)
 		err := argsDecode(req.data, args, ctx.msg.codecType)
 		if err != nil {
 			res.err = fmt.Errorf("Server.CallService ArgsDecode err %s", err)
 			return
 		}
-		reply := s.Funcs.GetFuncIn(req.method, 1)
+		reply := s.Registry.GetFuncIn(req.method, 1)
 		if reply != nil {
-			if err := s.Funcs.Call(req.method, args, reply); err != nil {
+			if err := s.Registry.Call(req.method, args, reply); err != nil {
 				res.err = fmt.Errorf("Server.CallService CallNoResponseWithReply err %s", err)
 				return
 			}
 		} else {
-			if err := s.Funcs.Call(req.method, args); err != nil {
+			if err := s.Registry.Call(req.method, args); err != nil {
 				res.err = fmt.Errorf("Server.CallService CallNoResponseWithoutReply err %s", err)
 				return
 			}
@@ -366,14 +366,14 @@ func (s *Server) callService(ctx *serverCodec, req *request, res *response) {
 		return
 
 	} else {
-		args := s.Funcs.GetFuncIn(req.method, 0)
+		args := s.Registry.GetFuncIn(req.method, 0)
 		err := argsDecode(req.data, args, ctx.msg.codecType)
 		if err != nil {
 			res.err = fmt.Errorf("Server.CallService ArgsDecode err %s", err)
 			return
 		}
-		reply := s.Funcs.GetFuncIn(req.method, 1)
-		if err := s.Funcs.Call(req.method, args, reply); err != nil {
+		reply := s.Registry.GetFuncIn(req.method, 1)
+		if err := s.Registry.Call(req.method, args, reply); err != nil {
 			res.err = fmt.Errorf("Server.CallService Call err %s", err)
 			return
 		}

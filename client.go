@@ -53,7 +53,7 @@ type client struct {
 	mutex            sync.RWMutex
 	conn             Conn
 	seq              uint64
-	pending          map[int64]*Call
+	pending          map[uint64]*Call
 	unordered        bool
 	closed           bool
 	closing          bool
@@ -100,7 +100,7 @@ func NewClientWithOptions(conn Conn, codec string, opts *Options) (Client, error
 	c := &client{
 		clientID:         clientID,
 		conn:             conn,
-		pending:          make(map[int64]*Call),
+		pending:          make(map[uint64]*Call),
 		finishChan:       make(chan bool, 1),
 		stopChan:         make(chan bool, 1),
 		closeChan:        make(chan bool, 1),

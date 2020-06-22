@@ -131,7 +131,7 @@ go get github.com/hslam/rpc
 import "github.com/hslam/rpc"
 ```
 
-## [Example](https://github.com/hslam/rpc/tree/masterll/examples "examples")
+## [Example](https://github.com/hslam/rpc/tree/master/examples "examples")
 ### arith.proto
 ```
 syntax = "proto3";
