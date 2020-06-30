@@ -1,109 +1,107 @@
 package rpc
 
 import (
-	"errors"
-	"github.com/hslam/rpc/pb"
+	"fmt"
+	"github.com/hslam/autowriter"
+	"io"
+	"sync"
 )
 
 type clientCodec struct {
-	clientID       uint64
-	reqID          uint64
-	name           string
-	args           interface{}
-	funcsCodecType CodecType
-	noRequest      bool
-	noResponse     bool
-	reply          interface{}
-	res            *response
-	batch          bool
-	batchingAsync  bool
-	compressType   CompressType
-	compressLevel  CompressLevel
-	msg            *msg
-	batchCodec     *batchCodec
-	requests       []*batchRequest
-	responses      []*response
+	headerCodec   *Codec
+	bodyCodec     *Codec
+	argsBuffer    []byte
+	requestBuffer []byte
+	stream        Stream
+	writer        io.WriteCloser
+	mutex         sync.Mutex
+	pending       map[uint64]string
 }
 
-func (c *clientCodec) Encode() ([]byte, error) {
+func NewClientCodec(conn io.ReadWriteCloser, codec *Codec) ClientCodec {
+	var codecClone = codec.Clone()
+	c := &clientCodec{
+		headerCodec:   codecClone,
+		bodyCodec:     codecClone,
+		argsBuffer:    make([]byte, 1024),
+		requestBuffer: make([]byte, 1024),
+		pending:       make(map[uint64]string),
+	}
+	c.writer = autowriter.NewAutoWriter(conn, false, 65536, 4, c)
+	c.stream = &stream{
+		Reader: conn,
+		Writer: c.writer,
+		Closer: conn,
+		Send:   make([]byte, 1032),
+		Read:   make([]byte, 1024),
+	}
+	if fast {
+		c.headerCodec = newFastCodec()
+	}
+	return c
+}
+
+func (c *clientCodec) NumConcurrency() int {
+	c.mutex.Lock()
+	concurrency := len(c.pending)
+	c.mutex.Unlock()
+	return concurrency
+}
+
+func (c *clientCodec) WriteRequest(ctx *Context, param interface{}) error {
+	c.mutex.Lock()
+	c.pending[ctx.Seq] = ctx.ServiceMethod
+	c.mutex.Unlock()
+	var args []byte
+	var data []byte
 	var err error
-	c.msg = &msg{}
-	c.msg.version = Version
-	c.msg.id = c.clientID
-	c.msg.msgType = MsgTypeReq
-	c.msg.batch = c.batch
-	c.msg.codecType = c.funcsCodecType
-	c.msg.compressType = c.compressType
-	c.msg.compressLevel = c.compressLevel
-	if c.batch == false {
-		var req *request
-		if c.noRequest == false {
-			argsBytes, err := argsEncode(c.args, c.funcsCodecType)
-			if err != nil {
-				logger.Errorln("ArgsEncode error: ", err)
-				return nil, err
-			}
-			req = &request{c.reqID, c.name, c.noRequest, c.noResponse, argsBytes}
-		} else {
-			req = &request{c.reqID, c.name, c.noRequest, c.noResponse, nil}
-		}
-		c.msg.data, err = req.Encode()
-		if err != nil {
-			logger.Errorln("RequestEncode error: ", err)
-			return nil, err
-		}
-	} else {
-		reqBytesArr := make([][]byte, len(c.requests))
-		c.responses = make([]*response, len(c.requests))
-		for i, v := range c.requests {
-			req := &request{v.id, v.name, v.noRequest, v.noResponse, v.argsBytes}
-			reqBytes, _ := req.Encode()
-			reqBytesArr[i] = reqBytes
-			c.responses[i] = &response{}
-		}
-		batchCodec := &batchCodec{async: c.batchingAsync, data: reqBytesArr}
-		c.batchCodec = batchCodec
-		c.msg.data, _ = batchCodec.Encode()
-	}
-	return c.msg.Encode()
-}
-
-func (c *clientCodec) Decode(b []byte) error {
-	var reqID = c.reqID
-	if c.msg == nil {
-		c.msg = &msg{}
-	} else {
-		c.msg.Reset()
-	}
-	err := c.msg.Decode(b)
-	if c.msg.msgType != MsgType(pb.MsgType_res) {
-		return errors.New("not be MsgType_res")
-	}
-	if c.msg.batch == false {
-		res := &response{}
-		err = res.Decode(c.msg.data)
-		if err != nil {
-			logger.Errorln("ResponseDecode error: ", err)
-			return err
-		}
-		c.res = res
-		if reqID == c.res.id {
-			if res.err != nil {
-				return res.err
-			}
-			return replyDecode(res.data, c.reply, c.msg.codecType)
-		}
-		return ErrReqID
-	}
-	c.batchCodec.Reset()
-	err = c.batchCodec.Decode(c.msg.data)
+	args, err = c.bodyCodec.Codec.Marshal(c.argsBuffer, param)
 	if err != nil {
 		return err
 	}
-	if len(c.batchCodec.data) == len(c.requests) {
-		for i, res := range c.responses {
-			res.Decode(c.batchCodec.data[i])
+	c.headerCodec.Request.SetSeq(ctx.Seq)
+	c.headerCodec.Request.SetServiceMethod(ctx.ServiceMethod)
+	c.headerCodec.Request.SetArgs(args)
+	data, err = c.headerCodec.Codec.Marshal(c.requestBuffer, c.headerCodec.Request)
+	if err != nil {
+		return err
+	}
+	return c.stream.WriteMessage(data)
+}
+
+func (c *clientCodec) ReadResponseHeader(ctx *Context) error {
+	c.headerCodec.Response.Reset()
+	var data []byte
+	var err error
+	data, err = c.stream.ReadMessage()
+	if err != nil {
+		return err
+	}
+	c.headerCodec.Codec.Unmarshal(data, c.headerCodec.Response)
+	ctx.Error = ""
+	ctx.Seq = c.headerCodec.Response.GetSeq()
+	c.mutex.Lock()
+	delete(c.pending, ctx.Seq)
+	c.mutex.Unlock()
+	if c.headerCodec.Response.GetError() != "" || len(c.headerCodec.Response.GetReply()) == 0 {
+		if len(c.headerCodec.Response.GetError()) > 0 {
+			return fmt.Errorf("invalid error %v", c.headerCodec.Response.GetError())
 		}
+		ctx.Error = c.headerCodec.Response.GetError()
 	}
 	return nil
+}
+
+func (c *clientCodec) ReadResponseBody(x interface{}) error {
+	if x == nil {
+		return nil
+	}
+	return c.bodyCodec.Codec.Unmarshal(c.headerCodec.Response.GetReply(), x)
+}
+
+func (c *clientCodec) Close() error {
+	if c.writer != nil {
+		c.writer.Close()
+	}
+	return c.stream.Close()
 }

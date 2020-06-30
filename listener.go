@@ -1,36 +1,22 @@
 package rpc
 
 import (
-	"errors"
+	"github.com/hslam/transport"
+	"os"
 )
 
-//Listener defines the interface of listener.
-type Listener interface {
-	Serve() error
-	Addr() string
-	Close() error
-}
-
-// Listen announces on the local network address.
-// The network must be "ipc", "tcp", "udp", "quic", "ws", "http" or "http1".
-func Listen(network, address string, server *Server) (Listener, error) {
-	logger.Noticef("network - %s", network)
+func ListenAndServe(tran transport.Transport, address string, codec *Codec) {
+	logger.Noticef("pid %d", os.Getpid())
 	logger.Noticef("listening on %s", address)
-	switch network {
-	case IPC:
-		return listenIPC(address, server)
-	case TCP:
-		return listenTCP(address, server)
-	case UDP:
-		return listenUDP(address, server)
-	case QUIC:
-		return listenQUIC(address, server)
-	case WS:
-		return listenWS(address, server)
-	case HTTP:
-		return listenHTTP(address, server)
-	case HTTP1:
-		return listenHTTP(address, server)
+	lis, err := tran.Listen(address)
+	if err != nil {
+		logger.Fatalln("fatal error: ", err)
 	}
-	return nil, errors.New("this network is not suported")
+	for {
+		conn, err := lis.Accept()
+		if err != nil {
+			continue
+		}
+		go ServeConn(conn, codec)
+	}
 }

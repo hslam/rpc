@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package pb;
+
+
+message Request {
+    uint64  Seq = 1;
+    string  ServiceMethod = 2;
+    bytes   Args = 3;
+
+}
+
+message Response {
+    uint64  Seq = 1;
+    string  Error = 2;
+    bytes   Reply = 3;
+}
