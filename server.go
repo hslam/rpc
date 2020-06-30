@@ -10,8 +10,9 @@ import (
 )
 
 type Server struct {
-	Registry *funcs.Funcs
-	ctxPool  *sync.Pool
+	Registry   *funcs.Funcs
+	ctxPool    *sync.Pool
+	pipelining bool
 }
 
 // NewServer returns a new Server.
@@ -33,6 +34,9 @@ func (server *Server) RegisterName(name string, obj interface{}) error {
 	return server.Registry.RegisterName(name, obj)
 }
 
+func (server *Server) SetPipelining(enable bool) {
+	server.pipelining = enable
+}
 func (server *Server) ServeCodec(codec ServerCodec) {
 	sending := new(sync.Mutex)
 	wg := new(sync.WaitGroup)
@@ -52,6 +56,10 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 				ctx.Reset()
 				server.ctxPool.Put(ctx)
 			}
+			continue
+		}
+		if server.pipelining {
+			server.callService(sending, nil, ctx, codec)
 			continue
 		}
 		wg.Add(1)
@@ -139,6 +147,10 @@ func Register(rcvr interface{}) error { return DefaultServer.Register(rcvr) }
 
 func RegisterName(name string, rcvr interface{}) error {
 	return DefaultServer.RegisterName(name, rcvr)
+}
+
+func SetPipelining(enable bool) {
+	DefaultServer.SetPipelining(enable)
 }
 
 func ServeCodec(codec ServerCodec) {

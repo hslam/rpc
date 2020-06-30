@@ -1,0 +1,6 @@
+syntax = "proto3";
+package service;
+
+message Message {
+    int32 Value = 1;
+}
