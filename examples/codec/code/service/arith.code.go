@@ -22,9 +22,23 @@ func (a *ArithRequest) Marshal(buf []byte) ([]byte, error) {
 	}
 	var offset uint64
 	var n uint64
-	n = code.EncodeUint32(buf[offset:], uint32(a.A))
+	{
+		var t = a.A
+		buf[0] = uint8(t)
+		buf[1] = uint8(t >> 8)
+		buf[2] = uint8(t >> 16)
+		buf[3] = uint8(t >> 24)
+		n = 4
+	}
 	offset += n
-	n = code.EncodeUint32(buf[offset:], uint32(a.B))
+	{
+		var t = a.B
+		buf[offset+0] = uint8(t)
+		buf[offset+1] = uint8(t >> 8)
+		buf[offset+2] = uint8(t >> 16)
+		buf[offset+3] = uint8(t >> 24)
+		n = 4
+	}
 	offset += n
 	return buf[:offset], nil
 }
@@ -60,7 +74,14 @@ func (a *ArithResponse) Marshal(buf []byte) ([]byte, error) {
 	}
 	var offset uint64
 	var n uint64
-	n = code.EncodeUint32(buf[offset:], uint32(a.Pro))
+	{
+		var t = a.Pro
+		buf[0] = uint8(t)
+		buf[1] = uint8(t >> 8)
+		buf[2] = uint8(t >> 16)
+		buf[3] = uint8(t >> 24)
+		n = 4
+	}
 	offset += n
 	return buf[:offset], nil
 }
