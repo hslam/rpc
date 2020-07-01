@@ -3,13 +3,17 @@ package rpc
 import (
 	"errors"
 	"github.com/hslam/autowriter"
+	"github.com/hslam/codec"
+	"github.com/hslam/rpc/encoder"
 	"io"
 	"sync"
 )
 
 type serverCodec struct {
-	headerCodec    *Codec
-	bodyCodec      *Codec
+	headerEncoder  *encoder.Encoder
+	bodyCodec      codec.Codec
+	req            *request
+	res            *response
 	replyBuffer    []byte
 	responseBuffer []byte
 	stream         Stream
@@ -19,12 +23,20 @@ type serverCodec struct {
 	pending        map[uint64]uint64
 }
 
+func NewServerCodec(conn io.ReadWriteCloser, codec codec.Codec) ServerCodec {
+	return newServerCodec(conn, nil, codec)
+}
+
+func NewServerCodecWithEncoder(conn io.ReadWriteCloser, encoder *encoder.Encoder) ServerCodec {
+	var encoderClone = encoder.Clone()
+	return newServerCodec(conn, encoderClone, encoderClone.Codec)
+}
+
 // NewServerCodec returns a new rpc.ServerCodec using CODE-RPC on conn.
-func NewServerCodec(conn io.ReadWriteCloser, codec *Codec) ServerCodec {
-	var codecClone = codec.Clone()
+func newServerCodec(conn io.ReadWriteCloser, headerEncoder *encoder.Encoder, bodyCodec codec.Codec) ServerCodec {
 	c := &serverCodec{
-		headerCodec:    codecClone,
-		bodyCodec:      codecClone,
+		headerEncoder:  headerEncoder,
+		bodyCodec:      bodyCodec,
 		replyBuffer:    make([]byte, 1024),
 		responseBuffer: make([]byte, 1024),
 		pending:        make(map[uint64]uint64),
@@ -37,8 +49,9 @@ func NewServerCodec(conn io.ReadWriteCloser, codec *Codec) ServerCodec {
 		Send:   make([]byte, 1032),
 		Read:   make([]byte, 1024),
 	}
-	if fast {
-		c.headerCodec = newFastCodec()
+	if headerEncoder == nil {
+		c.req = &request{}
+		c.res = &response{}
 	}
 	return c
 }
@@ -51,21 +64,34 @@ func (c *serverCodec) NumConcurrency() int {
 }
 
 func (c *serverCodec) ReadRequestHeader(ctx *Context) error {
-	c.headerCodec.Request.Reset()
 	var data []byte
 	var err error
 	data, err = c.stream.ReadMessage()
 	if err != nil {
 		return err
 	}
-	c.headerCodec.Codec.Unmarshal(data, c.headerCodec.Request)
-	ctx.ServiceMethod = c.headerCodec.Request.GetServiceMethod()
-	c.mutex.Lock()
-	c.seq++
-	ctx.Seq = c.seq
-	c.pending[ctx.Seq] = c.headerCodec.Request.GetSeq()
-	c.headerCodec.Request.SetSeq(0)
-	c.mutex.Unlock()
+	if c.headerEncoder != nil {
+		c.headerEncoder.Request.Reset()
+		c.headerEncoder.Codec.Unmarshal(data, c.headerEncoder.Request)
+		ctx.ServiceMethod = c.headerEncoder.Request.GetServiceMethod()
+		c.mutex.Lock()
+		c.seq++
+		ctx.Seq = c.seq
+		c.pending[ctx.Seq] = c.headerEncoder.Request.GetSeq()
+		c.headerEncoder.Request.SetSeq(0)
+		c.mutex.Unlock()
+	} else {
+		c.req.Reset()
+		c.req.Unmarshal(data)
+		ctx.ServiceMethod = c.req.GetServiceMethod()
+		c.mutex.Lock()
+		c.seq++
+		ctx.Seq = c.seq
+		c.pending[ctx.Seq] = c.req.GetSeq()
+		c.req.SetSeq(0)
+		c.mutex.Unlock()
+	}
+
 	return nil
 }
 
@@ -73,7 +99,10 @@ func (c *serverCodec) ReadRequestBody(x interface{}) error {
 	if x == nil {
 		return nil
 	}
-	return c.bodyCodec.Codec.Unmarshal(c.headerCodec.Request.GetArgs(), x)
+	if c.headerEncoder != nil {
+		return c.bodyCodec.Unmarshal(c.headerEncoder.Request.GetArgs(), x)
+	}
+	return c.bodyCodec.Unmarshal(c.req.GetArgs(), x)
 }
 
 func (c *serverCodec) WriteResponse(ctx *Context, x interface{}) error {
@@ -90,17 +119,27 @@ func (c *serverCodec) WriteResponse(ctx *Context, x interface{}) error {
 	var data []byte
 	var err error
 	if len(ctx.Error) == 0 {
-		reply, err = c.bodyCodec.Codec.Marshal(c.replyBuffer, x)
+		reply, err = c.bodyCodec.Marshal(c.replyBuffer, x)
 		if err != nil {
 			return err
 		}
 	}
-	c.headerCodec.Response.SetSeq(reqSeq)
-	c.headerCodec.Response.SetError(ctx.Error)
-	c.headerCodec.Response.SetReply(reply)
-	data, err = c.headerCodec.Codec.Marshal(c.responseBuffer, c.headerCodec.Response)
-	if err != nil {
-		return err
+	if c.headerEncoder != nil {
+		c.headerEncoder.Response.SetSeq(reqSeq)
+		c.headerEncoder.Response.SetError(ctx.Error)
+		c.headerEncoder.Response.SetReply(reply)
+		data, err = c.headerEncoder.Codec.Marshal(c.responseBuffer, c.headerEncoder.Response)
+		if err != nil {
+			return err
+		}
+	} else {
+		c.res.SetSeq(reqSeq)
+		c.res.SetError(ctx.Error)
+		c.res.SetReply(reply)
+		data, err = c.res.Marshal(c.responseBuffer)
+		if err != nil {
+			return err
+		}
 	}
 	return c.stream.WriteMessage(data)
 }

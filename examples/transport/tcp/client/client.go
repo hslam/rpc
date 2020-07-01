@@ -4,16 +4,15 @@ import (
 	"flag"
 	"fmt"
 	"github.com/hslam/rpc"
-	"github.com/hslam/rpc/codec/pb"
 	"github.com/hslam/rpc/examples/transport/tcp/service"
 	"github.com/hslam/stats"
-	"github.com/hslam/transport/tcp"
 	"log"
 	"math/rand"
 )
 
 var network string
 var addr string
+var codec string
 var clients int
 var total int
 var parallel int
@@ -22,13 +21,14 @@ var bar bool
 func init() {
 	flag.StringVar(&network, "network", "tcp", "-network=tcp")
 	flag.StringVar(&addr, "addr", ":9999", "-addr=:9999")
+	flag.StringVar(&codec, "codec", "pb", "-codec=code")
 	flag.IntVar(&total, "total", 100000, "-total=100000")
 	flag.IntVar(&parallel, "parallel", 1, "-parallel=1")
 	flag.IntVar(&clients, "clients", 1, "-clients=1")
 	flag.BoolVar(&bar, "bar", true, "-bar=true")
 	flag.Parse()
 	stats.SetBar(bar)
-	fmt.Printf("./client -network=%s -addr=%s -total=%d -parallel=%d -clients=%d\n", network, addr, total, parallel, clients)
+	fmt.Printf("./client -network=%s -addr=%s -codec=%s -total=%d -parallel=%d -clients=%d\n", network, addr, codec, total, parallel, clients)
 }
 
 func main() {
@@ -37,7 +37,7 @@ func main() {
 	}
 	var wrkClients []stats.Client
 	for i := 0; i < clients; i++ {
-		if conn, err := rpc.Dial(tcp.NewTransport(), addr, pb.NewCodec()); err != nil {
+		if conn, err := rpc.Dial(network, addr, codec); err != nil {
 			log.Fatalln("dailing error: ", err)
 		} else {
 			wrkClients = append(wrkClients, &WrkClient{conn})

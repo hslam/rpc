@@ -1,12 +1,17 @@
-package code
+package json
 
 import (
 	"github.com/hslam/codec"
-	"github.com/hslam/rpc"
+	"github.com/hslam/rpc/encoder"
 )
 
-func NewCodec() *rpc.Codec {
-	return rpc.NewCodec(NewRequest(), NewResponse(), &codec.CODECodec{})
+func NewEncoder() *encoder.Encoder {
+	return encoder.NewEncoder(NewRequest(), NewResponse(), NewCodec())
+}
+
+//NewCodec returns the instance of Codec.
+func NewCodec() codec.Codec {
+	return &codec.JSONCodec{}
 }
 
 //NewRequest returns the instance of Request.
@@ -16,7 +21,9 @@ func NewRequest() *Request {
 
 //Reset resets the Request.
 func (req *Request) Reset() {
-	*req = Request{}
+	req.Seq = 0
+	req.ServiceMethod = ""
+	req.Args = req.Args[0:]
 }
 
 //SetSeq sets the value of Seq.
@@ -56,7 +63,9 @@ func NewResponse() *Response {
 
 //Reset resets the Response.
 func (res *Response) Reset() {
-	*res = Response{}
+	res.Seq = 0
+	res.Error = ""
+	res.Reply = res.Reply[0:]
 }
 
 //SetSeq sets the value of Seq.

@@ -2,11 +2,16 @@ package pb
 
 import (
 	"github.com/hslam/codec"
-	"github.com/hslam/rpc"
+	"github.com/hslam/rpc/encoder"
 )
 
-func NewCodec() *rpc.Codec {
-	return rpc.NewCodec(NewRequest(), NewResponse(), &codec.GOGOPBCodec{})
+func NewEncoder() *encoder.Encoder {
+	return encoder.NewEncoder(NewRequest(), NewResponse(), NewCodec())
+}
+
+//NewCodec returns the instance of Codec.
+func NewCodec() codec.Codec {
+	return &codec.GOGOPBCodec{}
 }
 
 //NewRequest returns the instance of Request.

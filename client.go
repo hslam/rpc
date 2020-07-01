@@ -2,6 +2,8 @@ package rpc
 
 import (
 	"errors"
+	"github.com/hslam/codec"
+	"github.com/hslam/rpc/encoder"
 	"io"
 	"sync"
 )
@@ -34,11 +36,15 @@ type Client struct {
 	shutdown bool
 }
 
-func NewClient(conn io.ReadWriteCloser, codec *Codec) *Client {
-	return NewClientWithCodec(NewClientCodec(conn, codec))
+func NewClient(conn io.ReadWriteCloser, codec codec.Codec) *Client {
+	return NewClientWithClientCodec(NewClientCodec(conn, codec))
 }
 
-func NewClientWithCodec(codec ClientCodec) *Client {
+func NewClientWithEncoder(conn io.ReadWriteCloser, codec *encoder.Encoder) *Client {
+	return NewClientWithClientCodec(NewClientCodecWithEncoder(conn, codec))
+}
+
+func NewClientWithClientCodec(codec ClientCodec) *Client {
 	client := &Client{
 		codec:   codec,
 		pending: make(map[uint64]*Call),

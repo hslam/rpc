@@ -2,12 +2,7 @@ package rpc
 
 import (
 	"github.com/hslam/code"
-	"github.com/hslam/codec"
 )
-
-func newFastCodec() *Codec {
-	return NewCodec(&request{}, &response{}, &codec.CODECodec{})
-}
 
 type request struct {
 	Seq           uint64

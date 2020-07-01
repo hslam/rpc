@@ -4,23 +4,23 @@ import (
 	"flag"
 	"fmt"
 	"github.com/hslam/rpc"
-	"github.com/hslam/rpc/codec/pb"
 	"github.com/hslam/rpc/examples/pipelining/service"
-	"github.com/hslam/transport/tcp"
 	"log"
 )
 
 var network string
 var addr string
+var codec string
 
 func init() {
 	flag.StringVar(&network, "network", "tcp", "-network=tcp")
 	flag.StringVar(&addr, "addr", ":9999", "-addr=:9999")
+	flag.StringVar(&codec, "codec", "pb", "-codec=code")
 	flag.Parse()
 }
 
 func main() {
-	conn, err := rpc.Dial(tcp.NewTransport(), addr, pb.NewCodec())
+	conn, err := rpc.Dial(network, addr, codec)
 	if err != nil {
 		log.Fatalln("dailing error: ", err)
 	}

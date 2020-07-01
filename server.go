@@ -2,7 +2,9 @@ package rpc
 
 import (
 	"errors"
+	"github.com/hslam/codec"
 	"github.com/hslam/funcs"
+	"github.com/hslam/rpc/encoder"
 	"github.com/hslam/transport"
 	"io"
 	"os"
@@ -123,11 +125,16 @@ func (server *Server) sendResponse(sending *sync.Mutex, ctx *Context, codec Serv
 	ctx.Reset()
 	server.ctxPool.Put(ctx)
 }
-func (server *Server) ServeConn(conn io.ReadWriteCloser, codec *Codec) {
+
+func (server *Server) ServeConn(conn io.ReadWriteCloser, codec codec.Codec) {
 	server.ServeCodec(NewServerCodec(conn, codec))
 }
 
-func (server *Server) ListenAndServe(tran transport.Transport, address string, codec *Codec) {
+func (server *Server) ServeConnWithEncoder(conn io.ReadWriteCloser, encoder *encoder.Encoder) {
+	server.ServeCodec(NewServerCodecWithEncoder(conn, encoder))
+}
+
+func (server *Server) ListenAndServe(tran transport.Transport, address string, codec codec.Codec) {
 	logger.Noticef("pid %d", os.Getpid())
 	logger.Noticef("listening on %s", address)
 	lis, err := tran.Listen(address)
@@ -157,6 +164,10 @@ func ServeCodec(codec ServerCodec) {
 	DefaultServer.ServeCodec(codec)
 }
 
-func ServeConn(conn io.ReadWriteCloser, codec *Codec) {
+func ServeConn(conn io.ReadWriteCloser, codec codec.Codec) {
 	DefaultServer.ServeConn(conn, codec)
+}
+
+func ServeConnWithEncoder(conn io.ReadWriteCloser, encoder *encoder.Encoder) {
+	DefaultServer.ServeConnWithEncoder(conn, encoder)
 }

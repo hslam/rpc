@@ -1,10 +1,10 @@
-package codec
+package rpc
 
 import (
 	"github.com/hslam/codec"
-	"github.com/hslam/rpc/codec/code"
-	"github.com/hslam/rpc/codec/json"
-	"github.com/hslam/rpc/codec/pb"
+	"github.com/hslam/rpc/encoder/code"
+	"github.com/hslam/rpc/encoder/json"
+	"github.com/hslam/rpc/encoder/pb"
 	"testing"
 )
 

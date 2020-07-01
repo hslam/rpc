@@ -3,13 +3,17 @@ package rpc
 import (
 	"fmt"
 	"github.com/hslam/autowriter"
+	"github.com/hslam/codec"
+	"github.com/hslam/rpc/encoder"
 	"io"
 	"sync"
 )
 
 type clientCodec struct {
-	headerCodec   *Codec
-	bodyCodec     *Codec
+	headerEncoder *encoder.Encoder
+	bodyCodec     codec.Codec
+	req           *request
+	res           *response
 	argsBuffer    []byte
 	requestBuffer []byte
 	stream        Stream
@@ -18,11 +22,19 @@ type clientCodec struct {
 	pending       map[uint64]string
 }
 
-func NewClientCodec(conn io.ReadWriteCloser, codec *Codec) ClientCodec {
-	var codecClone = codec.Clone()
+func NewClientCodec(conn io.ReadWriteCloser, codec codec.Codec) ClientCodec {
+	return newClientCodec(conn, nil, codec)
+
+}
+func NewClientCodecWithEncoder(conn io.ReadWriteCloser, encoder *encoder.Encoder) ClientCodec {
+	var encoderClone = encoder.Clone()
+	return newClientCodec(conn, encoderClone, encoderClone.Codec)
+}
+
+func newClientCodec(conn io.ReadWriteCloser, headerEncoder *encoder.Encoder, bodyCodec codec.Codec) ClientCodec {
 	c := &clientCodec{
-		headerCodec:   codecClone,
-		bodyCodec:     codecClone,
+		headerEncoder: headerEncoder,
+		bodyCodec:     bodyCodec,
 		argsBuffer:    make([]byte, 1024),
 		requestBuffer: make([]byte, 1024),
 		pending:       make(map[uint64]string),
@@ -35,8 +47,9 @@ func NewClientCodec(conn io.ReadWriteCloser, codec *Codec) ClientCodec {
 		Send:   make([]byte, 1032),
 		Read:   make([]byte, 1024),
 	}
-	if fast {
-		c.headerCodec = newFastCodec()
+	if headerEncoder == nil {
+		c.req = &request{}
+		c.res = &response{}
 	}
 	return c
 }
@@ -55,40 +68,67 @@ func (c *clientCodec) WriteRequest(ctx *Context, param interface{}) error {
 	var args []byte
 	var data []byte
 	var err error
-	args, err = c.bodyCodec.Codec.Marshal(c.argsBuffer, param)
+	args, err = c.bodyCodec.Marshal(c.argsBuffer, param)
 	if err != nil {
 		return err
 	}
-	c.headerCodec.Request.SetSeq(ctx.Seq)
-	c.headerCodec.Request.SetServiceMethod(ctx.ServiceMethod)
-	c.headerCodec.Request.SetArgs(args)
-	data, err = c.headerCodec.Codec.Marshal(c.requestBuffer, c.headerCodec.Request)
-	if err != nil {
-		return err
+	if c.headerEncoder != nil {
+		c.headerEncoder.Request.SetSeq(ctx.Seq)
+		c.headerEncoder.Request.SetServiceMethod(ctx.ServiceMethod)
+		c.headerEncoder.Request.SetArgs(args)
+		data, err = c.headerEncoder.Codec.Marshal(c.requestBuffer, c.headerEncoder.Request)
+		if err != nil {
+			return err
+		}
+	} else {
+		c.req.SetSeq(ctx.Seq)
+		c.req.SetServiceMethod(ctx.ServiceMethod)
+		c.req.SetArgs(args)
+		data, err = c.req.Marshal(c.requestBuffer)
+		if err != nil {
+			return err
+		}
 	}
 	return c.stream.WriteMessage(data)
 }
 
 func (c *clientCodec) ReadResponseHeader(ctx *Context) error {
-	c.headerCodec.Response.Reset()
 	var data []byte
 	var err error
 	data, err = c.stream.ReadMessage()
 	if err != nil {
 		return err
 	}
-	c.headerCodec.Codec.Unmarshal(data, c.headerCodec.Response)
-	ctx.Error = ""
-	ctx.Seq = c.headerCodec.Response.GetSeq()
-	c.mutex.Lock()
-	delete(c.pending, ctx.Seq)
-	c.mutex.Unlock()
-	if c.headerCodec.Response.GetError() != "" || len(c.headerCodec.Response.GetReply()) == 0 {
-		if len(c.headerCodec.Response.GetError()) > 0 {
-			return fmt.Errorf("invalid error %v", c.headerCodec.Response.GetError())
+	if c.headerEncoder != nil {
+		c.headerEncoder.Response.Reset()
+		c.headerEncoder.Codec.Unmarshal(data, c.headerEncoder.Response)
+		ctx.Error = ""
+		ctx.Seq = c.headerEncoder.Response.GetSeq()
+		c.mutex.Lock()
+		delete(c.pending, ctx.Seq)
+		c.mutex.Unlock()
+		if c.headerEncoder.Response.GetError() != "" || len(c.headerEncoder.Response.GetReply()) == 0 {
+			if len(c.headerEncoder.Response.GetError()) > 0 {
+				return fmt.Errorf("invalid error %v", c.headerEncoder.Response.GetError())
+			}
+			ctx.Error = c.headerEncoder.Response.GetError()
 		}
-		ctx.Error = c.headerCodec.Response.GetError()
+	} else {
+		c.res.Reset()
+		c.res.Unmarshal(data)
+		ctx.Error = ""
+		ctx.Seq = c.res.GetSeq()
+		c.mutex.Lock()
+		delete(c.pending, ctx.Seq)
+		c.mutex.Unlock()
+		if c.res.GetError() != "" || len(c.res.GetReply()) == 0 {
+			if len(c.res.GetError()) > 0 {
+				return fmt.Errorf("invalid error %v", c.res.GetError())
+			}
+			ctx.Error = c.res.GetError()
+		}
 	}
+
 	return nil
 }
 
@@ -96,7 +136,10 @@ func (c *clientCodec) ReadResponseBody(x interface{}) error {
 	if x == nil {
 		return nil
 	}
-	return c.bodyCodec.Codec.Unmarshal(c.headerCodec.Response.GetReply(), x)
+	if c.headerEncoder != nil {
+		return c.bodyCodec.Unmarshal(c.headerEncoder.Response.GetReply(), x)
+	}
+	return c.bodyCodec.Unmarshal(c.res.GetReply(), x)
 }
 
 func (c *clientCodec) Close() error {
