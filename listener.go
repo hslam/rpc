@@ -9,7 +9,7 @@ func Listen(network, address string, codec string) error {
 	if tran := NewTransport(network); tran != nil {
 		logger.Noticef("pid - %d", os.Getpid())
 		logger.Noticef("network - %s", tran.Scheme())
-		logger.Noticef("listening on-%s", address)
+		logger.Noticef("listening on %s", address)
 		lis, err := tran.Listen(address)
 		if err != nil {
 			return err

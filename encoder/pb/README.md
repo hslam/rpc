@@ -1,3 +1,1 @@
-protoc ./codec.proto --go_out=./
-
-protoc ./codec.proto --gofast_out=./
+protoc ./codec.proto --gogofaster_out=./

@@ -1,2 +1,1 @@
-
-protoc ./arith.proto --gofast_out=./
+protoc ./arith.proto --gogofaster_out=./

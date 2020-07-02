@@ -1,1 +1,1 @@
-protoc ./seq.proto --gofast_out=./
+protoc ./seq.proto --gogofaster_out=./
