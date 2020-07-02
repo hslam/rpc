@@ -72,7 +72,7 @@ func (req *Request) Marshal(buf []byte) ([]byte, error) {
 func (req *Request) Unmarshal(data []byte) (uint64, error) {
 	var offset uint64
 	var n uint64
-	n = code.DecodeUint64(data[offset:], &req.Seq)
+	n = code.DecodeVarint(data[offset:], &req.Seq)
 	offset += n
 	n = code.DecodeString(data[offset:], &req.ServiceMethod)
 	offset += n
@@ -149,7 +149,7 @@ func (res *Response) Marshal(buf []byte) ([]byte, error) {
 func (res *Response) Unmarshal(data []byte) (uint64, error) {
 	var offset uint64
 	var n uint64
-	n = code.DecodeUint64(data[offset:], &res.Seq)
+	n = code.DecodeVarint(data[offset:], &res.Seq)
 	offset += n
 	n = code.DecodeString(data[offset:], &res.Error)
 	offset += n

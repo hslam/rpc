@@ -48,7 +48,7 @@ func (req *request) GetArgs() []byte {
 //Marshal marshals the Request into buf and returns the bytes.
 func (req *request) Marshal(buf []byte) ([]byte, error) {
 	var size uint64
-	size += 8
+	size += 10
 	size += 10 + uint64(len(req.ServiceMethod))
 	size += 10 + uint64(len(req.Args))
 	if uint64(cap(buf)) >= size {
@@ -58,19 +58,19 @@ func (req *request) Marshal(buf []byte) ([]byte, error) {
 	}
 	var offset uint64
 	var n uint64
+	//n = code.EncodeVarint(buf[offset:], req.Seq)
 	{
 		var t = req.Seq
-		buf[0] = uint8(t)
-		buf[1] = uint8(t >> 8)
-		buf[2] = uint8(t >> 16)
-		buf[3] = uint8(t >> 24)
-		buf[4] = uint8(t >> 32)
-		buf[5] = uint8(t >> 40)
-		buf[6] = uint8(t >> 48)
-		buf[7] = uint8(t >> 56)
-		n = 8
+		var size = code.SizeofVarint(t)
+		for i := uint64(0); i < size-1; i++ {
+			buf[offset+i] = byte(t) | 0x80
+			t >>= 7
+		}
+		buf[offset+size-1] = byte(t)
+		n = size
 	}
 	offset += n
+	//n = code.EncodeString(buf[offset:], req.ServiceMethod)
 	{
 		var length = uint64(len(req.ServiceMethod))
 		var lengthSize = code.SizeofVarint(length)
@@ -85,6 +85,7 @@ func (req *request) Marshal(buf []byte) ([]byte, error) {
 		n = s
 	}
 	offset += n
+	//n = code.EncodeBytes(buf[offset:], req.Args)
 	{
 		var length = uint64(len(req.Args))
 		var lengthSize = code.SizeofVarint(length)
@@ -106,7 +107,7 @@ func (req *request) Marshal(buf []byte) ([]byte, error) {
 func (req *request) Unmarshal(data []byte) (uint64, error) {
 	var offset uint64
 	var n uint64
-	n = code.DecodeUint64(data[offset:], &req.Seq)
+	n = code.DecodeVarint(data[offset:], &req.Seq)
 	offset += n
 	n = code.DecodeString(data[offset:], &req.ServiceMethod)
 	offset += n
@@ -159,7 +160,7 @@ func (res *response) GetReply() []byte {
 //Marshal marshals the Response into buf and returns the bytes.
 func (res *response) Marshal(buf []byte) ([]byte, error) {
 	var size uint64
-	size += 8
+	size += 10
 	size += 10 + uint64(len(res.Error))
 	size += 10 + uint64(len(res.Reply))
 	if uint64(cap(buf)) >= size {
@@ -169,19 +170,19 @@ func (res *response) Marshal(buf []byte) ([]byte, error) {
 	}
 	var offset uint64
 	var n uint64
+	//n = code.EncodeVarint(buf[offset:], res.Seq)
 	{
 		var t = res.Seq
-		buf[0] = uint8(t)
-		buf[1] = uint8(t >> 8)
-		buf[2] = uint8(t >> 16)
-		buf[3] = uint8(t >> 24)
-		buf[4] = uint8(t >> 32)
-		buf[5] = uint8(t >> 40)
-		buf[6] = uint8(t >> 48)
-		buf[7] = uint8(t >> 56)
-		n = 8
+		var size = code.SizeofVarint(t)
+		for i := uint64(0); i < size-1; i++ {
+			buf[offset+i] = byte(t) | 0x80
+			t >>= 7
+		}
+		buf[offset+size-1] = byte(t)
+		n = size
 	}
 	offset += n
+	//n = code.EncodeString(buf[offset:], res.Error)
 	{
 		var length = uint64(len(res.Error))
 		var lengthSize = code.SizeofVarint(length)
@@ -196,6 +197,7 @@ func (res *response) Marshal(buf []byte) ([]byte, error) {
 		n = s
 	}
 	offset += n
+	//n = code.EncodeBytes(buf[offset:], res.Reply)
 	{
 		var length = uint64(len(res.Reply))
 		var lengthSize = code.SizeofVarint(length)
@@ -217,7 +219,7 @@ func (res *response) Marshal(buf []byte) ([]byte, error) {
 func (res *response) Unmarshal(data []byte) (uint64, error) {
 	var offset uint64
 	var n uint64
-	n = code.DecodeUint64(data[offset:], &res.Seq)
+	n = code.DecodeVarint(data[offset:], &res.Seq)
 	offset += n
 	n = code.DecodeString(data[offset:], &res.Error)
 	offset += n
