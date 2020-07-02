@@ -113,20 +113,25 @@ func (res *Response) Marshal(buf []byte) ([]byte, error) {
 	}
 	offset += n
 	//n = code.EncodeString(buf[offset:], res.Error)
-	{
-		var length = uint64(len(res.Error))
-		var lengthSize = code.SizeofVarint(length)
-		var s = lengthSize + length
-		t := length
-		for i := uint64(0); i < lengthSize-1; i++ {
-			buf[offset+i] = byte(t) | 0x80
-			t >>= 7
+	if len(res.Error) > 0 {
+		{
+			var length = uint64(len(res.Error))
+			var lengthSize = code.SizeofVarint(length)
+			var s = lengthSize + length
+			t := length
+			for i := uint64(0); i < lengthSize-1; i++ {
+				buf[offset+i] = byte(t) | 0x80
+				t >>= 7
+			}
+			buf[offset+lengthSize-1] = byte(t)
+			copy(buf[offset+lengthSize:], res.Error)
+			n = s
 		}
-		buf[offset+lengthSize-1] = byte(t)
-		copy(buf[offset+lengthSize:], res.Error)
-		n = s
+		offset += n
+	} else {
+		buf[offset] = 0
+		offset++
 	}
-	offset += n
 	//n = code.EncodeBytes(buf[offset:], res.Reply)
 	{
 		var length = uint64(len(res.Reply))
@@ -151,7 +156,11 @@ func (res *Response) Unmarshal(data []byte) (uint64, error) {
 	var n uint64
 	n = code.DecodeVarint(data[offset:], &res.Seq)
 	offset += n
-	n = code.DecodeString(data[offset:], &res.Error)
+	if data[offset] > 0 {
+		n = code.DecodeString(data[offset:], &res.Error)
+	} else {
+		n = 1
+	}
 	offset += n
 	n = code.DecodeBytes(data[offset:], &res.Reply)
 	offset += n
