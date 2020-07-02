@@ -20,7 +20,7 @@ func Listen(network, address string, codec string) error {
 				if err != nil {
 					continue
 				}
-				go ServeConn(conn, c)
+				go ServeConn(conn, c, nil)
 			}
 			return nil
 		}
@@ -30,6 +30,9 @@ func Listen(network, address string, codec string) error {
 }
 
 func ListenWithOptions(address string, opts *Options) error {
+	if opts.Codec == nil && opts.Encoder == nil {
+		return errors.New("need opts.Codec or opts.Encoder")
+	}
 	logger.Noticef("pid - %d", os.Getpid())
 	logger.Noticef("network - %s", opts.Transport.Scheme())
 	logger.Noticef("listening on %s", address)
@@ -42,10 +45,6 @@ func ListenWithOptions(address string, opts *Options) error {
 		if err != nil {
 			continue
 		}
-		if opts.Encoder != nil {
-			go ServeConnWithEncoder(conn, opts.Encoder)
-		} else {
-			go ServeConn(conn, opts.Codec)
-		}
+		go ServeConn(conn, opts.Codec, opts.Encoder)
 	}
 }

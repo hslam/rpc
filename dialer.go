@@ -11,7 +11,7 @@ func Dial(network, address, codec string) (*Client, error) {
 			return nil, err
 		}
 		if c := NewCodec(codec); c != nil {
-			return NewClient(conn, c), err
+			return NewClient(conn, c, nil), err
 		}
 		return nil, errors.New("unsupported codec: " + codec)
 	}
@@ -20,12 +20,12 @@ func Dial(network, address, codec string) (*Client, error) {
 }
 
 func DialWithOptions(address string, opts *Options) (*Client, error) {
+	if opts.Codec == nil && opts.Encoder == nil {
+		return nil, errors.New("need opts.Codec or opts.Encoder")
+	}
 	conn, err := opts.Transport.Dial(address)
 	if err != nil {
 		return nil, err
 	}
-	if opts.Encoder != nil {
-		return NewClientWithEncoder(conn, opts.Encoder), err
-	}
-	return NewClient(conn, opts.Codec), nil
+	return NewClient(conn, opts.Codec, opts.Encoder), nil
 }

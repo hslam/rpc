@@ -23,17 +23,17 @@ type serverCodec struct {
 	pending        map[uint64]uint64
 }
 
-func NewServerCodec(conn io.ReadWriteCloser, codec codec.Codec) ServerCodec {
-	return newServerCodec(conn, nil, codec)
-}
-
-func NewServerCodecWithEncoder(conn io.ReadWriteCloser, encoder *encoder.Encoder) ServerCodec {
-	var encoderClone = encoder.Clone()
-	return newServerCodec(conn, encoderClone, encoderClone.Codec)
-}
-
-// NewServerCodec returns a new rpc.ServerCodec using CODE-RPC on conn.
-func newServerCodec(conn io.ReadWriteCloser, headerEncoder *encoder.Encoder, bodyCodec codec.Codec) ServerCodec {
+func NewServerCodec(conn io.ReadWriteCloser, bodyCodec codec.Codec, headerEncoder *encoder.Encoder) ServerCodec {
+	var encoderClone *encoder.Encoder
+	if headerEncoder != nil {
+		encoderClone = headerEncoder.Clone()
+		if bodyCodec == nil {
+			bodyCodec = encoderClone.Codec
+		}
+	}
+	if bodyCodec == nil {
+		return nil
+	}
 	c := &serverCodec{
 		headerEncoder:  headerEncoder,
 		bodyCodec:      bodyCodec,

@@ -35,7 +35,7 @@ func main() {
 	}
 	var wrkClients []stats.Client
 	for i := 0; i < clients; i++ {
-		if conn, err := rpc.DialWithOptions(addr, &rpc.Options{Transport: tcp.NewTransport(), Codec: pb.NewCodec()}); err != nil {
+		if conn, err := rpc.DialWithOptions(addr, &rpc.Options{Transport: tcp.NewTransport(), Codec: pb.NewCodec(), Encoder: pb.NewEncoder()}); err != nil {
 			log.Fatalln("dailing error: ", err)
 		} else {
 			wrkClients = append(wrkClients, &WrkClient{conn})

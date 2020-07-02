@@ -22,18 +22,19 @@ type clientCodec struct {
 	pending       map[uint64]string
 }
 
-func NewClientCodec(conn io.ReadWriteCloser, codec codec.Codec) ClientCodec {
-	return newClientCodec(conn, nil, codec)
-
-}
-func NewClientCodecWithEncoder(conn io.ReadWriteCloser, encoder *encoder.Encoder) ClientCodec {
-	var encoderClone = encoder.Clone()
-	return newClientCodec(conn, encoderClone, encoderClone.Codec)
-}
-
-func newClientCodec(conn io.ReadWriteCloser, headerEncoder *encoder.Encoder, bodyCodec codec.Codec) ClientCodec {
+func NewClientCodec(conn io.ReadWriteCloser, bodyCodec codec.Codec, headerEncoder *encoder.Encoder) ClientCodec {
+	var encoderClone *encoder.Encoder
+	if headerEncoder != nil {
+		encoderClone = headerEncoder.Clone()
+		if bodyCodec == nil {
+			bodyCodec = encoderClone.Codec
+		}
+	}
+	if bodyCodec == nil {
+		return nil
+	}
 	c := &clientCodec{
-		headerEncoder: headerEncoder,
+		headerEncoder: encoderClone,
 		bodyCodec:     bodyCodec,
 		argsBuffer:    make([]byte, 1024),
 		requestBuffer: make([]byte, 1024),

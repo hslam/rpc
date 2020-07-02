@@ -36,12 +36,8 @@ type Client struct {
 	shutdown bool
 }
 
-func NewClient(conn io.ReadWriteCloser, codec codec.Codec) *Client {
-	return NewClientWithClientCodec(NewClientCodec(conn, codec))
-}
-
-func NewClientWithEncoder(conn io.ReadWriteCloser, codec *encoder.Encoder) *Client {
-	return NewClientWithClientCodec(NewClientCodecWithEncoder(conn, codec))
+func NewClient(conn io.ReadWriteCloser, bodyCodec codec.Codec, headerEncoder *encoder.Encoder) *Client {
+	return NewClientWithClientCodec(NewClientCodec(conn, bodyCodec, headerEncoder))
 }
 
 func NewClientWithClientCodec(codec ClientCodec) *Client {

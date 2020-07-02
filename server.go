@@ -126,15 +126,11 @@ func (server *Server) sendResponse(sending *sync.Mutex, ctx *Context, codec Serv
 	server.ctxPool.Put(ctx)
 }
 
-func (server *Server) ServeConn(conn io.ReadWriteCloser, codec codec.Codec) {
-	server.ServeCodec(NewServerCodec(conn, codec))
+func (server *Server) ServeConn(conn io.ReadWriteCloser, bodyCodec codec.Codec, headerEncoder *encoder.Encoder) {
+	server.ServeCodec(NewServerCodec(conn, bodyCodec, headerEncoder))
 }
 
-func (server *Server) ServeConnWithEncoder(conn io.ReadWriteCloser, encoder *encoder.Encoder) {
-	server.ServeCodec(NewServerCodecWithEncoder(conn, encoder))
-}
-
-func (server *Server) ListenAndServe(tran transport.Transport, address string, codec codec.Codec) {
+func (server *Server) ListenAndServe(tran transport.Transport, address string, bodyCodec codec.Codec, headerEncoder *encoder.Encoder) {
 	logger.Noticef("pid %d", os.Getpid())
 	logger.Noticef("listening on %s", address)
 	lis, err := tran.Listen(address)
@@ -146,7 +142,7 @@ func (server *Server) ListenAndServe(tran transport.Transport, address string, c
 		if err != nil {
 			continue
 		}
-		go server.ServeConn(conn, codec)
+		go server.ServeConn(conn, bodyCodec, headerEncoder)
 	}
 }
 
@@ -164,10 +160,6 @@ func ServeCodec(codec ServerCodec) {
 	DefaultServer.ServeCodec(codec)
 }
 
-func ServeConn(conn io.ReadWriteCloser, codec codec.Codec) {
-	DefaultServer.ServeConn(conn, codec)
-}
-
-func ServeConnWithEncoder(conn io.ReadWriteCloser, encoder *encoder.Encoder) {
-	DefaultServer.ServeConnWithEncoder(conn, encoder)
+func ServeConn(conn io.ReadWriteCloser, bodyCodec codec.Codec, headerEncoder *encoder.Encoder) {
+	DefaultServer.ServeConn(conn, bodyCodec, headerEncoder)
 }

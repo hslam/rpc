@@ -18,6 +18,5 @@ type Options struct {
 func DefaultOptions() *Options {
 	return &Options{
 		Transport: tcp.NewTransport(),
-		Codec:     &codec.JSONCodec{},
 	}
 }
