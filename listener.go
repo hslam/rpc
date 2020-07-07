@@ -2,27 +2,17 @@ package rpc
 
 import (
 	"errors"
-	"os"
+	"github.com/hslam/codec"
+	"github.com/hslam/rpc/encoder"
+	"io"
 )
 
 func Listen(network, address string, codec string) error {
-	if tran := NewTransport(network); tran != nil {
-		logger.Noticef("pid - %d", os.Getpid())
-		logger.Noticef("network - %s", tran.Scheme())
-		logger.Noticef("listening on %s", address)
-		lis, err := tran.Listen(address)
-		if err != nil {
-			return err
-		}
-		if c := NewCodec(codec); c != nil {
-			for {
-				conn, err := lis.Accept()
-				if err != nil {
-					continue
-				}
-				go ServeConn(conn, c, nil)
-			}
-			return nil
+	if newTransport := NewTransport(network); newTransport != nil {
+		if newCodec := NewCodec(codec); newCodec != nil {
+			return DefaultServer.Listen(newTransport(), address, func(conn io.ReadWriteCloser) ServerCodec {
+				return NewServerCodec(conn, newCodec(), nil, nil)
+			})
 		}
 		return errors.New("unsupported codec: " + codec)
 	}
@@ -30,21 +20,22 @@ func Listen(network, address string, codec string) error {
 }
 
 func ListenWithOptions(address string, opts *Options) error {
-	if opts.Codec == nil && opts.Encoder == nil {
+	if opts.NewCodec == nil && opts.NewEncoder == nil {
 		return errors.New("need opts.Codec or opts.Encoder")
 	}
-	logger.Noticef("pid - %d", os.Getpid())
-	logger.Noticef("network - %s", opts.Transport.Scheme())
-	logger.Noticef("listening on %s", address)
-	lis, err := opts.Transport.Listen(address)
-	if err != nil {
-		return err
-	}
-	for {
-		conn, err := lis.Accept()
-		if err != nil {
-			continue
+	return DefaultServer.Listen(opts.NewTransport(), address, func(conn io.ReadWriteCloser) ServerCodec {
+		var bodyCodec codec.Codec
+		if opts.NewCodec != nil {
+			bodyCodec = opts.NewCodec()
 		}
-		go ServeConn(conn, opts.Codec, opts.Encoder)
-	}
+		var headerEncoder *encoder.Encoder
+		if opts.NewEncoder != nil {
+			headerEncoder = opts.NewEncoder()
+		}
+		var stream Stream
+		if opts.NewStream != nil {
+			stream = opts.NewStream()
+		}
+		return NewServerCodec(conn, bodyCodec, headerEncoder, stream)
+	})
 }

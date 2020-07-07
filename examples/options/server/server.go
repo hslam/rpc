@@ -17,5 +17,5 @@ func init() {
 }
 func main() {
 	rpc.Register(new(service.Arith))
-	rpc.ListenWithOptions(addr, &rpc.Options{Transport: tcp.NewTransport(), Codec: pb.NewCodec(), Encoder: codepb.NewEncoder()})
+	rpc.ListenWithOptions(addr, &rpc.Options{NewTransport: tcp.NewTransport, NewCodec: pb.NewCodec, NewEncoder: codepb.NewEncoder})
 }

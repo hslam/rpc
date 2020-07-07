@@ -23,12 +23,10 @@ type serverCodec struct {
 	pending        map[uint64]uint64
 }
 
-func NewServerCodec(conn io.ReadWriteCloser, bodyCodec codec.Codec, headerEncoder *encoder.Encoder) ServerCodec {
-	var encoderClone *encoder.Encoder
+func NewServerCodec(conn io.ReadWriteCloser, bodyCodec codec.Codec, headerEncoder *encoder.Encoder, stream Stream) ServerCodec {
 	if headerEncoder != nil {
-		encoderClone = headerEncoder.Clone()
 		if bodyCodec == nil {
-			bodyCodec = encoderClone.Codec
+			bodyCodec = headerEncoder.Codec
 		}
 	}
 	if bodyCodec == nil {
@@ -42,13 +40,12 @@ func NewServerCodec(conn io.ReadWriteCloser, bodyCodec codec.Codec, headerEncode
 		pending:        make(map[uint64]uint64),
 	}
 	c.writer = autowriter.NewAutoWriter(conn, false, 65536, 4, c)
-	c.stream = &stream{
-		Reader: conn,
-		Writer: c.writer,
-		Closer: conn,
-		Send:   make([]byte, 1032),
-		Read:   make([]byte, 1024),
+	if stream == nil {
+		c.stream = NewStream(conn, c.writer, conn, 1024)
+	} else {
+		c.stream = stream
 	}
+	c.stream.SetReader(conn).SetWriter(c.writer).SetCloser(conn)
 	if headerEncoder == nil {
 		c.req = &request{}
 		c.res = &response{}

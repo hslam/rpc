@@ -2,8 +2,7 @@ package rpc
 
 import (
 	"errors"
-	"github.com/hslam/codec"
-	"github.com/hslam/rpc/encoder"
+	"github.com/hslam/transport"
 	"io"
 	"sync"
 )
@@ -35,21 +34,25 @@ type Client struct {
 	closing  bool
 	shutdown bool
 }
+type NewClientCodecFunc func(conn io.ReadWriteCloser) ClientCodec
 
-func NewClient(conn io.ReadWriteCloser, bodyCodec codec.Codec, headerEncoder *encoder.Encoder) *Client {
-	return NewClientWithClientCodec(NewClientCodec(conn, bodyCodec, headerEncoder))
-}
-
-func NewClientWithClientCodec(codec ClientCodec) *Client {
-	client := &Client{
-		codec:   codec,
+func NewClient() *Client {
+	return &Client{
 		pending: make(map[uint64]*Call),
 	}
-	go client.run()
-	return client
 }
 
-func (client *Client) send(call *Call) {
+func (client *Client) Dial(tran transport.Transport, address string, New NewClientCodecFunc) (*Client, error) {
+	conn, err := tran.Dial(address)
+	if err != nil {
+		return nil, err
+	}
+	client.codec = New(conn)
+	go client.read()
+	return client, nil
+}
+
+func (client *Client) write(call *Call) {
 	client.reqMutex.Lock()
 	defer client.reqMutex.Unlock()
 	client.mutex.Lock()
@@ -77,7 +80,7 @@ func (client *Client) send(call *Call) {
 	}
 }
 
-func (client *Client) run() {
+func (client *Client) read() {
 	var err error
 	var ctx Context
 	for err == nil {
@@ -159,7 +162,7 @@ func (client *Client) Go(serviceMethod string, args interface{}, reply interface
 		}
 	}
 	call.Done = done
-	client.send(call)
+	client.write(call)
 	return call
 }
 

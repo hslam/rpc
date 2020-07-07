@@ -16,13 +16,13 @@ func init() {
 	RegisterTransport("http", http.NewTransport)
 }
 
-func RegisterTransport(name string, new transport.NewTransport) {
-	transports.Store(name, new)
+func RegisterTransport(name string, New func() transport.Transport) {
+	transports.Store(name, New)
 }
 
-func NewTransport(name string) transport.Transport {
+func NewTransport(name string) func() transport.Transport {
 	if tran, ok := transports.Load(name); ok {
-		return tran.(transport.NewTransport)()
+		return tran.(func() transport.Transport)
 	}
 	return nil
 }

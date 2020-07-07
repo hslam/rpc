@@ -9,14 +9,15 @@ import (
 
 //Options defines the struct of options.
 type Options struct {
-	Transport transport.Transport
-	Codec     codec.Codec
-	Encoder   *encoder.Encoder
+	NewTransport func() transport.Transport
+	NewCodec     func() codec.Codec
+	NewEncoder   func() *encoder.Encoder
+	NewStream    func() Stream
 }
 
 //DefaultOptions returns a default options.
 func DefaultOptions() *Options {
 	return &Options{
-		Transport: tcp.NewTransport(),
+		NewTransport: tcp.NewTransport,
 	}
 }

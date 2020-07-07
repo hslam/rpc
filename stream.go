@@ -5,6 +5,9 @@ import (
 )
 
 type Stream interface {
+	SetReader(reader io.Reader) Stream
+	SetWriter(writer io.Writer) Stream
+	SetCloser(closer io.Closer) Stream
 	ReadMessage() (p []byte, err error)
 	WriteMessage(b []byte) (err error)
 	Close() error
@@ -17,6 +20,33 @@ type stream struct {
 	Send   []byte
 	Read   []byte
 	buffer []byte
+}
+
+func NewStream(r io.Reader, w io.Writer, c io.Closer, bufferSize int) Stream {
+	if bufferSize < 1 {
+		bufferSize = 1024
+	}
+	return &stream{
+		Reader: r,
+		Writer: w,
+		Closer: c,
+		Send:   make([]byte, bufferSize+8),
+		Read:   make([]byte, bufferSize),
+	}
+}
+func (s *stream) SetReader(reader io.Reader) Stream {
+	s.Reader = reader
+	return s
+}
+
+func (s *stream) SetWriter(writer io.Writer) Stream {
+	s.Writer = writer
+	return s
+}
+
+func (s *stream) SetCloser(closer io.Closer) Stream {
+	s.Closer = closer
+	return s
 }
 
 func (s *stream) ReadMessage() (p []byte, err error) {

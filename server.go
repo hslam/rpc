@@ -2,26 +2,31 @@ package rpc
 
 import (
 	"errors"
-	"github.com/hslam/codec"
 	"github.com/hslam/funcs"
-	"github.com/hslam/rpc/encoder"
 	"github.com/hslam/transport"
 	"io"
 	"os"
+	"runtime"
 	"sync"
+	"sync/atomic"
 )
+
+var numCPU = runtime.NumCPU()
 
 type Server struct {
 	Registry   *funcs.Funcs
 	ctxPool    *sync.Pool
 	pipelining bool
+	numWorkers int
 }
+type NewServerCodecFunc func(conn io.ReadWriteCloser) ServerCodec
 
 // NewServer returns a new Server.
 func NewServer() *Server {
 	return &Server{
-		Registry: funcs.New(),
-		ctxPool:  &sync.Pool{New: func() interface{} { return &Context{} }},
+		Registry:   funcs.New(),
+		ctxPool:    &sync.Pool{New: func() interface{} { return &Context{} }},
+		numWorkers: numCPU,
 	}
 }
 
@@ -39,9 +44,33 @@ func (server *Server) RegisterName(name string, obj interface{}) error {
 func (server *Server) SetPipelining(enable bool) {
 	server.pipelining = enable
 }
+
+func (server *Server) SetNumWorkers(num int) {
+	server.numWorkers = num
+}
+
 func (server *Server) ServeCodec(codec ServerCodec) {
 	sending := new(sync.Mutex)
 	wg := new(sync.WaitGroup)
+	Count := int64(0)
+	var ch chan *Context
+	var done chan bool
+	if !server.pipelining && server.numWorkers > 0 {
+		ch = make(chan *Context, server.numWorkers)
+		done = make(chan bool, 1)
+		for i := 0; i < server.numWorkers; i++ {
+			go func(done chan bool, ch chan *Context, server *Server, sending *sync.Mutex, wg *sync.WaitGroup, codec ServerCodec) {
+				for {
+					select {
+					case ctx := <-ch:
+						server.callService(sending, wg, ctx, codec)
+					case <-done:
+						return
+					}
+				}
+			}(done, ch, server, sending, wg, codec)
+		}
+	}
 	for {
 		ctx, err := server.readRequest(codec)
 		if err != nil {
@@ -60,8 +89,14 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 			}
 			continue
 		}
+		ctx.Count = &Count
 		if server.pipelining {
 			server.callService(sending, nil, ctx, codec)
+			continue
+		}
+		if atomic.AddInt64(ctx.Count, 1) < int64(server.numWorkers+1) && server.numWorkers > 0 {
+			wg.Add(1)
+			ch <- ctx
 			continue
 		}
 		wg.Add(1)
@@ -69,6 +104,9 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 	}
 	wg.Wait()
 	codec.Close()
+	if done != nil {
+		close(done)
+	}
 }
 
 func (server *Server) readRequest(codec ServerCodec) (ctx *Context, err error) {
@@ -122,27 +160,29 @@ func (server *Server) sendResponse(sending *sync.Mutex, ctx *Context, codec Serv
 		logger.Allln("rpc: writing response:", err)
 	}
 	sending.Unlock()
+	atomic.AddInt64(ctx.Count, -1)
 	ctx.Reset()
 	server.ctxPool.Put(ctx)
 }
 
-func (server *Server) ServeConn(conn io.ReadWriteCloser, bodyCodec codec.Codec, headerEncoder *encoder.Encoder) {
-	server.ServeCodec(NewServerCodec(conn, bodyCodec, headerEncoder))
+func (server *Server) ServeConn(conn io.ReadWriteCloser, New NewServerCodecFunc) {
+	server.ServeCodec(New(conn))
 }
 
-func (server *Server) ListenAndServe(tran transport.Transport, address string, bodyCodec codec.Codec, headerEncoder *encoder.Encoder) {
-	logger.Noticef("pid %d", os.Getpid())
+func (server *Server) Listen(tran transport.Transport, address string, New NewServerCodecFunc) error {
+	logger.Noticef("pid - %d", os.Getpid())
+	logger.Noticef("network - %s", tran.Scheme())
 	logger.Noticef("listening on %s", address)
 	lis, err := tran.Listen(address)
 	if err != nil {
-		logger.Fatalln("fatal error: ", err)
+		return err
 	}
 	for {
 		conn, err := lis.Accept()
 		if err != nil {
 			continue
 		}
-		go server.ServeConn(conn, bodyCodec, headerEncoder)
+		go server.ServeConn(conn, New)
 	}
 }
 
@@ -156,10 +196,14 @@ func SetPipelining(enable bool) {
 	DefaultServer.SetPipelining(enable)
 }
 
+func SetNumWorkers(num int) {
+	DefaultServer.SetNumWorkers(num)
+}
+
 func ServeCodec(codec ServerCodec) {
 	DefaultServer.ServeCodec(codec)
 }
 
-func ServeConn(conn io.ReadWriteCloser, bodyCodec codec.Codec, headerEncoder *encoder.Encoder) {
-	DefaultServer.ServeConn(conn, bodyCodec, headerEncoder)
+func ServeConn(conn io.ReadWriteCloser, New NewServerCodecFunc) {
+	DefaultServer.ServeConn(conn, New)
 }

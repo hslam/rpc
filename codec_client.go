@@ -19,35 +19,32 @@ type clientCodec struct {
 	stream        Stream
 	writer        io.WriteCloser
 	mutex         sync.Mutex
-	pending       map[uint64]string
+	pending       map[uint64]bool
 }
 
-func NewClientCodec(conn io.ReadWriteCloser, bodyCodec codec.Codec, headerEncoder *encoder.Encoder) ClientCodec {
-	var encoderClone *encoder.Encoder
+func NewClientCodec(conn io.ReadWriteCloser, bodyCodec codec.Codec, headerEncoder *encoder.Encoder, stream Stream) ClientCodec {
 	if headerEncoder != nil {
-		encoderClone = headerEncoder.Clone()
 		if bodyCodec == nil {
-			bodyCodec = encoderClone.Codec
+			bodyCodec = headerEncoder.Codec
 		}
 	}
 	if bodyCodec == nil {
 		return nil
 	}
 	c := &clientCodec{
-		headerEncoder: encoderClone,
+		headerEncoder: headerEncoder,
 		bodyCodec:     bodyCodec,
 		argsBuffer:    make([]byte, 1024),
 		requestBuffer: make([]byte, 1024),
-		pending:       make(map[uint64]string),
+		pending:       make(map[uint64]bool),
 	}
 	c.writer = autowriter.NewAutoWriter(conn, false, 65536, 4, c)
-	c.stream = &stream{
-		Reader: conn,
-		Writer: c.writer,
-		Closer: conn,
-		Send:   make([]byte, 1032),
-		Read:   make([]byte, 1024),
+	if stream == nil {
+		c.stream = NewStream(conn, c.writer, conn, 1024)
+	} else {
+		c.stream = stream
 	}
+	c.stream.SetReader(conn).SetWriter(c.writer).SetCloser(conn)
 	if headerEncoder == nil {
 		c.req = &request{}
 		c.res = &response{}
@@ -64,7 +61,7 @@ func (c *clientCodec) NumConcurrency() int {
 
 func (c *clientCodec) WriteRequest(ctx *Context, param interface{}) error {
 	c.mutex.Lock()
-	c.pending[ctx.Seq] = ctx.ServiceMethod
+	c.pending[ctx.Seq] = false
 	c.mutex.Unlock()
 	var args []byte
 	var data []byte

@@ -5,25 +5,26 @@ import (
 	"github.com/hslam/funcs"
 	"github.com/hslam/rpc/encoder"
 	"github.com/hslam/rpc/encoder/code"
+	"github.com/hslam/rpc/encoder/json"
+	"github.com/hslam/rpc/encoder/pb"
 	"sync"
 )
 
 var codecs = sync.Map{}
 
 func init() {
-	RegisterCodec("json", &codec.JSONCodec{})
-	RegisterCodec("code", &codec.CODECodec{})
-	RegisterCodec("pb", &codec.GOGOPBCodec{})
-
+	RegisterCodec("json", json.NewCodec)
+	RegisterCodec("code", code.NewCodec)
+	RegisterCodec("pb", pb.NewCodec)
 }
 
-func RegisterCodec(name string, codec codec.Codec) {
-	codecs.Store(name, codec)
+func RegisterCodec(name string, New func() codec.Codec) {
+	codecs.Store(name, New)
 }
 
-func NewCodec(name string) codec.Codec {
+func NewCodec(name string) func() codec.Codec {
 	if c, ok := codecs.Load(name); ok {
-		return c.(codec.Codec)
+		return c.(func() codec.Codec)
 	}
 	return nil
 }
@@ -41,6 +42,7 @@ type Context struct {
 	f             *funcs.Func
 	args          funcs.Value
 	reply         funcs.Value
+	Count         *int64
 }
 
 func (ctx *Context) Reset() {
