@@ -51,7 +51,14 @@ func (client *Client) Dial(tran transport.Transport, address string, New NewClie
 	go client.read()
 	return client, nil
 }
-
+func NewClientWithCodec(codec ClientCodec) *Client {
+	c := &Client{
+		codec:   codec,
+		pending: make(map[uint64]*Call),
+	}
+	go c.read()
+	return c
+}
 func (client *Client) write(call *Call) {
 	client.reqMutex.Lock()
 	defer client.reqMutex.Unlock()

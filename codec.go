@@ -29,7 +29,7 @@ func NewCodec(name string) func() codec.Codec {
 	return nil
 }
 
-func NewDefaultEncoder() *encoder.Encoder {
+func DefaultEncoder() *encoder.Encoder {
 	return encoder.NewEncoder(code.NewRequest(), code.NewResponse(), &codec.CODECodec{})
 }
 

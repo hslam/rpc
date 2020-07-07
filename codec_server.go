@@ -24,6 +24,9 @@ type serverCodec struct {
 }
 
 func NewServerCodec(conn io.ReadWriteCloser, bodyCodec codec.Codec, headerEncoder *encoder.Encoder, messageConn MessageConn) ServerCodec {
+	if conn == nil && messageConn == nil {
+		return nil
+	}
 	if headerEncoder != nil {
 		if bodyCodec == nil {
 			bodyCodec = headerEncoder.Codec
@@ -39,9 +42,14 @@ func NewServerCodec(conn io.ReadWriteCloser, bodyCodec codec.Codec, headerEncode
 		responseBuffer: make([]byte, 1024),
 		pending:        make(map[uint64]uint64),
 	}
-	c.writer = autowriter.NewAutoWriter(conn, false, 65536, 4, c)
-	if messageConn == nil {
-		c.messageConn = NewMessageConn(conn, c.writer, conn, 1024)
+	if conn != nil {
+		c.writer = autowriter.NewAutoWriter(conn, false, 65536, 4, c)
+		if messageConn == nil {
+			c.messageConn = NewMessageConn(conn, c.writer, conn, 1024)
+		} else {
+			c.messageConn = messageConn
+		}
+		c.messageConn.SetReader(conn).SetWriter(c.writer).SetCloser(conn)
 	} else {
 		c.messageConn = messageConn
 	}

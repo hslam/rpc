@@ -23,6 +23,9 @@ type clientCodec struct {
 }
 
 func NewClientCodec(conn io.ReadWriteCloser, bodyCodec codec.Codec, headerEncoder *encoder.Encoder, messageConn MessageConn) ClientCodec {
+	if conn == nil && messageConn == nil {
+		return nil
+	}
 	if headerEncoder != nil {
 		if bodyCodec == nil {
 			bodyCodec = headerEncoder.Codec
@@ -38,20 +41,23 @@ func NewClientCodec(conn io.ReadWriteCloser, bodyCodec codec.Codec, headerEncode
 		requestBuffer: make([]byte, 1024),
 		pending:       make(map[uint64]bool),
 	}
-	c.writer = autowriter.NewAutoWriter(conn, false, 65536, 4, c)
-	if messageConn == nil {
-		c.messageConn = NewMessageConn(conn, c.writer, conn, 1024)
+	if conn != nil {
+		c.writer = autowriter.NewAutoWriter(conn, false, 65536, 4, c)
+		if messageConn == nil {
+			c.messageConn = NewMessageConn(conn, c.writer, conn, 1024)
+		} else {
+			c.messageConn = messageConn
+		}
+		c.messageConn.SetReader(conn).SetWriter(c.writer).SetCloser(conn)
 	} else {
 		c.messageConn = messageConn
 	}
-	c.messageConn.SetReader(conn).SetWriter(c.writer).SetCloser(conn)
 	if headerEncoder == nil {
 		c.req = &request{}
 		c.res = &response{}
 	}
 	return c
 }
-
 func (c *clientCodec) NumConcurrency() int {
 	c.mutex.Lock()
 	concurrency := len(c.pending)
