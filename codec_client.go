@@ -48,7 +48,9 @@ func NewClientCodec(conn io.ReadWriteCloser, bodyCodec codec.Codec, headerEncode
 		} else {
 			c.messageConn = messageConn
 		}
-		c.messageConn.SetReader(conn).SetWriter(c.writer).SetCloser(conn)
+		c.messageConn.SetReader(conn)
+		c.messageConn.SetWriter(c.writer)
+		c.messageConn.SetCloser(conn)
 	} else {
 		c.messageConn = messageConn
 	}

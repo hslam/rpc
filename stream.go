@@ -5,9 +5,9 @@ import (
 )
 
 type MessageConn interface {
-	SetReader(reader io.Reader) MessageConn
-	SetWriter(writer io.Writer) MessageConn
-	SetCloser(closer io.Closer) MessageConn
+	SetReader(reader io.Reader)
+	SetWriter(writer io.Writer)
+	SetCloser(closer io.Closer)
 	ReadMessage() (p []byte, err error)
 	WriteMessage(b []byte) (err error)
 	Close() error
@@ -22,7 +22,7 @@ type messageConn struct {
 	buffer []byte
 }
 
-func NewMessageConn(r io.Reader, w io.Writer, c io.Closer, bufferSize int) MessageConn {
+func NewMessageConn(r io.Reader, w io.Writer, c io.Closer, bufferSize int) *messageConn {
 	if bufferSize < 1 {
 		bufferSize = 1024
 	}
@@ -35,19 +35,16 @@ func NewMessageConn(r io.Reader, w io.Writer, c io.Closer, bufferSize int) Messa
 	}
 }
 
-func (s *messageConn) SetReader(reader io.Reader) MessageConn {
+func (s *messageConn) SetReader(reader io.Reader) {
 	s.Reader = reader
-	return s
 }
 
-func (s *messageConn) SetWriter(writer io.Writer) MessageConn {
+func (s *messageConn) SetWriter(writer io.Writer) {
 	s.Writer = writer
-	return s
 }
 
-func (s *messageConn) SetCloser(closer io.Closer) MessageConn {
+func (s *messageConn) SetCloser(closer io.Closer) {
 	s.Closer = closer
-	return s
 }
 
 func (s *messageConn) ReadMessage() (p []byte, err error) {
