@@ -32,10 +32,10 @@ func ListenWithOptions(address string, opts *Options) error {
 		if opts.NewEncoder != nil {
 			headerEncoder = opts.NewEncoder()
 		}
-		var stream Stream
-		if opts.NewStream != nil {
-			stream = opts.NewStream()
+		var messageConn MessageConn
+		if opts.NewMessageConn != nil {
+			messageConn = opts.NewMessageConn()
 		}
-		return NewServerCodec(conn, bodyCodec, headerEncoder, stream)
+		return NewServerCodec(conn, bodyCodec, headerEncoder, messageConn)
 	})
 }

@@ -4,16 +4,16 @@ import (
 	"io"
 )
 
-type Stream interface {
-	SetReader(reader io.Reader) Stream
-	SetWriter(writer io.Writer) Stream
-	SetCloser(closer io.Closer) Stream
+type MessageConn interface {
+	SetReader(reader io.Reader) MessageConn
+	SetWriter(writer io.Writer) MessageConn
+	SetCloser(closer io.Closer) MessageConn
 	ReadMessage() (p []byte, err error)
 	WriteMessage(b []byte) (err error)
 	Close() error
 }
 
-type stream struct {
+type messageConn struct {
 	Reader io.Reader
 	Writer io.Writer
 	Closer io.Closer
@@ -22,11 +22,11 @@ type stream struct {
 	buffer []byte
 }
 
-func NewStream(r io.Reader, w io.Writer, c io.Closer, bufferSize int) Stream {
+func NewMessageConn(r io.Reader, w io.Writer, c io.Closer, bufferSize int) MessageConn {
 	if bufferSize < 1 {
 		bufferSize = 1024
 	}
-	return &stream{
+	return &messageConn{
 		Reader: r,
 		Writer: w,
 		Closer: c,
@@ -34,22 +34,23 @@ func NewStream(r io.Reader, w io.Writer, c io.Closer, bufferSize int) Stream {
 		Read:   make([]byte, bufferSize),
 	}
 }
-func (s *stream) SetReader(reader io.Reader) Stream {
+
+func (s *messageConn) SetReader(reader io.Reader) MessageConn {
 	s.Reader = reader
 	return s
 }
 
-func (s *stream) SetWriter(writer io.Writer) Stream {
+func (s *messageConn) SetWriter(writer io.Writer) MessageConn {
 	s.Writer = writer
 	return s
 }
 
-func (s *stream) SetCloser(closer io.Closer) Stream {
+func (s *messageConn) SetCloser(closer io.Closer) MessageConn {
 	s.Closer = closer
 	return s
 }
 
-func (s *stream) ReadMessage() (p []byte, err error) {
+func (s *messageConn) ReadMessage() (p []byte, err error) {
 	for {
 		length := uint64(len(s.buffer))
 		var i uint64 = 0
@@ -91,7 +92,7 @@ func (s *stream) ReadMessage() (p []byte, err error) {
 	return
 }
 
-func (s *stream) WriteMessage(b []byte) error {
+func (s *messageConn) WriteMessage(b []byte) error {
 	var length = uint64(len(b))
 	var size = 8 + length
 	if uint64(cap(s.Send)) >= size {
@@ -114,6 +115,6 @@ func (s *stream) WriteMessage(b []byte) error {
 	return err
 }
 
-func (s *stream) Close() error {
+func (s *messageConn) Close() error {
 	return s.Closer.Close()
 }

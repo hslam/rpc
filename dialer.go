@@ -32,11 +32,11 @@ func DialWithOptions(address string, opts *Options) (*Client, error) {
 		if opts.NewEncoder != nil {
 			headerEncoder = opts.NewEncoder()
 		}
-		var stream Stream
-		if opts.NewStream != nil {
-			stream = opts.NewStream()
+		var messageConn MessageConn
+		if opts.NewMessageConn != nil {
+			messageConn = opts.NewMessageConn()
 		}
-		return NewClientCodec(conn, bodyCodec, headerEncoder, stream)
+		return NewClientCodec(conn, bodyCodec, headerEncoder, messageConn)
 	})
 
 }

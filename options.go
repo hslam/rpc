@@ -9,10 +9,10 @@ import (
 
 //Options defines the struct of options.
 type Options struct {
-	NewTransport func() transport.Transport
-	NewCodec     func() codec.Codec
-	NewEncoder   func() *encoder.Encoder
-	NewStream    func() Stream
+	NewTransport   func() transport.Transport
+	NewCodec       func() codec.Codec
+	NewEncoder     func() *encoder.Encoder
+	NewMessageConn func() MessageConn
 }
 
 //DefaultOptions returns a default options.
