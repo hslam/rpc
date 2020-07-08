@@ -2,7 +2,7 @@ package rpc
 
 import (
 	"errors"
-	"github.com/hslam/transport"
+	"github.com/hslam/socket"
 	"io"
 	"sync"
 )
@@ -34,7 +34,7 @@ type Client struct {
 	closing  bool
 	shutdown bool
 }
-type NewClientCodecFunc func(conn io.ReadWriteCloser) ClientCodec
+type NewClientCodecFunc func(message socket.Message) ClientCodec
 
 func NewClient() *Client {
 	return &Client{
@@ -42,12 +42,12 @@ func NewClient() *Client {
 	}
 }
 
-func (client *Client) Dial(tran transport.Transport, address string, New NewClientCodecFunc) (*Client, error) {
-	conn, err := tran.Dial(address)
+func (client *Client) Dial(s socket.Socket, address string, New NewClientCodecFunc) (*Client, error) {
+	conn, err := s.Dial(address)
 	if err != nil {
 		return nil, err
 	}
-	client.codec = New(conn)
+	client.codec = New(conn.Message())
 	go client.read()
 	return client, nil
 }

@@ -5,6 +5,7 @@ import (
 	"github.com/hslam/autowriter"
 	"github.com/hslam/codec"
 	"github.com/hslam/rpc/encoder"
+	"github.com/hslam/socket"
 	"io"
 	"sync"
 )
@@ -16,15 +17,14 @@ type clientCodec struct {
 	res           *response
 	argsBuffer    []byte
 	requestBuffer []byte
-	messageConn   MessageConn
-	msgConn       *messageConn
+	message       socket.Message
 	writer        io.WriteCloser
 	mutex         sync.Mutex
 	pending       map[uint64]bool
 }
 
-func NewClientCodec(conn io.ReadWriteCloser, bodyCodec codec.Codec, headerEncoder *encoder.Encoder, messageConn MessageConn) ClientCodec {
-	if conn == nil && messageConn == nil {
+func NewClientCodec(bodyCodec codec.Codec, headerEncoder *encoder.Encoder, message socket.Message) ClientCodec {
+	if message == nil {
 		return nil
 	}
 	if headerEncoder != nil {
@@ -42,18 +42,10 @@ func NewClientCodec(conn io.ReadWriteCloser, bodyCodec codec.Codec, headerEncode
 		requestBuffer: make([]byte, 1024),
 		pending:       make(map[uint64]bool),
 	}
-	if conn != nil {
-		c.writer = autowriter.NewAutoWriter(conn, false, 65536, 4, c)
-		if messageConn == nil {
-			c.msgConn = NewMessageConn(conn, c.writer, conn, 1024)
-		} else {
-			c.messageConn = messageConn
-			c.messageConn.SetReader(conn)
-			c.messageConn.SetWriter(c.writer)
-			c.messageConn.SetCloser(conn)
-		}
-	} else {
-		c.messageConn = messageConn
+	c.message = message
+	if message.GetWriter() != nil {
+		c.writer = autowriter.NewAutoWriter(message.GetWriter(), false, 65536, 4, c)
+		c.message.SetWriter(c.writer)
 	}
 	if headerEncoder == nil {
 		c.req = &request{}
@@ -96,25 +88,15 @@ func (c *clientCodec) WriteRequest(ctx *Context, param interface{}) error {
 			return err
 		}
 	}
-	if c.messageConn == nil {
-		return c.msgConn.WriteMessage(data)
-	}
-	return c.messageConn.WriteMessage(data)
+	return c.message.WriteMessage(data)
 }
 
 func (c *clientCodec) ReadResponseHeader(ctx *Context) error {
 	var data []byte
 	var err error
-	if c.messageConn == nil {
-		data, err = c.msgConn.ReadMessage()
-		if err != nil {
-			return err
-		}
-	} else {
-		data, err = c.messageConn.ReadMessage()
-		if err != nil {
-			return err
-		}
+	data, err = c.message.ReadMessage()
+	if err != nil {
+		return err
 	}
 	if c.headerEncoder != nil {
 		c.headerEncoder.Response.Reset()
@@ -163,8 +145,5 @@ func (c *clientCodec) Close() error {
 	if c.writer != nil {
 		c.writer.Close()
 	}
-	if c.messageConn == nil {
-		return c.msgConn.Close()
-	}
-	return c.messageConn.Close()
+	return c.message.Close()
 }

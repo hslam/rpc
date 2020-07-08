@@ -6,7 +6,7 @@ import (
 	"github.com/hslam/rpc/encoder/codepb"
 	"github.com/hslam/rpc/encoder/pb"
 	"github.com/hslam/rpc/examples/options/service"
-	"github.com/hslam/transport/tcp"
+	"github.com/hslam/socket/tcp"
 )
 
 var addr string
@@ -17,5 +17,5 @@ func init() {
 }
 func main() {
 	rpc.Register(new(service.Arith))
-	rpc.ListenWithOptions(addr, &rpc.Options{NewTransport: tcp.NewTransport, NewCodec: pb.NewCodec, NewEncoder: codepb.NewEncoder})
+	rpc.ListenWithOptions(addr, &rpc.Options{NewSocket: tcp.NewSocket, NewCodec: pb.NewCodec, NewEncoder: codepb.NewEncoder})
 }

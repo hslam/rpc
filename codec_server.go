@@ -5,6 +5,7 @@ import (
 	"github.com/hslam/autowriter"
 	"github.com/hslam/codec"
 	"github.com/hslam/rpc/encoder"
+	"github.com/hslam/socket"
 	"io"
 	"sync"
 )
@@ -16,16 +17,15 @@ type serverCodec struct {
 	res            *response
 	replyBuffer    []byte
 	responseBuffer []byte
-	messageConn    MessageConn
-	msgConn        *messageConn
+	message        socket.Message
 	writer         io.WriteCloser
 	mutex          sync.Mutex
 	seq            uint64
 	pending        map[uint64]uint64
 }
 
-func NewServerCodec(conn io.ReadWriteCloser, bodyCodec codec.Codec, headerEncoder *encoder.Encoder, messageConn MessageConn) ServerCodec {
-	if conn == nil && messageConn == nil {
+func NewServerCodec(bodyCodec codec.Codec, headerEncoder *encoder.Encoder, message socket.Message) ServerCodec {
+	if message == nil {
 		return nil
 	}
 	if headerEncoder != nil {
@@ -43,18 +43,10 @@ func NewServerCodec(conn io.ReadWriteCloser, bodyCodec codec.Codec, headerEncode
 		responseBuffer: make([]byte, 1024),
 		pending:        make(map[uint64]uint64),
 	}
-	if conn != nil {
-		c.writer = autowriter.NewAutoWriter(conn, false, 65536, 4, c)
-		if messageConn == nil {
-			c.msgConn = NewMessageConn(conn, c.writer, conn, 1024)
-		} else {
-			c.messageConn = messageConn
-			c.messageConn.SetReader(conn)
-			c.messageConn.SetWriter(c.writer)
-			c.messageConn.SetCloser(conn)
-		}
-	} else {
-		c.messageConn = messageConn
+	c.message = message
+	if message.GetWriter() != nil {
+		c.writer = autowriter.NewAutoWriter(message.GetWriter(), false, 65536, 4, c)
+		c.message.SetWriter(c.writer)
 	}
 	if headerEncoder == nil {
 		c.req = &request{}
@@ -73,16 +65,9 @@ func (c *serverCodec) NumConcurrency() int {
 func (c *serverCodec) ReadRequestHeader(ctx *Context) error {
 	var data []byte
 	var err error
-	if c.messageConn == nil {
-		data, err = c.msgConn.ReadMessage()
-		if err != nil {
-			return err
-		}
-	} else {
-		data, err = c.messageConn.ReadMessage()
-		if err != nil {
-			return err
-		}
+	data, err = c.message.ReadMessage()
+	if err != nil {
+		return err
 	}
 	if c.headerEncoder != nil {
 		c.headerEncoder.Request.Reset()
@@ -105,7 +90,6 @@ func (c *serverCodec) ReadRequestHeader(ctx *Context) error {
 		c.req.SetSeq(0)
 		c.mutex.Unlock()
 	}
-
 	return nil
 }
 
@@ -155,18 +139,12 @@ func (c *serverCodec) WriteResponse(ctx *Context, x interface{}) error {
 			return err
 		}
 	}
-	if c.messageConn == nil {
-		return c.msgConn.WriteMessage(data)
-	}
-	return c.messageConn.WriteMessage(data)
+	return c.message.WriteMessage(data)
 }
 
 func (c *serverCodec) Close() error {
 	if c.writer != nil {
 		c.writer.Close()
 	}
-	if c.messageConn == nil {
-		return c.msgConn.Close()
-	}
-	return c.messageConn.Close()
+	return c.message.Close()
 }

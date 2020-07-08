@@ -3,7 +3,7 @@ package rpc
 import (
 	"errors"
 	"github.com/hslam/funcs"
-	"github.com/hslam/transport"
+	"github.com/hslam/socket"
 	"io"
 	"os"
 	"runtime"
@@ -19,7 +19,7 @@ type Server struct {
 	pipelining bool
 	numWorkers int
 }
-type NewServerCodecFunc func(conn io.ReadWriteCloser) ServerCodec
+type NewServerCodecFunc func(message socket.Message) ServerCodec
 
 // NewServer returns a new Server.
 func NewServer() *Server {
@@ -165,15 +165,11 @@ func (server *Server) sendResponse(sending *sync.Mutex, ctx *Context, codec Serv
 	server.ctxPool.Put(ctx)
 }
 
-func (server *Server) ServeConn(conn io.ReadWriteCloser, New NewServerCodecFunc) {
-	server.ServeCodec(New(conn))
-}
-
-func (server *Server) Listen(tran transport.Transport, address string, New NewServerCodecFunc) error {
+func (server *Server) Listen(socket socket.Socket, address string, New NewServerCodecFunc) error {
 	logger.Noticef("pid - %d", os.Getpid())
-	logger.Noticef("network - %s", tran.Scheme())
+	logger.Noticef("network - %s", socket.Scheme())
 	logger.Noticef("listening on %s", address)
-	lis, err := tran.Listen(address)
+	lis, err := socket.Listen(address)
 	if err != nil {
 		return err
 	}
@@ -182,7 +178,7 @@ func (server *Server) Listen(tran transport.Transport, address string, New NewSe
 		if err != nil {
 			continue
 		}
-		go server.ServeConn(conn, New)
+		go server.ServeCodec(New(conn.Message()))
 	}
 }
 
@@ -202,8 +198,4 @@ func SetNumWorkers(num int) {
 
 func ServeCodec(codec ServerCodec) {
 	DefaultServer.ServeCodec(codec)
-}
-
-func ServeConn(conn io.ReadWriteCloser, New NewServerCodecFunc) {
-	DefaultServer.ServeConn(conn, New)
 }

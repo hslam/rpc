@@ -6,8 +6,8 @@ import (
 	"github.com/hslam/rpc"
 	"github.com/hslam/rpc/encoder/pb"
 	"github.com/hslam/rpc/examples/options/service"
+	"github.com/hslam/socket/tcp"
 	"github.com/hslam/stats"
-	"github.com/hslam/transport/tcp"
 	"log"
 	"math/rand"
 )
@@ -35,7 +35,7 @@ func main() {
 	}
 	var wrkClients []stats.Client
 	for i := 0; i < clients; i++ {
-		if conn, err := rpc.DialWithOptions(addr, &rpc.Options{NewTransport: tcp.NewTransport, NewCodec: pb.NewCodec, NewEncoder: pb.NewEncoder}); err != nil {
+		if conn, err := rpc.DialWithOptions(addr, &rpc.Options{NewSocket: tcp.NewSocket, NewCodec: pb.NewCodec, NewEncoder: pb.NewEncoder}); err != nil {
 			log.Fatalln("dailing error: ", err)
 		} else {
 			wrkClients = append(wrkClients, &WrkClient{conn})
