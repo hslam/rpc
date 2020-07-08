@@ -17,6 +17,7 @@ type serverCodec struct {
 	replyBuffer    []byte
 	responseBuffer []byte
 	messageConn    MessageConn
+	msgConn        *messageConn
 	writer         io.WriteCloser
 	mutex          sync.Mutex
 	seq            uint64
@@ -45,13 +46,13 @@ func NewServerCodec(conn io.ReadWriteCloser, bodyCodec codec.Codec, headerEncode
 	if conn != nil {
 		c.writer = autowriter.NewAutoWriter(conn, false, 65536, 4, c)
 		if messageConn == nil {
-			c.messageConn = NewMessageConn(conn, c.writer, conn, 1024)
+			c.msgConn = NewMessageConn(conn, c.writer, conn, 1024)
 		} else {
 			c.messageConn = messageConn
+			c.messageConn.SetReader(conn)
+			c.messageConn.SetWriter(c.writer)
+			c.messageConn.SetCloser(conn)
 		}
-		c.messageConn.SetReader(conn)
-		c.messageConn.SetWriter(c.writer)
-		c.messageConn.SetCloser(conn)
 	} else {
 		c.messageConn = messageConn
 	}
@@ -72,9 +73,16 @@ func (c *serverCodec) NumConcurrency() int {
 func (c *serverCodec) ReadRequestHeader(ctx *Context) error {
 	var data []byte
 	var err error
-	data, err = c.messageConn.ReadMessage()
-	if err != nil {
-		return err
+	if c.messageConn == nil {
+		data, err = c.msgConn.ReadMessage()
+		if err != nil {
+			return err
+		}
+	} else {
+		data, err = c.messageConn.ReadMessage()
+		if err != nil {
+			return err
+		}
 	}
 	if c.headerEncoder != nil {
 		c.headerEncoder.Request.Reset()
@@ -147,12 +155,18 @@ func (c *serverCodec) WriteResponse(ctx *Context, x interface{}) error {
 			return err
 		}
 	}
+	if c.messageConn == nil {
+		return c.msgConn.WriteMessage(data)
+	}
 	return c.messageConn.WriteMessage(data)
 }
 
 func (c *serverCodec) Close() error {
 	if c.writer != nil {
 		c.writer.Close()
+	}
+	if c.messageConn == nil {
+		return c.msgConn.Close()
 	}
 	return c.messageConn.Close()
 }

@@ -17,6 +17,7 @@ type clientCodec struct {
 	argsBuffer    []byte
 	requestBuffer []byte
 	messageConn   MessageConn
+	msgConn       *messageConn
 	writer        io.WriteCloser
 	mutex         sync.Mutex
 	pending       map[uint64]bool
@@ -44,13 +45,13 @@ func NewClientCodec(conn io.ReadWriteCloser, bodyCodec codec.Codec, headerEncode
 	if conn != nil {
 		c.writer = autowriter.NewAutoWriter(conn, false, 65536, 4, c)
 		if messageConn == nil {
-			c.messageConn = NewMessageConn(conn, c.writer, conn, 1024)
+			c.msgConn = NewMessageConn(conn, c.writer, conn, 1024)
 		} else {
 			c.messageConn = messageConn
+			c.messageConn.SetReader(conn)
+			c.messageConn.SetWriter(c.writer)
+			c.messageConn.SetCloser(conn)
 		}
-		c.messageConn.SetReader(conn)
-		c.messageConn.SetWriter(c.writer)
-		c.messageConn.SetCloser(conn)
 	} else {
 		c.messageConn = messageConn
 	}
@@ -95,15 +96,25 @@ func (c *clientCodec) WriteRequest(ctx *Context, param interface{}) error {
 			return err
 		}
 	}
+	if c.messageConn == nil {
+		return c.msgConn.WriteMessage(data)
+	}
 	return c.messageConn.WriteMessage(data)
 }
 
 func (c *clientCodec) ReadResponseHeader(ctx *Context) error {
 	var data []byte
 	var err error
-	data, err = c.messageConn.ReadMessage()
-	if err != nil {
-		return err
+	if c.messageConn == nil {
+		data, err = c.msgConn.ReadMessage()
+		if err != nil {
+			return err
+		}
+	} else {
+		data, err = c.messageConn.ReadMessage()
+		if err != nil {
+			return err
+		}
 	}
 	if c.headerEncoder != nil {
 		c.headerEncoder.Response.Reset()
@@ -151,6 +162,9 @@ func (c *clientCodec) ReadResponseBody(x interface{}) error {
 func (c *clientCodec) Close() error {
 	if c.writer != nil {
 		c.writer.Close()
+	}
+	if c.messageConn == nil {
+		return c.msgConn.Close()
 	}
 	return c.messageConn.Close()
 }
