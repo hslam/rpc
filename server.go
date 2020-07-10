@@ -19,7 +19,7 @@ type Server struct {
 	pipelining bool
 	numWorkers int
 }
-type NewServerCodecFunc func(message socket.Message) ServerCodec
+type NewServerCodecFunc func(messages socket.Messages) ServerCodec
 
 // NewServer returns a new Server.
 func NewServer() *Server {
@@ -178,7 +178,7 @@ func (server *Server) Listen(socket socket.Socket, address string, New NewServer
 		if err != nil {
 			continue
 		}
-		go server.ServeCodec(New(conn.Message()))
+		go server.ServeCodec(New(conn.Messages()))
 	}
 }
 

@@ -34,7 +34,7 @@ type Client struct {
 	closing  bool
 	shutdown bool
 }
-type NewClientCodecFunc func(message socket.Message) ClientCodec
+type NewClientCodecFunc func(messages socket.Messages) ClientCodec
 
 func NewClient() *Client {
 	return &Client{
@@ -47,7 +47,7 @@ func (client *Client) Dial(s socket.Socket, address string, New NewClientCodecFu
 	if err != nil {
 		return nil, err
 	}
-	client.codec = New(conn.Message())
+	client.codec = New(conn.Messages())
 	go client.read()
 	return client, nil
 }

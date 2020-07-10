@@ -9,10 +9,10 @@ import (
 
 //Options defines the struct of options.
 type Options struct {
-	NewSocket  func() socket.Socket
-	NewCodec   func() codec.Codec
-	NewEncoder func() *encoder.Encoder
-	NewMessage func() socket.Message
+	NewSocket   func() socket.Socket
+	NewCodec    func() codec.Codec
+	NewEncoder  func() *encoder.Encoder
+	NewMessages func() socket.Messages
 }
 
 //DefaultOptions returns a default options.

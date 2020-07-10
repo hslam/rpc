@@ -10,8 +10,8 @@ import (
 func Listen(network, address string, codec string) error {
 	if newSocket := NewSocket(network); newSocket != nil {
 		if newCodec := NewCodec(codec); newCodec != nil {
-			return DefaultServer.Listen(newSocket(), address, func(message socket.Message) ServerCodec {
-				return NewServerCodec(newCodec(), nil, message)
+			return DefaultServer.Listen(newSocket(), address, func(messages socket.Messages) ServerCodec {
+				return NewServerCodec(newCodec(), nil, messages)
 			})
 		}
 		return errors.New("unsupported codec: " + codec)
@@ -23,8 +23,8 @@ func ListenWithOptions(address string, opts *Options) error {
 	if opts.NewCodec == nil && opts.NewEncoder == nil {
 		return errors.New("need opts.Codec or opts.Encoder")
 	}
-	if opts.NewSocket == nil && opts.NewMessage == nil {
-		return errors.New("need opts.NewSocket or opts.NewMessage")
+	if opts.NewSocket == nil && opts.NewMessages == nil {
+		return errors.New("need opts.NewSocket or opts.NewMessages")
 	}
 	var bodyCodec codec.Codec
 	if opts.NewCodec != nil {
@@ -34,11 +34,11 @@ func ListenWithOptions(address string, opts *Options) error {
 	if opts.NewEncoder != nil {
 		headerEncoder = opts.NewEncoder()
 	}
-	if opts.NewMessage != nil {
-		if message := opts.NewMessage(); message == nil {
-			return errors.New("NewMessage failed")
+	if opts.NewMessages != nil {
+		if messages := opts.NewMessages(); messages == nil {
+			return errors.New("NewMessages failed")
 		} else {
-			if codec := NewServerCodec(opts.NewCodec(), opts.NewEncoder(), opts.NewMessage()); codec == nil {
+			if codec := NewServerCodec(opts.NewCodec(), opts.NewEncoder(), messages); codec == nil {
 				return errors.New("NewClientCodec failed")
 			} else {
 				DefaultServer.ServeCodec(codec)
@@ -46,7 +46,7 @@ func ListenWithOptions(address string, opts *Options) error {
 			}
 		}
 	}
-	return DefaultServer.Listen(opts.NewSocket(), address, func(message socket.Message) ServerCodec {
-		return NewServerCodec(bodyCodec, headerEncoder, message)
+	return DefaultServer.Listen(opts.NewSocket(), address, func(messages socket.Messages) ServerCodec {
+		return NewServerCodec(bodyCodec, headerEncoder, messages)
 	})
 }

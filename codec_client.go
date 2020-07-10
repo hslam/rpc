@@ -17,14 +17,14 @@ type clientCodec struct {
 	res           *response
 	argsBuffer    []byte
 	requestBuffer []byte
-	message       socket.Message
+	messages      socket.Messages
 	writer        io.WriteCloser
 	mutex         sync.Mutex
 	pending       map[uint64]bool
 }
 
-func NewClientCodec(bodyCodec codec.Codec, headerEncoder *encoder.Encoder, message socket.Message) ClientCodec {
-	if message == nil {
+func NewClientCodec(bodyCodec codec.Codec, headerEncoder *encoder.Encoder, messages socket.Messages) ClientCodec {
+	if messages == nil {
 		return nil
 	}
 	if headerEncoder != nil {
@@ -42,10 +42,10 @@ func NewClientCodec(bodyCodec codec.Codec, headerEncoder *encoder.Encoder, messa
 		requestBuffer: make([]byte, 1024),
 		pending:       make(map[uint64]bool),
 	}
-	c.message = message
-	if message.GetWriter() != nil {
-		c.writer = autowriter.NewAutoWriter(message.GetWriter(), false, 65536, 4, c)
-		c.message.SetWriter(c.writer)
+	c.messages = messages
+	if messages.GetWriter() != nil {
+		c.writer = autowriter.NewAutoWriter(messages.GetWriter(), false, 65536, 4, c)
+		c.messages.SetWriter(c.writer)
 	}
 	if headerEncoder == nil {
 		c.req = &request{}
@@ -88,13 +88,13 @@ func (c *clientCodec) WriteRequest(ctx *Context, param interface{}) error {
 			return err
 		}
 	}
-	return c.message.WriteMessage(data)
+	return c.messages.WriteMessage(data)
 }
 
 func (c *clientCodec) ReadResponseHeader(ctx *Context) error {
 	var data []byte
 	var err error
-	data, err = c.message.ReadMessage()
+	data, err = c.messages.ReadMessage()
 	if err != nil {
 		return err
 	}
@@ -145,5 +145,5 @@ func (c *clientCodec) Close() error {
 	if c.writer != nil {
 		c.writer.Close()
 	}
-	return c.message.Close()
+	return c.messages.Close()
 }
