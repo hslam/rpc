@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"fmt"
-	"github.com/hslam/autowriter"
 	"github.com/hslam/codec"
 	"github.com/hslam/rpc/encoder"
 	"github.com/hslam/socket"
@@ -43,17 +42,14 @@ func NewClientCodec(bodyCodec codec.Codec, headerEncoder *encoder.Encoder, messa
 		pending:       make(map[uint64]bool),
 	}
 	c.messages = messages
-	if messages.GetWriter() != nil {
-		c.writer = autowriter.NewAutoWriter(messages.GetWriter(), false, 65536, 4, c)
-		c.messages.SetWriter(c.writer)
-	}
+	c.messages.SetBatch(c)
 	if headerEncoder == nil {
 		c.req = &request{}
 		c.res = &response{}
 	}
 	return c
 }
-func (c *clientCodec) NumConcurrency() int {
+func (c *clientCodec) Concurrency() int {
 	c.mutex.Lock()
 	concurrency := len(c.pending)
 	c.mutex.Unlock()
