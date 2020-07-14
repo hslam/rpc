@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"github.com/hslam/rpc"
-	"github.com/hslam/rpc/examples/transport/http/service"
+	"github.com/hslam/rpc/examples/socket/http/service"
 )
 
 var network string

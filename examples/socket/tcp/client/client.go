@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/hslam/rpc"
-	"github.com/hslam/rpc/examples/transport/tcp/service"
+	"github.com/hslam/rpc/examples/socket/tcp/service"
 	"github.com/hslam/stats"
 	"log"
 	"math/rand"

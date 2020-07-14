@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"github.com/hslam/rpc"
-	"github.com/hslam/rpc/examples/transport/ipc/service"
+	"github.com/hslam/rpc/examples/socket/tcp/service"
 )
 
 var network string
@@ -11,8 +11,8 @@ var addr string
 var codec string
 
 func init() {
-	flag.StringVar(&network, "network", "ipc", "-network=tcp")
-	flag.StringVar(&addr, "addr", "/tmp/ipc", "-addr=:9999")
+	flag.StringVar(&network, "network", "tcp", "-network=tcp")
+	flag.StringVar(&addr, "addr", ":9999", "-addr=:9999")
 	flag.StringVar(&codec, "codec", "pb", "-codec=code")
 	flag.Parse()
 }

@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/hslam/rpc"
-	"github.com/hslam/rpc/examples/transport/http/service"
+	"github.com/hslam/rpc/examples/socket/ipc/service"
 	"github.com/hslam/stats"
 	"log"
 	"math/rand"
@@ -19,8 +19,8 @@ var parallel int
 var bar bool
 
 func init() {
-	flag.StringVar(&network, "network", "http", "-network=tcp")
-	flag.StringVar(&addr, "addr", ":9999", "-addr=:9999")
+	flag.StringVar(&network, "network", "ipc", "-network=tcp")
+	flag.StringVar(&addr, "addr", "/tmp/ipc", "-addr=:9999")
 	flag.StringVar(&codec, "codec", "pb", "-codec=code")
 	flag.IntVar(&total, "total", 100000, "-total=100000")
 	flag.IntVar(&parallel, "parallel", 1, "-parallel=1")
