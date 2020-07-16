@@ -26,18 +26,18 @@ func DialWithOptions(address string, opts *Options) (*Client, error) {
 	if opts.NewSocket == nil && opts.NewMessages == nil {
 		return nil, errors.New("need opts.NewSocket or opts.NewMessages")
 	}
-	var bodyCodec codec.Codec
-	if opts.NewCodec != nil {
-		bodyCodec = opts.NewCodec()
-	}
-	var headerEncoder *encoder.Encoder
-	if opts.NewEncoder != nil {
-		headerEncoder = opts.NewEncoder()
-	}
 	if opts.NewMessages != nil {
 		if messages := opts.NewMessages(); messages == nil {
 			return nil, errors.New("NewMessages failed")
 		} else {
+			var bodyCodec codec.Codec
+			if opts.NewCodec != nil {
+				bodyCodec = opts.NewCodec()
+			}
+			var headerEncoder *encoder.Encoder
+			if opts.NewEncoder != nil {
+				headerEncoder = opts.NewEncoder()
+			}
 			if codec := NewClientCodec(bodyCodec, headerEncoder, messages); codec == nil {
 				return nil, errors.New("NewClientCodec failed")
 			} else {
@@ -46,6 +46,14 @@ func DialWithOptions(address string, opts *Options) (*Client, error) {
 		}
 	}
 	return NewClient().Dial(opts.NewSocket(), address, func(messages socket.Messages) ClientCodec {
+		var bodyCodec codec.Codec
+		if opts.NewCodec != nil {
+			bodyCodec = opts.NewCodec()
+		}
+		var headerEncoder *encoder.Encoder
+		if opts.NewEncoder != nil {
+			headerEncoder = opts.NewEncoder()
+		}
 		return NewClientCodec(bodyCodec, headerEncoder, messages)
 	})
 
