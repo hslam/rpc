@@ -145,6 +145,13 @@ func (client *Client) read() {
 	}
 }
 
+func (client *Client) NumCalls() (n uint64) {
+	client.mutex.Lock()
+	n = uint64(len(client.pending))
+	client.mutex.Unlock()
+	return
+}
+
 func (client *Client) Close() error {
 	client.mutex.Lock()
 	if client.closing {
