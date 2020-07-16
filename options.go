@@ -3,6 +3,7 @@ package rpc
 import (
 	"github.com/hslam/codec"
 	"github.com/hslam/rpc/encoder"
+	"github.com/hslam/rpc/encoder/json"
 	"github.com/hslam/socket"
 	"github.com/hslam/socket/tcp"
 )
@@ -18,6 +19,8 @@ type Options struct {
 //DefaultOptions returns a default options.
 func DefaultOptions() *Options {
 	return &Options{
-		NewSocket: tcp.NewSocket,
+		NewSocket:  tcp.NewSocket,
+		NewCodec:   json.NewCodec,
+		NewEncoder: json.NewEncoder,
 	}
 }
