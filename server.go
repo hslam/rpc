@@ -2,7 +2,9 @@ package rpc
 
 import (
 	"errors"
+	"github.com/hslam/codec"
 	"github.com/hslam/funcs"
+	"github.com/hslam/rpc/encoder"
 	"github.com/hslam/socket"
 	"io"
 	"os"
@@ -171,7 +173,7 @@ func (server *Server) sendResponse(sending *sync.Mutex, ctx *Context, codec Serv
 	server.ctxPool.Put(ctx)
 }
 
-func (server *Server) Listen(socket socket.Socket, address string, New NewServerCodecFunc) error {
+func (server *Server) listen(socket socket.Socket, address string, New NewServerCodecFunc) error {
 	logger.Noticef("pid - %d", os.Getpid())
 	logger.Noticef("network - %s", socket.Scheme())
 	logger.Noticef("listening on %s", address)
@@ -186,6 +188,58 @@ func (server *Server) Listen(socket socket.Socket, address string, New NewServer
 		}
 		go server.ServeCodec(New(conn.Messages()))
 	}
+}
+
+func (server *Server) Listen(network, address string, codec string) error {
+	if newSocket := NewSocket(network); newSocket != nil {
+		if newCodec := NewCodec(codec); newCodec != nil {
+			return DefaultServer.listen(newSocket(), address, func(messages socket.Messages) ServerCodec {
+				return NewServerCodec(newCodec(), nil, messages)
+			})
+		}
+		return errors.New("unsupported codec: " + codec)
+	}
+	return errors.New("unsupported protocol scheme: " + network)
+}
+
+func (server *Server) ListenWithOptions(address string, opts *Options) error {
+	if opts.NewCodec == nil && opts.NewEncoder == nil {
+		return errors.New("need opts.Codec or opts.Encoder")
+	}
+	if opts.NewSocket == nil && opts.NewMessages == nil {
+		return errors.New("need opts.NewSocket or opts.NewMessages")
+	}
+	if opts.NewMessages != nil {
+		if messages := opts.NewMessages(); messages == nil {
+			return errors.New("NewMessages failed")
+		} else {
+			var bodyCodec codec.Codec
+			if opts.NewCodec != nil {
+				bodyCodec = opts.NewCodec()
+			}
+			var headerEncoder *encoder.Encoder
+			if opts.NewEncoder != nil {
+				headerEncoder = opts.NewEncoder()
+			}
+			if codec := NewServerCodec(bodyCodec, headerEncoder, messages); codec == nil {
+				return errors.New("NewClientCodec failed")
+			} else {
+				DefaultServer.ServeCodec(codec)
+				return nil
+			}
+		}
+	}
+	return DefaultServer.listen(opts.NewSocket(), address, func(messages socket.Messages) ServerCodec {
+		var bodyCodec codec.Codec
+		if opts.NewCodec != nil {
+			bodyCodec = opts.NewCodec()
+		}
+		var headerEncoder *encoder.Encoder
+		if opts.NewEncoder != nil {
+			headerEncoder = opts.NewEncoder()
+		}
+		return NewServerCodec(bodyCodec, headerEncoder, messages)
+	})
 }
 
 func Register(rcvr interface{}) error { return DefaultServer.Register(rcvr) }
