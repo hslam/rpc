@@ -155,12 +155,18 @@ func (server *Server) callService(sending *sync.Mutex, wg *sync.WaitGroup, ctx *
 
 func (server *Server) sendResponse(sending *sync.Mutex, ctx *Context, codec ServerCodec) {
 	sending.Lock()
-	err := codec.WriteResponse(ctx, ctx.reply.Interface())
+	var reply interface{}
+	if len(ctx.Error) == 0 {
+		reply = ctx.reply.Interface()
+	}
+	err := codec.WriteResponse(ctx, reply)
 	if err != nil {
 		logger.Allln("rpc: writing response:", err)
 	}
 	sending.Unlock()
-	atomic.AddInt64(ctx.Count, -1)
+	if ctx.Count != nil {
+		atomic.AddInt64(ctx.Count, -1)
+	}
 	ctx.Reset()
 	server.ctxPool.Put(ctx)
 }
