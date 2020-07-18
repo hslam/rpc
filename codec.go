@@ -32,8 +32,12 @@ func NewCodec(name string) func() codec.Codec {
 
 type Context struct {
 	Seq           uint64
+	Upgrade       []byte
 	ServiceMethod string
 	Error         string
+	heartbeat     bool
+	noRequest     bool
+	noResponse    bool
 	decodeHeader  bool
 	keepReading   bool
 	f             *funcs.Func

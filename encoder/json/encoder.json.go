@@ -21,9 +21,7 @@ func NewRequest() *Request {
 
 //Reset resets the Request.
 func (req *Request) Reset() {
-	req.Seq = 0
-	req.ServiceMethod = ""
-	req.Args = req.Args[0:]
+	*req = Request{}
 }
 
 //SetSeq sets the value of Seq.
@@ -34,6 +32,16 @@ func (req *Request) SetSeq(seq uint64) {
 //GetSeq returns the value of Seq.
 func (req *Request) GetSeq() uint64 {
 	return req.Seq
+}
+
+//SetUpgrade sets the value of Upgrade.
+func (req *Request) SetUpgrade(upgrade []byte) {
+	req.Upgrade = upgrade
+}
+
+//GetUpgrade returns the value of Upgrade.
+func (req *Request) GetUpgrade() []byte {
+	return req.Upgrade
 }
 
 //SetServiceMethod sets the value of ServiceMethod.
@@ -63,9 +71,7 @@ func NewResponse() *Response {
 
 //Reset resets the Response.
 func (res *Response) Reset() {
-	res.Seq = 0
-	res.Error = ""
-	res.Reply = res.Reply[0:]
+	*res = Response{}
 }
 
 //SetSeq sets the value of Seq.
@@ -76,6 +82,16 @@ func (res *Response) SetSeq(seq uint64) {
 //GetSeq returns the value of Seq.
 func (res *Response) GetSeq() uint64 {
 	return res.Seq
+}
+
+//SetUpgrade sets the value of Upgrade.
+func (res *Response) SetUpgrade(upgrade []byte) {
+	res.Upgrade = upgrade
+}
+
+//GetUpgrade returns the value of Upgrade.
+func (res *Response) GetUpgrade() []byte {
+	return res.Upgrade
 }
 
 //SetError sets the value of Error.

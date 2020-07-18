@@ -26,6 +26,7 @@ var (
 type RoundTripper interface {
 	Call(addr, serviceMethod string, args interface{}, reply interface{}) error
 	Go(addr, serviceMethod string, args interface{}, reply interface{}, done chan *Call) *Call
+	Ping(addr string) error
 }
 
 //Transport defines the struct of transport
@@ -78,6 +79,16 @@ func (t *Transport) Go(addr, serviceMethod string, args interface{}, reply inter
 	call := client.Go(serviceMethod, args, reply, done)
 	client.lastTime = t.now
 	return call
+}
+
+func (t *Transport) Ping(addr string) error {
+	client, err := t.getConn(addr)
+	if err != nil {
+		return err
+	}
+	err = client.Ping()
+	client.lastTime = t.now
+	return err
 }
 
 func (t *Transport) getConn(addr string) (pc *persistConn, err error) {

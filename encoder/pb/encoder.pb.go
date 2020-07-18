@@ -24,6 +24,11 @@ func (req *Request) SetSeq(seq uint64) {
 	req.Seq = seq
 }
 
+//SetUpgrade sets the value of Upgrade.
+func (req *Request) SetUpgrade(upgrade []byte) {
+	req.Upgrade = upgrade
+}
+
 //SetServiceMethod sets the value of ServiceMethod.
 func (req *Request) SetServiceMethod(serviceMethod string) {
 	req.ServiceMethod = serviceMethod
@@ -42,6 +47,11 @@ func NewResponse() *Response {
 //SetSeq sets the value of Seq.
 func (res *Response) SetSeq(seq uint64) {
 	res.Seq = seq
+}
+
+//SetUpgrade sets the value of Upgrade.
+func (res *Response) SetUpgrade(upgrade []byte) {
+	res.Upgrade = upgrade
 }
 
 //SetError sets the value of Error.

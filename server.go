@@ -16,19 +16,23 @@ import (
 var numCPU = runtime.NumCPU()
 
 type Server struct {
-	Registry   *funcs.Funcs
-	ctxPool    *sync.Pool
-	pipelining bool
-	numWorkers int
+	Registry      *funcs.Funcs
+	ctxPool       *sync.Pool
+	upgradePool   *sync.Pool
+	upgradeBuffer []byte
+	pipelining    bool
+	numWorkers    int
 }
 type NewServerCodecFunc func(messages socket.Messages) ServerCodec
 
 // NewServer returns a new Server.
 func NewServer() *Server {
 	return &Server{
-		Registry:   funcs.New(),
-		ctxPool:    &sync.Pool{New: func() interface{} { return &Context{} }},
-		numWorkers: numCPU,
+		Registry:      funcs.New(),
+		ctxPool:       &sync.Pool{New: func() interface{} { return &Context{} }},
+		upgradePool:   &sync.Pool{New: func() interface{} { return &upgrade{} }},
+		upgradeBuffer: make([]byte, 1024),
+		numWorkers:    numCPU,
 	}
 }
 
@@ -49,6 +53,15 @@ func (server *Server) SetPipelining(enable bool) {
 
 func (server *Server) SetNumWorkers(num int) {
 	server.numWorkers = num
+}
+
+func (server *Server) getUpgrade() *upgrade {
+	return server.upgradePool.Get().(*upgrade)
+}
+
+func (server *Server) putUpgrade(u *upgrade) {
+	u.Reset()
+	server.upgradePool.Put(u)
 }
 
 func (server *Server) ServeCodec(codec ServerCodec) {
@@ -91,6 +104,10 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 			}
 			continue
 		}
+		if ctx.heartbeat {
+			server.sendResponse(sending, ctx, codec)
+			continue
+		}
 		ctx.Count = &Count
 		if server.pipelining {
 			server.callService(sending, nil, ctx, codec)
@@ -124,24 +141,44 @@ func (server *Server) readRequest(codec ServerCodec) (ctx *Context, err error) {
 		return
 	}
 	ctx.keepReading = true
-	ctx.f = server.Registry.GetFunc(ctx.ServiceMethod)
-	if ctx.f == nil {
-		err = errors.New("rpc: can't find service " + ctx.ServiceMethod)
-		codec.ReadRequestBody(nil)
-		return
+	if len(ctx.Upgrade) > 0 {
+		u := server.getUpgrade()
+		u.Unmarshal(ctx.Upgrade)
+		if u.Heartbeat == Heartbeat {
+			ctx.heartbeat = true
+		}
+		if u.NoRequest == NoRequest {
+			ctx.noRequest = true
+		}
+		if u.NoResponse == NoResponse {
+			ctx.noResponse = true
+		}
+		server.putUpgrade(u)
 	}
-	ctx.args = ctx.f.GetValueIn(0)
-	if ctx.args == funcs.ZeroValue {
-		err = errors.New("rpc: can't find args")
-		codec.ReadRequestBody(nil)
-		return
+	if !ctx.heartbeat {
+		ctx.f = server.Registry.GetFunc(ctx.ServiceMethod)
+		if ctx.f == nil {
+			err = errors.New("rpc: can't find service " + ctx.ServiceMethod)
+			codec.ReadRequestBody(nil)
+			return
+		}
 	}
-	if err = codec.ReadRequestBody(ctx.args.Interface()); err != nil {
-		return
+	if !ctx.noRequest {
+		ctx.args = ctx.f.GetValueIn(0)
+		if ctx.args == funcs.ZeroValue {
+			err = errors.New("rpc: can't find args")
+			codec.ReadRequestBody(nil)
+			return
+		}
+		if err = codec.ReadRequestBody(ctx.args.Interface()); err != nil {
+			return
+		}
 	}
-	ctx.reply = ctx.f.GetValueIn(1)
-	if ctx.reply == funcs.ZeroValue {
-		err = errors.New("rpc: can't find reply")
+	if !ctx.noResponse {
+		ctx.reply = ctx.f.GetValueIn(1)
+		if ctx.reply == funcs.ZeroValue {
+			err = errors.New("rpc: can't find reply")
+		}
 	}
 	return
 }
@@ -158,7 +195,7 @@ func (server *Server) callService(sending *sync.Mutex, wg *sync.WaitGroup, ctx *
 func (server *Server) sendResponse(sending *sync.Mutex, ctx *Context, codec ServerCodec) {
 	sending.Lock()
 	var reply interface{}
-	if len(ctx.Error) == 0 {
+	if len(ctx.Error) == 0 && !ctx.noResponse {
 		reply = ctx.reply.Interface()
 	}
 	err := codec.WriteResponse(ctx, reply)

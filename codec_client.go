@@ -49,6 +49,7 @@ func NewClientCodec(bodyCodec codec.Codec, headerEncoder *encoder.Encoder, messa
 	}
 	return c
 }
+
 func (c *clientCodec) Concurrency() int {
 	c.mutex.Lock()
 	concurrency := len(c.pending)
@@ -63,12 +64,15 @@ func (c *clientCodec) WriteRequest(ctx *Context, param interface{}) error {
 	var args []byte
 	var data []byte
 	var err error
-	args, err = c.bodyCodec.Marshal(c.argsBuffer, param)
-	if err != nil {
-		return err
+	if !ctx.noRequest {
+		args, err = c.bodyCodec.Marshal(c.argsBuffer, param)
+		if err != nil {
+			return err
+		}
 	}
 	if c.headerEncoder != nil {
 		c.headerEncoder.Request.SetSeq(ctx.Seq)
+		c.headerEncoder.Request.SetUpgrade(ctx.Upgrade)
 		c.headerEncoder.Request.SetServiceMethod(ctx.ServiceMethod)
 		c.headerEncoder.Request.SetArgs(args)
 		data, err = c.headerEncoder.Codec.Marshal(c.requestBuffer, c.headerEncoder.Request)
@@ -77,6 +81,7 @@ func (c *clientCodec) WriteRequest(ctx *Context, param interface{}) error {
 		}
 	} else {
 		c.req.SetSeq(ctx.Seq)
+		c.req.SetUpgrade(ctx.Upgrade)
 		c.req.SetServiceMethod(ctx.ServiceMethod)
 		c.req.SetArgs(args)
 		data, err = c.req.Marshal(c.requestBuffer)
@@ -99,6 +104,7 @@ func (c *clientCodec) ReadResponseHeader(ctx *Context) error {
 		c.headerEncoder.Codec.Unmarshal(data, c.headerEncoder.Response)
 		ctx.Error = ""
 		ctx.Seq = c.headerEncoder.Response.GetSeq()
+		ctx.Upgrade = c.headerEncoder.Response.GetUpgrade()
 		c.mutex.Lock()
 		delete(c.pending, ctx.Seq)
 		c.mutex.Unlock()
@@ -113,6 +119,7 @@ func (c *clientCodec) ReadResponseHeader(ctx *Context) error {
 		c.res.Unmarshal(data)
 		ctx.Error = ""
 		ctx.Seq = c.res.GetSeq()
+		ctx.Upgrade = c.res.GetUpgrade()
 		c.mutex.Lock()
 		delete(c.pending, ctx.Seq)
 		c.mutex.Unlock()

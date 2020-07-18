@@ -69,21 +69,21 @@ func (c *serverCodec) ReadRequestHeader(ctx *Context) error {
 		c.headerEncoder.Request.Reset()
 		c.headerEncoder.Codec.Unmarshal(data, c.headerEncoder.Request)
 		ctx.ServiceMethod = c.headerEncoder.Request.GetServiceMethod()
+		ctx.Upgrade = c.headerEncoder.Request.GetUpgrade()
 		c.mutex.Lock()
 		c.seq++
 		ctx.Seq = c.seq
 		c.pending[ctx.Seq] = c.headerEncoder.Request.GetSeq()
-		c.headerEncoder.Request.SetSeq(0)
 		c.mutex.Unlock()
 	} else {
 		c.req.Reset()
 		c.req.Unmarshal(data)
 		ctx.ServiceMethod = c.req.GetServiceMethod()
+		ctx.Upgrade = c.req.GetUpgrade()
 		c.mutex.Lock()
 		c.seq++
 		ctx.Seq = c.seq
 		c.pending[ctx.Seq] = c.req.GetSeq()
-		c.req.SetSeq(0)
 		c.mutex.Unlock()
 	}
 	return nil
@@ -112,7 +112,7 @@ func (c *serverCodec) WriteResponse(ctx *Context, x interface{}) error {
 	var reply []byte
 	var data []byte
 	var err error
-	if len(ctx.Error) == 0 {
+	if len(ctx.Error) == 0 && !ctx.noResponse {
 		reply, err = c.bodyCodec.Marshal(c.replyBuffer, x)
 		if err != nil {
 			return err
@@ -120,6 +120,7 @@ func (c *serverCodec) WriteResponse(ctx *Context, x interface{}) error {
 	}
 	if c.headerEncoder != nil {
 		c.headerEncoder.Response.SetSeq(reqSeq)
+		c.headerEncoder.Response.SetUpgrade(ctx.Upgrade)
 		c.headerEncoder.Response.SetError(ctx.Error)
 		c.headerEncoder.Response.SetReply(reply)
 		data, err = c.headerEncoder.Codec.Marshal(c.responseBuffer, c.headerEncoder.Response)
@@ -128,6 +129,7 @@ func (c *serverCodec) WriteResponse(ctx *Context, x interface{}) error {
 		}
 	} else {
 		c.res.SetSeq(reqSeq)
+		c.res.SetUpgrade(ctx.Upgrade)
 		c.res.SetError(ctx.Error)
 		c.res.SetReply(reply)
 		data, err = c.res.Marshal(c.responseBuffer)

@@ -9,6 +9,8 @@ import (
 type Request interface {
 	SetSeq(uint64)
 	GetSeq() uint64
+	SetUpgrade([]byte)
+	GetUpgrade() []byte
 	SetServiceMethod(string)
 	GetServiceMethod() string
 	SetArgs([]byte)
@@ -20,6 +22,8 @@ type Request interface {
 type Response interface {
 	SetSeq(uint64)
 	GetSeq() uint64
+	SetUpgrade([]byte)
+	GetUpgrade() []byte
 	SetError(string)
 	GetError() string
 	SetReply([]byte)

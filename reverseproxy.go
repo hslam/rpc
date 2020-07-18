@@ -24,3 +24,11 @@ func (c *ReverseProxy) Go(serviceMethod string, args interface{}, reply interfac
 	}
 	return transport.Go(c.TargetAddress, serviceMethod, args, reply, done)
 }
+
+func (c *ReverseProxy) Ping() error {
+	transport := c.Transport
+	if transport == nil {
+		transport = DefaultTransport
+	}
+	return transport.Ping(c.TargetAddress)
+}

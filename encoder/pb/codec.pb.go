@@ -24,8 +24,9 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 type Request struct {
 	Seq           uint64 `protobuf:"varint,1,opt,name=Seq,proto3" json:"Seq,omitempty"`
-	ServiceMethod string `protobuf:"bytes,2,opt,name=ServiceMethod,proto3" json:"ServiceMethod,omitempty"`
-	Args          []byte `protobuf:"bytes,3,opt,name=Args,proto3" json:"Args,omitempty"`
+	Upgrade       []byte `protobuf:"bytes,2,opt,name=Upgrade,proto3" json:"Upgrade,omitempty"`
+	ServiceMethod string `protobuf:"bytes,3,opt,name=ServiceMethod,proto3" json:"ServiceMethod,omitempty"`
+	Args          []byte `protobuf:"bytes,4,opt,name=Args,proto3" json:"Args,omitempty"`
 }
 
 func (m *Request) Reset()         { *m = Request{} }
@@ -68,6 +69,13 @@ func (m *Request) GetSeq() uint64 {
 	return 0
 }
 
+func (m *Request) GetUpgrade() []byte {
+	if m != nil {
+		return m.Upgrade
+	}
+	return nil
+}
+
 func (m *Request) GetServiceMethod() string {
 	if m != nil {
 		return m.ServiceMethod
@@ -83,9 +91,10 @@ func (m *Request) GetArgs() []byte {
 }
 
 type Response struct {
-	Seq   uint64 `protobuf:"varint,1,opt,name=Seq,proto3" json:"Seq,omitempty"`
-	Error string `protobuf:"bytes,2,opt,name=Error,proto3" json:"Error,omitempty"`
-	Reply []byte `protobuf:"bytes,3,opt,name=Reply,proto3" json:"Reply,omitempty"`
+	Seq     uint64 `protobuf:"varint,1,opt,name=Seq,proto3" json:"Seq,omitempty"`
+	Upgrade []byte `protobuf:"bytes,2,opt,name=Upgrade,proto3" json:"Upgrade,omitempty"`
+	Error   string `protobuf:"bytes,3,opt,name=Error,proto3" json:"Error,omitempty"`
+	Reply   []byte `protobuf:"bytes,4,opt,name=Reply,proto3" json:"Reply,omitempty"`
 }
 
 func (m *Response) Reset()         { *m = Response{} }
@@ -128,6 +137,13 @@ func (m *Response) GetSeq() uint64 {
 	return 0
 }
 
+func (m *Response) GetUpgrade() []byte {
+	if m != nil {
+		return m.Upgrade
+	}
+	return nil
+}
+
 func (m *Response) GetError() string {
 	if m != nil {
 		return m.Error
@@ -150,19 +166,20 @@ func init() {
 func init() { proto.RegisterFile("codec.proto", fileDescriptor_9610d574777ab505) }
 
 var fileDescriptor_9610d574777ab505 = []byte{
-	// 180 bytes of a gzipped FileDescriptorProto
+	// 197 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0x4e, 0xce, 0x4f, 0x49,
-	0x4d, 0xd6, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x2a, 0x48, 0x52, 0x0a, 0xe5, 0x62, 0x0f,
+	0x4d, 0xd6, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x2a, 0x48, 0x52, 0xca, 0xe7, 0x62, 0x0f,
 	0x4a, 0x2d, 0x2c, 0x4d, 0x2d, 0x2e, 0x11, 0x12, 0xe0, 0x62, 0x0e, 0x4e, 0x2d, 0x94, 0x60, 0x54,
-	0x60, 0xd4, 0x60, 0x09, 0x02, 0x31, 0x85, 0x54, 0xb8, 0x78, 0x83, 0x53, 0x8b, 0xca, 0x32, 0x93,
-	0x53, 0x7d, 0x53, 0x4b, 0x32, 0xf2, 0x53, 0x24, 0x98, 0x14, 0x18, 0x35, 0x38, 0x83, 0x50, 0x05,
-	0x85, 0x84, 0xb8, 0x58, 0x1c, 0x8b, 0xd2, 0x8b, 0x25, 0x98, 0x15, 0x18, 0x35, 0x78, 0x82, 0xc0,
-	0x6c, 0x25, 0x0f, 0x2e, 0x8e, 0xa0, 0xd4, 0xe2, 0x82, 0xfc, 0xbc, 0xe2, 0x54, 0x2c, 0xe6, 0x8a,
-	0x70, 0xb1, 0xba, 0x16, 0x15, 0xe5, 0x17, 0x41, 0xcd, 0x83, 0x70, 0x40, 0xa2, 0x41, 0xa9, 0x05,
-	0x39, 0x95, 0x50, 0x83, 0x20, 0x1c, 0x27, 0x89, 0x13, 0x8f, 0xe4, 0x18, 0x2f, 0x3c, 0x92, 0x63,
-	0x7c, 0xf0, 0x48, 0x8e, 0x71, 0xc2, 0x63, 0x39, 0x86, 0x0b, 0x8f, 0xe5, 0x18, 0x6e, 0x3c, 0x96,
-	0x63, 0x48, 0x62, 0x03, 0xfb, 0xc2, 0x18, 0x10, 0x00, 0x00, 0xff, 0xff, 0x11, 0x11, 0xd3, 0x31,
-	0xd4, 0x00, 0x00, 0x00,
+	0x60, 0xd4, 0x60, 0x09, 0x02, 0x31, 0x85, 0x24, 0xb8, 0xd8, 0x43, 0x0b, 0xd2, 0x8b, 0x12, 0x53,
+	0x52, 0x25, 0x98, 0x14, 0x18, 0x35, 0x78, 0x82, 0x60, 0x5c, 0x21, 0x15, 0x2e, 0xde, 0xe0, 0xd4,
+	0xa2, 0xb2, 0xcc, 0xe4, 0x54, 0xdf, 0xd4, 0x92, 0x8c, 0xfc, 0x14, 0x09, 0x66, 0x05, 0x46, 0x0d,
+	0xce, 0x20, 0x54, 0x41, 0x21, 0x21, 0x2e, 0x16, 0xc7, 0xa2, 0xf4, 0x62, 0x09, 0x16, 0xb0, 0x66,
+	0x30, 0x5b, 0x29, 0x89, 0x8b, 0x23, 0x28, 0xb5, 0xb8, 0x20, 0x3f, 0xaf, 0x38, 0x95, 0x24, 0x1b,
+	0x45, 0xb8, 0x58, 0x5d, 0x8b, 0x8a, 0xf2, 0x8b, 0xa0, 0x36, 0x41, 0x38, 0x20, 0xd1, 0xa0, 0xd4,
+	0x82, 0x9c, 0x4a, 0xa8, 0x15, 0x10, 0x8e, 0x93, 0xc4, 0x89, 0x47, 0x72, 0x8c, 0x17, 0x1e, 0xc9,
+	0x31, 0x3e, 0x78, 0x24, 0xc7, 0x38, 0xe1, 0xb1, 0x1c, 0xc3, 0x85, 0xc7, 0x72, 0x0c, 0x37, 0x1e,
+	0xcb, 0x31, 0x24, 0xb1, 0x81, 0x7d, 0x6e, 0x0c, 0x08, 0x00, 0x00, 0xff, 0xff, 0x6f, 0xc2, 0xe2,
+	0x58, 0x08, 0x01, 0x00, 0x00,
 }
 
 func (m *Request) Marshal() (dAtA []byte, err error) {
@@ -190,12 +207,19 @@ func (m *Request) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		copy(dAtA[i:], m.Args)
 		i = encodeVarintCodec(dAtA, i, uint64(len(m.Args)))
 		i--
-		dAtA[i] = 0x1a
+		dAtA[i] = 0x22
 	}
 	if len(m.ServiceMethod) > 0 {
 		i -= len(m.ServiceMethod)
 		copy(dAtA[i:], m.ServiceMethod)
 		i = encodeVarintCodec(dAtA, i, uint64(len(m.ServiceMethod)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if len(m.Upgrade) > 0 {
+		i -= len(m.Upgrade)
+		copy(dAtA[i:], m.Upgrade)
+		i = encodeVarintCodec(dAtA, i, uint64(len(m.Upgrade)))
 		i--
 		dAtA[i] = 0x12
 	}
@@ -232,12 +256,19 @@ func (m *Response) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		copy(dAtA[i:], m.Reply)
 		i = encodeVarintCodec(dAtA, i, uint64(len(m.Reply)))
 		i--
-		dAtA[i] = 0x1a
+		dAtA[i] = 0x22
 	}
 	if len(m.Error) > 0 {
 		i -= len(m.Error)
 		copy(dAtA[i:], m.Error)
 		i = encodeVarintCodec(dAtA, i, uint64(len(m.Error)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if len(m.Upgrade) > 0 {
+		i -= len(m.Upgrade)
+		copy(dAtA[i:], m.Upgrade)
+		i = encodeVarintCodec(dAtA, i, uint64(len(m.Upgrade)))
 		i--
 		dAtA[i] = 0x12
 	}
@@ -269,6 +300,10 @@ func (m *Request) Size() (n int) {
 	if m.Seq != 0 {
 		n += 1 + sovCodec(uint64(m.Seq))
 	}
+	l = len(m.Upgrade)
+	if l > 0 {
+		n += 1 + l + sovCodec(uint64(l))
+	}
 	l = len(m.ServiceMethod)
 	if l > 0 {
 		n += 1 + l + sovCodec(uint64(l))
@@ -288,6 +323,10 @@ func (m *Response) Size() (n int) {
 	_ = l
 	if m.Seq != 0 {
 		n += 1 + sovCodec(uint64(m.Seq))
+	}
+	l = len(m.Upgrade)
+	if l > 0 {
+		n += 1 + l + sovCodec(uint64(l))
 	}
 	l = len(m.Error)
 	if l > 0 {
@@ -356,6 +395,40 @@ func (m *Request) Unmarshal(dAtA []byte) error {
 			}
 		case 2:
 			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Upgrade", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowCodec
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthCodec
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthCodec
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Upgrade = append(m.Upgrade[:0], dAtA[iNdEx:postIndex]...)
+			if m.Upgrade == nil {
+				m.Upgrade = []byte{}
+			}
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field ServiceMethod", wireType)
 			}
 			var stringLen uint64
@@ -386,7 +459,7 @@ func (m *Request) Unmarshal(dAtA []byte) error {
 			}
 			m.ServiceMethod = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 3:
+		case 4:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Args", wireType)
 			}
@@ -494,6 +567,40 @@ func (m *Response) Unmarshal(dAtA []byte) error {
 			}
 		case 2:
 			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Upgrade", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowCodec
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthCodec
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthCodec
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Upgrade = append(m.Upgrade[:0], dAtA[iNdEx:postIndex]...)
+			if m.Upgrade == nil {
+				m.Upgrade = []byte{}
+			}
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Error", wireType)
 			}
 			var stringLen uint64
@@ -524,7 +631,7 @@ func (m *Response) Unmarshal(dAtA []byte) error {
 			}
 			m.Error = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 3:
+		case 4:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Reply", wireType)
 			}

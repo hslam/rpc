@@ -10,6 +10,9 @@ import (
 var ErrShutdown = errors.New("connection is shut down")
 
 type Call struct {
+	heartbeat     bool
+	noRequest     bool
+	noResponse    bool
 	ServiceMethod string
 	Args          interface{}
 	Reply         interface{}
@@ -25,20 +28,25 @@ func (call *Call) done() {
 }
 
 type Client struct {
-	codec    ClientCodec
-	reqMutex sync.Mutex
-	ctx      Context
-	mutex    sync.Mutex
-	seq      uint64
-	pending  map[uint64]*Call
-	closing  bool
-	shutdown bool
+	codec         ClientCodec
+	reqMutex      sync.Mutex
+	ctx           Context
+	mutex         sync.Mutex
+	seq           uint64
+	pending       map[uint64]*Call
+	upgradePool   *sync.Pool
+	upgradeBuffer []byte
+	closing       bool
+	shutdown      bool
 }
+
 type NewClientCodecFunc func(messages socket.Messages) ClientCodec
 
 func NewClient() *Client {
 	return &Client{
-		pending: make(map[uint64]*Call),
+		pending:       make(map[uint64]*Call),
+		upgradePool:   &sync.Pool{New: func() interface{} { return &upgrade{} }},
+		upgradeBuffer: make([]byte, 1024),
 	}
 }
 
@@ -51,14 +59,23 @@ func (client *Client) Dial(s socket.Socket, address string, New NewClientCodecFu
 	go client.read()
 	return client, nil
 }
+
 func NewClientWithCodec(codec ClientCodec) *Client {
-	c := &Client{
-		codec:   codec,
-		pending: make(map[uint64]*Call),
-	}
+	c := NewClient()
+	c.codec = codec
 	go c.read()
 	return c
 }
+
+func (client *Client) getUpgrade() *upgrade {
+	return client.upgradePool.Get().(*upgrade)
+}
+
+func (client *Client) putUpgrade(u *upgrade) {
+	u.Reset()
+	client.upgradePool.Put(u)
+}
+
 func (client *Client) write(call *Call) {
 	client.reqMutex.Lock()
 	defer client.reqMutex.Unlock()
@@ -74,8 +91,25 @@ func (client *Client) write(call *Call) {
 	client.pending[seq] = call
 	client.mutex.Unlock()
 	client.ctx.Seq = seq
+	client.ctx.heartbeat = call.heartbeat
+	client.ctx.noRequest = call.noRequest
+	client.ctx.noResponse = call.noResponse
+	u := client.getUpgrade()
+	if call.heartbeat || call.noRequest || call.noResponse {
+		if call.heartbeat {
+			u.Heartbeat = Heartbeat
+		}
+		if call.noRequest {
+			u.NoRequest = NoRequest
+		}
+		if call.noResponse {
+			u.NoResponse = NoResponse
+		}
+		client.ctx.Upgrade, _ = u.Marshal(client.upgradeBuffer)
+	}
 	client.ctx.ServiceMethod = call.ServiceMethod
 	err := client.codec.WriteRequest(&client.ctx, call.Args)
+	client.putUpgrade(u)
 	if err != nil {
 		client.mutex.Lock()
 		delete(client.pending, seq)
@@ -101,7 +135,6 @@ func (client *Client) read() {
 		call := client.pending[seq]
 		delete(client.pending, seq)
 		client.mutex.Unlock()
-
 		switch {
 		case call == nil:
 			err = client.codec.ReadResponseBody(nil)
@@ -116,6 +149,16 @@ func (client *Client) read() {
 			}
 			call.done()
 		default:
+			if len(ctx.Upgrade) > 0 {
+				u := client.getUpgrade()
+				u.Unmarshal(ctx.Upgrade)
+				if u.Heartbeat == Heartbeat || u.NoResponse == NoResponse {
+					client.putUpgrade(u)
+					call.done()
+					continue
+				}
+				client.putUpgrade(u)
+			}
 			err = client.codec.ReadResponseBody(call.Reply)
 			if err != nil {
 				call.Error = errors.New("reading body " + err.Error())
@@ -183,4 +226,15 @@ func (client *Client) Go(serviceMethod string, args interface{}, reply interface
 func (client *Client) Call(serviceMethod string, args interface{}, reply interface{}) error {
 	call := <-client.Go(serviceMethod, args, reply, make(chan *Call, 1)).Done
 	return call.Error
+}
+
+func (client *Client) Ping() error {
+	call := new(Call)
+	call.heartbeat = true
+	call.noRequest = true
+	call.noResponse = true
+	call.Done = make(chan *Call, 10)
+	client.write(call)
+	c := <-call.Done
+	return c.Error
 }

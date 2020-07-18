@@ -6,6 +6,7 @@ import (
 
 type request struct {
 	Seq           uint64
+	Upgrade       []byte
 	ServiceMethod string
 	Args          []byte
 }
@@ -23,6 +24,16 @@ func (req *request) SetSeq(seq uint64) {
 //GetSeq returns the value of Seq.
 func (req *request) GetSeq() uint64 {
 	return req.Seq
+}
+
+//SetUpgrade sets the value of Upgrade.
+func (req *request) SetUpgrade(upgrade []byte) {
+	req.Upgrade = upgrade
+}
+
+//GetUpgrade returns the value of Upgrade.
+func (req *request) GetUpgrade() []byte {
+	return req.Upgrade
 }
 
 //SetServiceMethod sets the value of ServiceMethod.
@@ -49,6 +60,7 @@ func (req *request) GetArgs() []byte {
 func (req *request) Marshal(buf []byte) ([]byte, error) {
 	var size uint64
 	size += 10
+	size += 10 + uint64(len(req.Upgrade))
 	size += 10 + uint64(len(req.ServiceMethod))
 	size += 10 + uint64(len(req.Args))
 	if uint64(cap(buf)) >= size {
@@ -70,8 +82,27 @@ func (req *request) Marshal(buf []byte) ([]byte, error) {
 		n = size
 	}
 	offset += n
+	//n = code.EncodeBytes(buf[offset:], req.Upgrade)
+	if len(req.Upgrade) > 0 {
+		var length = uint64(len(req.Upgrade))
+		var lengthSize = code.SizeofVarint(length)
+		var s = lengthSize + length
+		t := length
+		for i := uint64(0); i < lengthSize-1; i++ {
+			buf[offset+i] = byte(t) | 0x80
+			t >>= 7
+		}
+		buf[offset+lengthSize-1] = byte(t)
+		copy(buf[offset+lengthSize:], req.Upgrade)
+		n = s
+	} else {
+		buf[offset] = 0
+		n = 1
+	}
+	offset += n
+
 	//n = code.EncodeString(buf[offset:], req.ServiceMethod)
-	{
+	if len(req.ServiceMethod) > 0 {
 		var length = uint64(len(req.ServiceMethod))
 		var lengthSize = code.SizeofVarint(length)
 		var s = lengthSize + length
@@ -83,10 +114,13 @@ func (req *request) Marshal(buf []byte) ([]byte, error) {
 		buf[offset+lengthSize-1] = byte(t)
 		copy(buf[offset+lengthSize:], req.ServiceMethod)
 		n = s
+	} else {
+		buf[offset] = 0
+		n = 1
 	}
 	offset += n
 	//n = code.EncodeBytes(buf[offset:], req.Args)
-	{
+	if len(req.Args) > 0 {
 		var length = uint64(len(req.Args))
 		var lengthSize = code.SizeofVarint(length)
 		var s = lengthSize + length
@@ -98,6 +132,9 @@ func (req *request) Marshal(buf []byte) ([]byte, error) {
 		buf[offset+lengthSize-1] = byte(t)
 		copy(buf[offset+lengthSize:], req.Args)
 		n = s
+	} else {
+		buf[offset] = 0
+		n = 1
 	}
 	offset += n
 	return buf[:offset], nil
@@ -109,17 +146,32 @@ func (req *request) Unmarshal(data []byte) (uint64, error) {
 	var n uint64
 	n = code.DecodeVarint(data[offset:], &req.Seq)
 	offset += n
-	n = code.DecodeString(data[offset:], &req.ServiceMethod)
+	if data[offset] > 0 {
+		n = code.DecodeBytes(data[offset:], &req.Upgrade)
+	} else {
+		n = 1
+	}
 	offset += n
-	n = code.DecodeBytes(data[offset:], &req.Args)
+	if data[offset] > 0 {
+		n = code.DecodeString(data[offset:], &req.ServiceMethod)
+	} else {
+		n = 1
+	}
+	offset += n
+	if data[offset] > 0 {
+		n = code.DecodeBytes(data[offset:], &req.Args)
+	} else {
+		n = 1
+	}
 	offset += n
 	return offset, nil
 }
 
 type response struct {
-	Seq   uint64
-	Error string
-	Reply []byte
+	Seq     uint64
+	Upgrade []byte
+	Error   string
+	Reply   []byte
 }
 
 //Reset resets the Response.
@@ -135,6 +187,16 @@ func (res *response) SetSeq(seq uint64) {
 //GetSeq returns the value of Seq.
 func (res *response) GetSeq() uint64 {
 	return res.Seq
+}
+
+//SetUpgrade sets the value of Upgrade.
+func (res *response) SetUpgrade(upgrade []byte) {
+	res.Upgrade = upgrade
+}
+
+//GetUpgrade returns the value of Upgrade.
+func (res *response) GetUpgrade() []byte {
+	return res.Upgrade
 }
 
 //SetError sets the value of Error.
@@ -161,6 +223,7 @@ func (res *response) GetReply() []byte {
 func (res *response) Marshal(buf []byte) ([]byte, error) {
 	var size uint64
 	size += 10
+	size += 10 + uint64(len(res.Upgrade))
 	size += 10 + uint64(len(res.Error))
 	size += 10 + uint64(len(res.Reply))
 	if uint64(cap(buf)) >= size {
@@ -182,6 +245,26 @@ func (res *response) Marshal(buf []byte) ([]byte, error) {
 		n = size
 	}
 	offset += n
+	//n = code.EncodeBytes(buf[offset:], res.Upgrade)
+	if len(res.Upgrade) > 0 {
+		{
+			var length = uint64(len(res.Upgrade))
+			var lengthSize = code.SizeofVarint(length)
+			var s = lengthSize + length
+			t := length
+			for i := uint64(0); i < lengthSize-1; i++ {
+				buf[offset+i] = byte(t) | 0x80
+				t >>= 7
+			}
+			buf[offset+lengthSize-1] = byte(t)
+			copy(buf[offset+lengthSize:], res.Upgrade)
+			n = s
+		}
+		offset += n
+	} else {
+		buf[offset] = 0
+		offset++
+	}
 	//n = code.EncodeString(buf[offset:], res.Error)
 	if len(res.Error) > 0 {
 		{
@@ -203,20 +286,25 @@ func (res *response) Marshal(buf []byte) ([]byte, error) {
 		offset++
 	}
 	//n = code.EncodeBytes(buf[offset:], res.Reply)
-	{
-		var length = uint64(len(res.Reply))
-		var lengthSize = code.SizeofVarint(length)
-		var s = lengthSize + length
-		t := length
-		for i := uint64(0); i < lengthSize-1; i++ {
-			buf[offset+i] = byte(t) | 0x80
-			t >>= 7
+	if len(res.Reply) > 0 {
+		{
+			var length = uint64(len(res.Reply))
+			var lengthSize = code.SizeofVarint(length)
+			var s = lengthSize + length
+			t := length
+			for i := uint64(0); i < lengthSize-1; i++ {
+				buf[offset+i] = byte(t) | 0x80
+				t >>= 7
+			}
+			buf[offset+lengthSize-1] = byte(t)
+			copy(buf[offset+lengthSize:], res.Reply)
+			n = s
 		}
-		buf[offset+lengthSize-1] = byte(t)
-		copy(buf[offset+lengthSize:], res.Reply)
-		n = s
+		offset += n
+	} else {
+		buf[offset] = 0
+		offset++
 	}
-	offset += n
 	return buf[:offset], nil
 }
 
@@ -227,12 +315,22 @@ func (res *response) Unmarshal(data []byte) (uint64, error) {
 	n = code.DecodeVarint(data[offset:], &res.Seq)
 	offset += n
 	if data[offset] > 0 {
+		n = code.DecodeBytes(data[offset:], &res.Upgrade)
+	} else {
+		n = 1
+	}
+	offset += n
+	if data[offset] > 0 {
 		n = code.DecodeString(data[offset:], &res.Error)
 	} else {
 		n = 1
 	}
 	offset += n
-	n = code.DecodeBytes(data[offset:], &res.Reply)
+	if data[offset] > 0 {
+		n = code.DecodeBytes(data[offset:], &res.Reply)
+	} else {
+		n = 1
+	}
 	offset += n
 	return offset, nil
 }

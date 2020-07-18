@@ -5,13 +5,15 @@ package pb;
 
 message Request {
     uint64  Seq = 1;
-    string  ServiceMethod = 2;
-    bytes   Args = 3;
+    bytes   Upgrade = 2;
+    string  ServiceMethod = 3;
+    bytes   Args = 4;
 
 }
 
 message Response {
     uint64  Seq = 1;
-    string  Error = 2;
-    bytes   Reply = 3;
+    bytes   Upgrade = 2;
+    string  Error = 3;
+    bytes   Reply = 4;
 }
