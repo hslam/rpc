@@ -230,7 +230,7 @@ func (server *Server) listen(socket socket.Socket, address string, New NewServer
 func (server *Server) Listen(network, address string, codec string) error {
 	if newSocket := NewSocket(network); newSocket != nil {
 		if newCodec := NewCodec(codec); newCodec != nil {
-			return DefaultServer.listen(newSocket(), address, func(messages socket.Messages) ServerCodec {
+			return server.listen(newSocket(), address, func(messages socket.Messages) ServerCodec {
 				return NewServerCodec(newCodec(), nil, messages)
 			})
 		}
@@ -265,7 +265,7 @@ func (server *Server) ListenWithOptions(address string, opts *Options) error {
 			if codec := NewServerCodec(bodyCodec, headerEncoder, messages); codec == nil {
 				return errors.New("NewClientCodec failed")
 			} else {
-				DefaultServer.ServeCodec(codec)
+				server.ServeCodec(codec)
 				return nil
 			}
 		}
@@ -276,7 +276,7 @@ func (server *Server) ListenWithOptions(address string, opts *Options) error {
 	} else if opts.NewSocket != nil {
 		sock = opts.NewSocket()
 	}
-	return DefaultServer.listen(sock, address, func(messages socket.Messages) ServerCodec {
+	return server.listen(sock, address, func(messages socket.Messages) ServerCodec {
 		var bodyCodec codec.Codec
 		if newCodec := NewCodec(opts.Codec); newCodec != nil {
 			bodyCodec = newCodec()
