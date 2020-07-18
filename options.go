@@ -14,13 +14,16 @@ type Options struct {
 	NewCodec    func() codec.Codec
 	NewEncoder  func() *encoder.Encoder
 	NewMessages func() socket.Messages
+	Network     string
+	Address     string
+	Codec       string
+	Encoder     string
 }
 
 //DefaultOptions returns a default options.
 func DefaultOptions() *Options {
 	return &Options{
-		NewSocket:  tcp.NewSocket,
-		NewCodec:   json.NewCodec,
-		NewEncoder: json.NewEncoder,
+		NewSocket: tcp.NewSocket,
+		NewCodec:  json.NewCodec,
 	}
 }

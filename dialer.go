@@ -20,22 +20,26 @@ func Dial(network, address, codec string) (*Client, error) {
 }
 
 func DialWithOptions(address string, opts *Options) (*Client, error) {
-	if opts.NewCodec == nil && opts.NewEncoder == nil {
-		return nil, errors.New("need opts.Codec or opts.Encoder")
+	if opts.NewCodec == nil && opts.NewEncoder == nil && opts.Codec == "" {
+		return nil, errors.New("need opts.NewCodec, opts.NewEncoder or opts.Codec")
 	}
-	if opts.NewSocket == nil && opts.NewMessages == nil {
-		return nil, errors.New("need opts.NewSocket or opts.NewMessages")
+	if opts.NewSocket == nil && opts.NewMessages == nil && opts.Network == "" {
+		return nil, errors.New("need opts.NewSocket, opts.NewMessages or opts.Network")
 	}
 	if opts.NewMessages != nil {
 		if messages := opts.NewMessages(); messages == nil {
 			return nil, errors.New("NewMessages failed")
 		} else {
 			var bodyCodec codec.Codec
-			if opts.NewCodec != nil {
+			if newCodec := NewCodec(opts.Codec); newCodec != nil {
+				bodyCodec = newCodec()
+			} else if opts.NewCodec != nil {
 				bodyCodec = opts.NewCodec()
 			}
 			var headerEncoder *encoder.Encoder
-			if opts.NewEncoder != nil {
+			if newEncoder := NewEncoder(opts.Encoder); newEncoder != nil {
+				headerEncoder = newEncoder()
+			} else if opts.NewEncoder != nil {
 				headerEncoder = opts.NewEncoder()
 			}
 			if codec := NewClientCodec(bodyCodec, headerEncoder, messages); codec == nil {
@@ -45,13 +49,23 @@ func DialWithOptions(address string, opts *Options) (*Client, error) {
 			}
 		}
 	}
-	return NewClient().Dial(opts.NewSocket(), address, func(messages socket.Messages) ClientCodec {
+	var sock socket.Socket
+	if newSocket := NewSocket(opts.Network); newSocket != nil {
+		sock = newSocket()
+	} else if opts.NewSocket != nil {
+		sock = opts.NewSocket()
+	}
+	return NewClient().Dial(sock, address, func(messages socket.Messages) ClientCodec {
 		var bodyCodec codec.Codec
-		if opts.NewCodec != nil {
+		if newCodec := NewCodec(opts.Codec); newCodec != nil {
+			bodyCodec = newCodec()
+		} else if opts.NewCodec != nil {
 			bodyCodec = opts.NewCodec()
 		}
 		var headerEncoder *encoder.Encoder
-		if opts.NewEncoder != nil {
+		if newEncoder := NewEncoder(opts.Encoder); newEncoder != nil {
+			headerEncoder = newEncoder()
+		} else if opts.NewEncoder != nil {
 			headerEncoder = opts.NewEncoder()
 		}
 		return NewClientCodec(bodyCodec, headerEncoder, messages)

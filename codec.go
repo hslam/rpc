@@ -3,8 +3,8 @@ package rpc
 import (
 	"github.com/hslam/codec"
 	"github.com/hslam/funcs"
-	"github.com/hslam/rpc/encoder"
 	"github.com/hslam/rpc/encoder/code"
+	"github.com/hslam/rpc/encoder/codepb"
 	"github.com/hslam/rpc/encoder/json"
 	"github.com/hslam/rpc/encoder/pb"
 	"sync"
@@ -15,6 +15,7 @@ var codecs = sync.Map{}
 func init() {
 	RegisterCodec("json", json.NewCodec)
 	RegisterCodec("code", code.NewCodec)
+	RegisterCodec("codepb", codepb.NewCodec)
 	RegisterCodec("pb", pb.NewCodec)
 }
 
@@ -27,10 +28,6 @@ func NewCodec(name string) func() codec.Codec {
 		return c.(func() codec.Codec)
 	}
 	return nil
-}
-
-func DefaultEncoder() *encoder.Encoder {
-	return encoder.NewEncoder(code.NewRequest(), code.NewResponse(), &codec.CODECodec{})
 }
 
 type Context struct {
