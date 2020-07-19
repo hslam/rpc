@@ -90,6 +90,7 @@ func (client *Client) write(call *Call) {
 	client.seq++
 	client.pending[seq] = call
 	client.mutex.Unlock()
+	client.ctx = Context{}
 	client.ctx.Seq = seq
 	client.ctx.heartbeat = call.heartbeat
 	client.ctx.noRequest = call.noRequest
