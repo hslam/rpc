@@ -31,7 +31,6 @@ type RoundTripper interface {
 
 //Transport defines the struct of transport
 type Transport struct {
-	callMu              sync.Mutex
 	connsMu             sync.Mutex
 	once                sync.Once
 	idleConns           map[string]*connQueue
@@ -68,6 +67,12 @@ func (t *Transport) Call(addr, serviceMethod string, args interface{}, reply int
 	}
 	err = client.Call(serviceMethod, args, reply)
 	client.lastTime = t.now
+	if err == ErrShutdown {
+		client.mu.Lock()
+		client.alive = false
+		client.mu.Unlock()
+		client.Close()
+	}
 	return err
 }
 
@@ -78,6 +83,12 @@ func (t *Transport) Go(addr, serviceMethod string, args interface{}, reply inter
 	}
 	call := client.Go(serviceMethod, args, reply, done)
 	client.lastTime = t.now
+	if err == ErrShutdown {
+		client.mu.Lock()
+		client.alive = false
+		client.mu.Unlock()
+		client.Close()
+	}
 	return call
 }
 
@@ -88,6 +99,12 @@ func (t *Transport) Ping(addr string) error {
 	}
 	err = client.Ping()
 	client.lastTime = t.now
+	if err != nil {
+		client.mu.Lock()
+		client.alive = false
+		client.mu.Unlock()
+		client.Close()
+	}
 	return err
 }
 
@@ -147,6 +164,23 @@ func (t *Transport) getConn(addr string) (pc *persistConn, err error) {
 		}
 		cursor := cs.Cursor()
 		pc = cs.Conns[cursor]
+		pc.mu.Lock()
+		if !pc.alive {
+			pc.mu.Unlock()
+			var client *Client
+			if t.Options != nil {
+				client, err = t.DialWithOptions(addr, t.Options)
+			} else {
+				client, err = t.Dial(t.Network, addr, t.Codec)
+			}
+			if err != nil {
+				return nil, err
+			}
+			pc = newPersistConn(client)
+			cs.Conns[cursor] = pc
+			return
+		}
+		pc.mu.Unlock()
 		return
 	}
 	if cq, ok := t.idleConns[addr]; ok && cq.Length() > 0 {
@@ -270,12 +304,15 @@ func (c *conns) Delete(cursor int) {
 
 type persistConn struct {
 	*Client
+	mu       sync.Mutex
+	alive    bool
 	lastTime time.Time
 }
 
 func newPersistConn(client *Client) *persistConn {
 	return &persistConn{
 		Client:   client,
+		alive:    true,
 		lastTime: time.Now(),
 	}
 }
