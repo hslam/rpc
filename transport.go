@@ -145,18 +145,18 @@ func (t *Transport) getConn(addr string) (pc *persistConn, err error) {
 		if len(cs.Conns) < t.MaxConnsPerHost {
 			if cq, ok := t.idleConns[addr]; ok && cq.Length() > 0 {
 				pc = cq.Dequeue()
-				pc.lastTime = time.Now()
-			} else {
-				var client *Client
-				if t.Options != nil {
-					client, err = t.DialWithOptions(addr, t.Options)
+				pc.lastTime = t.now
+				pc.mu.Lock()
+				if !pc.alive {
+					pc.mu.Unlock()
+					if pc, err = t.newPersistConn(addr); err != nil {
+						return nil, err
+					}
 				} else {
-					client, err = t.Dial(t.Network, addr, t.Codec)
+					pc.mu.Unlock()
 				}
-				if err != nil {
-					return nil, err
-				}
-				pc = newPersistConn(client)
+			} else if pc, err = t.newPersistConn(addr); err != nil {
+				return nil, err
 			}
 			cs.Append(pc)
 			t.conns[addr] = cs
@@ -167,16 +167,9 @@ func (t *Transport) getConn(addr string) (pc *persistConn, err error) {
 		pc.mu.Lock()
 		if !pc.alive {
 			pc.mu.Unlock()
-			var client *Client
-			if t.Options != nil {
-				client, err = t.DialWithOptions(addr, t.Options)
-			} else {
-				client, err = t.Dial(t.Network, addr, t.Codec)
-			}
-			if err != nil {
+			if pc, err = t.newPersistConn(addr); err != nil {
 				return nil, err
 			}
-			pc = newPersistConn(client)
 			cs.Conns[cursor] = pc
 			return
 		}
@@ -187,22 +180,34 @@ func (t *Transport) getConn(addr string) (pc *persistConn, err error) {
 		pc = cq.Dequeue()
 		pc.lastTime = time.Now()
 	} else {
-		var client *Client
-		if t.Options != nil {
-			client, err = t.DialWithOptions(addr, t.Options)
-		} else {
-			client, err = t.Dial(t.Network, addr, t.Codec)
-		}
-		if err != nil {
+		if pc, err = t.newPersistConn(addr); err != nil {
 			return nil, err
 		}
-		pc = newPersistConn(client)
 	}
 	cs := &conns{addr: addr}
 	cs.Append(pc)
 	t.conns[addr] = cs
 	return pc, nil
 }
+
+func (t *Transport) newPersistConn(addr string) (*persistConn, error) {
+	var client *Client
+	var err error
+	if t.Options != nil {
+		client, err = t.DialWithOptions(addr, t.Options)
+	} else {
+		client, err = t.Dial(t.Network, addr, t.Codec)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &persistConn{
+		Client:   client,
+		alive:    true,
+		lastTime: time.Now(),
+	}, nil
+}
+
 func (t *Transport) run() {
 	for {
 		select {
@@ -214,7 +219,6 @@ func (t *Transport) run() {
 				for i := 0; i < length; i++ {
 					pc := cs.Conns[i]
 					if pc.lastTime.Add(t.KeepAlive).Before(time.Now()) && pc.NumCalls() == 0 {
-						pc.lastTime = time.Now()
 						cs.Delete(i)
 						i--
 						length--
@@ -227,6 +231,8 @@ func (t *Transport) run() {
 							cq.Enqueue(pc)
 							t.idleConns[cs.addr] = cq
 						}
+					} else {
+						pc.Ping()
 					}
 				}
 				if len(cs.Conns) == 0 {
@@ -239,6 +245,8 @@ func (t *Transport) run() {
 					if cq.Rear().value.lastTime.Add(t.IdleConnTimeout).Before(time.Now()) {
 						pc := cq.Dequeue()
 						pc.Close()
+					} else {
+						cq.Rear().value.Ping()
 					}
 				}
 				if cq.Length() == 0 {
@@ -281,6 +289,13 @@ func (t *Transport) CloseIdleConnections() {
 	}
 }
 
+type persistConn struct {
+	*Client
+	mu       sync.Mutex
+	alive    bool
+	lastTime time.Time
+}
+
 type conns struct {
 	addr   string
 	Conns  []*persistConn
@@ -300,21 +315,6 @@ func (c *conns) Append(pc *persistConn) {
 func (c *conns) Delete(cursor int) {
 	copy(c.Conns[cursor:], c.Conns[cursor+1:])
 	c.Conns = c.Conns[:len(c.Conns)-1]
-}
-
-type persistConn struct {
-	*Client
-	mu       sync.Mutex
-	alive    bool
-	lastTime time.Time
-}
-
-func newPersistConn(client *Client) *persistConn {
-	return &persistConn{
-		Client:   client,
-		alive:    true,
-		lastTime: time.Now(),
-	}
 }
 
 type node struct {
