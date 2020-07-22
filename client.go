@@ -34,6 +34,8 @@ type Client struct {
 	mutex         sync.Mutex
 	seq           uint64
 	pending       map[uint64]*Call
+	callPool      *sync.Pool
+	donePool      *sync.Pool
 	upgradePool   *sync.Pool
 	upgradeBuffer []byte
 	closing       bool
@@ -45,6 +47,8 @@ type NewClientCodecFunc func(messages socket.Messages) ClientCodec
 func NewClient() *Client {
 	return &Client{
 		pending:       make(map[uint64]*Call),
+		callPool:      &sync.Pool{New: func() interface{} { return &Call{} }},
+		donePool:      &sync.Pool{New: func() interface{} { return make(chan *Call, 10) }},
 		upgradePool:   &sync.Pool{New: func() interface{} { return &upgrade{} }},
 		upgradeBuffer: make([]byte, 1024),
 	}
@@ -225,17 +229,39 @@ func (client *Client) Go(serviceMethod string, args interface{}, reply interface
 }
 
 func (client *Client) Call(serviceMethod string, args interface{}, reply interface{}) error {
-	call := <-client.Go(serviceMethod, args, reply, make(chan *Call, 1)).Done
-	return call.Error
+	done := client.donePool.Get().(chan *Call)
+	call := client.callPool.Get().(*Call)
+	call.ServiceMethod = serviceMethod
+	call.Args = args
+	call.Reply = reply
+	call.Done = done
+	client.write(call)
+	<-call.Done
+	for len(done) > 0 {
+		<-done
+	}
+	client.donePool.Put(done)
+	err := call.Error
+	*call = Call{}
+	client.callPool.Put(call)
+	return err
 }
 
 func (client *Client) Ping() error {
-	call := new(Call)
+	done := client.donePool.Get().(chan *Call)
+	call := client.callPool.Get().(*Call)
 	call.heartbeat = true
 	call.noRequest = true
 	call.noResponse = true
-	call.Done = make(chan *Call, 10)
+	call.Done = done
 	client.write(call)
-	c := <-call.Done
-	return c.Error
+	<-call.Done
+	for len(done) > 0 {
+		<-done
+	}
+	client.donePool.Put(done)
+	err := call.Error
+	*call = Call{}
+	client.callPool.Put(call)
+	return err
 }
