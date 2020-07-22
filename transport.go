@@ -79,7 +79,21 @@ func (t *Transport) Call(addr, serviceMethod string, args interface{}, reply int
 func (t *Transport) Go(addr, serviceMethod string, args interface{}, reply interface{}, done chan *Call) *Call {
 	client, err := t.getConn(addr)
 	if err != nil {
-		return nil
+		call := new(Call)
+		call.ServiceMethod = serviceMethod
+		call.Args = args
+		call.Reply = reply
+		if done == nil {
+			done = make(chan *Call, 10)
+		} else {
+			if cap(done) == 0 {
+				logger.Panic("rpc: done channel is unbuffered")
+			}
+		}
+		call.Done = done
+		call.Error = err
+		call.done()
+		return call
 	}
 	call := client.Go(serviceMethod, args, reply, done)
 	client.lastTime = t.now
