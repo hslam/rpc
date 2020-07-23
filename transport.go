@@ -24,6 +24,7 @@ var (
 )
 
 type RoundTripper interface {
+	RoundTrip(addr string, call *Call) *Call
 	Call(addr, serviceMethod string, args interface{}, reply interface{}) error
 	Go(addr, serviceMethod string, args interface{}, reply interface{}, done chan *Call) *Call
 	Ping(addr string) error
@@ -58,6 +59,33 @@ var DefaultTransport = &Transport{
 	Codec:               "json",
 	Dial:                Dial,
 	DialWithOptions:     DialWithOptions,
+}
+
+func (t *Transport) RoundTrip(addr string, call *Call) *Call {
+	done := call.Done
+	if done == nil {
+		done = make(chan *Call, 10)
+	} else {
+		if cap(done) == 0 {
+			logger.Panic("rpc: done channel is unbuffered")
+		}
+	}
+	call.Done = done
+	client, err := t.getConn(addr)
+	if err != nil {
+		call.Error = err
+		call.done()
+		return call
+	}
+	client.RoundTrip(call)
+	client.lastTime = t.now
+	if err == ErrShutdown {
+		client.mu.Lock()
+		client.alive = false
+		client.mu.Unlock()
+		client.Close()
+	}
+	return call
 }
 
 func (t *Transport) Call(addr, serviceMethod string, args interface{}, reply interface{}) error {

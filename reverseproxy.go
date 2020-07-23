@@ -5,8 +5,16 @@ type ReverseProxy struct {
 	Transport     RoundTripper
 }
 
-func NewSingleHostReverseProxy(addr string) *ReverseProxy {
-	return &ReverseProxy{TargetAddress: addr}
+func NewSingleHostReverseProxy(target string) *ReverseProxy {
+	return &ReverseProxy{TargetAddress: target}
+}
+
+func (c *ReverseProxy) RoundTrip(call *Call) *Call {
+	transport := c.Transport
+	if transport == nil {
+		transport = DefaultTransport
+	}
+	return transport.RoundTrip(c.TargetAddress, call)
 }
 
 func (c *ReverseProxy) Call(serviceMethod string, args interface{}, reply interface{}) error {

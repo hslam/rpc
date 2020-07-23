@@ -211,6 +211,20 @@ func (client *Client) Close() error {
 	return client.codec.Close()
 }
 
+func (client *Client) RoundTrip(call *Call) *Call {
+	done := call.Done
+	if done == nil {
+		done = make(chan *Call, 10)
+	} else {
+		if cap(done) == 0 {
+			logger.Panic("rpc: done channel is unbuffered")
+		}
+	}
+	call.Done = done
+	client.write(call)
+	return call
+}
+
 func (client *Client) Go(serviceMethod string, args interface{}, reply interface{}, done chan *Call) *Call {
 	call := new(Call)
 	call.ServiceMethod = serviceMethod
