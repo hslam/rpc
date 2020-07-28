@@ -14,6 +14,7 @@ func init() {
 	RegisterSocket("tcp", tcp.NewSocket)
 	RegisterSocket("ipc", ipc.NewSocket)
 	RegisterSocket("http", http.NewSocket)
+	RegisterSocket("ws", http.NewSocket)
 }
 
 func RegisterSocket(network string, New func() socket.Socket) {
