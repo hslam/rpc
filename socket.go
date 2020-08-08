@@ -5,16 +5,17 @@ import (
 	"github.com/hslam/socket/http"
 	"github.com/hslam/socket/tcp"
 	"github.com/hslam/socket/unix"
+	"github.com/hslam/socket/ws"
 	"sync"
 )
 
 var sockets = sync.Map{}
 
 func init() {
+	RegisterSocket("http", http.NewSocket)
 	RegisterSocket("tcp", tcp.NewSocket)
 	RegisterSocket("unix", unix.NewSocket)
-	RegisterSocket("http", http.NewSocket)
-	RegisterSocket("ws", http.NewSocket)
+	RegisterSocket("ws", ws.NewSocket)
 }
 
 func RegisterSocket(network string, New func() socket.Socket) {
