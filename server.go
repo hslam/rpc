@@ -1,3 +1,7 @@
+// Copyright (c) 2019 Meng Huang (mhboy@outlook.com)
+// This package is licensed under a MIT license that can be found in the LICENSE file.
+
+// Package rpc provides access to the exported methods of an object across a network or other I/O connection.
 package rpc
 
 import (
