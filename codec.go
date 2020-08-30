@@ -46,7 +46,6 @@ type Context struct {
 	f             *funcs.Func
 	args          funcs.Value
 	reply         funcs.Value
-	Count         *int64
 }
 
 func (ctx *Context) Reset() {

@@ -14,7 +14,6 @@ import (
 	"os"
 	"runtime"
 	"sync"
-	"sync/atomic"
 )
 
 var numCPU = runtime.NumCPU()
@@ -71,7 +70,6 @@ func (server *Server) putUpgrade(u *upgrade) {
 func (server *Server) ServeCodec(codec ServerCodec) {
 	sending := new(sync.Mutex)
 	wg := new(sync.WaitGroup)
-	Count := int64(0)
 	var ch chan *Context
 	var done chan bool
 	if !server.pipelining && server.numWorkers > 0 {
@@ -112,18 +110,20 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 			server.sendResponse(sending, ctx, codec)
 			continue
 		}
-		ctx.Count = &Count
 		if server.pipelining {
 			server.callService(sending, nil, ctx, codec)
 			continue
 		}
-		if atomic.AddInt64(ctx.Count, 1) < int64(server.numWorkers+1) && server.numWorkers > 0 {
-			wg.Add(1)
-			ch <- ctx
-			continue
-		}
 		wg.Add(1)
-		go server.callService(sending, wg, ctx, codec)
+		if server.numWorkers > 0 {
+			select {
+			case ch <- ctx:
+			default:
+				go server.callService(sending, wg, ctx, codec)
+			}
+		} else {
+			go server.callService(sending, wg, ctx, codec)
+		}
 	}
 	wg.Wait()
 	codec.Close()
@@ -207,9 +207,6 @@ func (server *Server) sendResponse(sending *sync.Mutex, ctx *Context, codec Serv
 		logger.Allln("rpc: writing response:", err)
 	}
 	sending.Unlock()
-	if ctx.Count != nil {
-		atomic.AddInt64(ctx.Count, -1)
-	}
 	ctx.Reset()
 	server.ctxPool.Put(ctx)
 }
