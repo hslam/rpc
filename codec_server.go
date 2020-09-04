@@ -46,7 +46,7 @@ func NewServerCodec(bodyCodec codec.Codec, headerEncoder *encoder.Encoder, messa
 		pending:        make(map[uint64]uint64),
 	}
 	c.messages = messages
-	c.messages.SetBatch(c)
+	c.messages.SetBatch(c.Concurrency)
 	if headerEncoder == nil {
 		c.req = &request{}
 		c.res = &response{}

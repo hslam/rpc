@@ -45,7 +45,7 @@ func NewClientCodec(bodyCodec codec.Codec, headerEncoder *encoder.Encoder, messa
 		pending:       make(map[uint64]bool),
 	}
 	c.messages = messages
-	c.messages.SetBatch(c)
+	c.messages.SetBatch(c.Concurrency)
 	if headerEncoder == nil {
 		c.req = &request{}
 		c.res = &response{}
