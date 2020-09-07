@@ -55,10 +55,6 @@ func (server *Server) SetPipelining(enable bool) {
 	server.pipelining = enable
 }
 
-func (server *Server) SetNumWorkers(num int) {
-	server.numWorkers = num
-}
-
 func (server *Server) getUpgrade() *upgrade {
 	return server.upgradePool.Get().(*upgrade)
 }
@@ -310,10 +306,6 @@ func RegisterName(name string, rcvr interface{}) error {
 
 func SetPipelining(enable bool) {
 	DefaultServer.SetPipelining(enable)
-}
-
-func SetNumWorkers(num int) {
-	DefaultServer.SetNumWorkers(num)
 }
 
 func ServeCodec(codec ServerCodec) {
