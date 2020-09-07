@@ -14,6 +14,7 @@ import (
 	"os"
 	"runtime"
 	"sync"
+	"time"
 )
 
 var numCPU = runtime.NumCPU()
@@ -71,22 +72,12 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 	sending := new(sync.Mutex)
 	wg := new(sync.WaitGroup)
 	var ch chan *Context
-	var done chan bool
+	var done chan struct{}
+	var workers chan struct{}
 	if !server.pipelining && server.numWorkers > 0 {
-		ch = make(chan *Context, server.numWorkers)
-		done = make(chan bool, 1)
-		for i := 0; i < server.numWorkers; i++ {
-			go func(done chan bool, ch chan *Context, server *Server, sending *sync.Mutex, wg *sync.WaitGroup, codec ServerCodec) {
-				for {
-					select {
-					case ctx := <-ch:
-						server.callService(sending, wg, ctx, codec)
-					case <-done:
-						return
-					}
-				}
-			}(done, ch, server, sending, wg, codec)
-		}
+		ch = make(chan *Context)
+		done = make(chan struct{}, 1)
+		workers = make(chan struct{}, server.numWorkers)
 	}
 	for {
 		ctx, err := server.readRequest(codec)
@@ -118,6 +109,23 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 		if server.numWorkers > 0 {
 			select {
 			case ch <- ctx:
+			case workers <- struct{}{}:
+				go func(done chan struct{}, ch chan *Context, server *Server, sending *sync.Mutex, wg *sync.WaitGroup, codec ServerCodec, workers chan struct{}, ctx *Context) {
+					defer func() { <-workers }()
+					for {
+						server.callService(sending, wg, ctx, codec)
+						t := time.NewTimer(time.Second)
+						runtime.Gosched()
+						select {
+						case ctx = <-ch:
+							t.Stop()
+						case <-t.C:
+							return
+						case <-done:
+							return
+						}
+					}
+				}(done, ch, server, sending, wg, codec, workers, ctx)
 			default:
 				go server.callService(sending, wg, ctx, codec)
 			}
