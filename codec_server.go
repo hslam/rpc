@@ -4,12 +4,11 @@
 package rpc
 
 import (
-	"errors"
 	"github.com/hslam/codec"
 	"github.com/hslam/rpc/encoder"
 	"github.com/hslam/socket"
 	"io"
-	"sync"
+	"sync/atomic"
 )
 
 type serverCodec struct {
@@ -21,9 +20,7 @@ type serverCodec struct {
 	responseBuffer []byte
 	messages       socket.Messages
 	writer         io.WriteCloser
-	mutex          sync.Mutex
-	seq            uint64
-	pending        map[uint64]uint64
+	count          int64
 }
 
 func NewServerCodec(bodyCodec codec.Codec, headerEncoder *encoder.Encoder, messages socket.Messages) ServerCodec {
@@ -43,7 +40,6 @@ func NewServerCodec(bodyCodec codec.Codec, headerEncoder *encoder.Encoder, messa
 		bodyCodec:      bodyCodec,
 		replyBuffer:    make([]byte, 1024),
 		responseBuffer: make([]byte, 1024),
-		pending:        make(map[uint64]uint64),
 	}
 	c.messages = messages
 	c.messages.SetBatch(c.Concurrency)
@@ -55,10 +51,7 @@ func NewServerCodec(bodyCodec codec.Codec, headerEncoder *encoder.Encoder, messa
 }
 
 func (c *serverCodec) Concurrency() int {
-	c.mutex.Lock()
-	concurrency := len(c.pending)
-	c.mutex.Unlock()
-	return concurrency
+	return int(atomic.LoadInt64(&c.count))
 }
 
 func (c *serverCodec) ReadRequestHeader(ctx *Context) error {
@@ -68,26 +61,19 @@ func (c *serverCodec) ReadRequestHeader(ctx *Context) error {
 	if err != nil {
 		return err
 	}
+	defer atomic.AddInt64(&c.count, 1)
 	if c.headerEncoder != nil {
 		c.headerEncoder.Request.Reset()
 		c.headerEncoder.Codec.Unmarshal(data, c.headerEncoder.Request)
 		ctx.ServiceMethod = c.headerEncoder.Request.GetServiceMethod()
 		ctx.Upgrade = c.headerEncoder.Request.GetUpgrade()
-		c.mutex.Lock()
-		c.seq++
-		ctx.Seq = c.seq
-		c.pending[ctx.Seq] = c.headerEncoder.Request.GetSeq()
-		c.mutex.Unlock()
+		ctx.Seq = c.headerEncoder.Request.GetSeq()
 	} else {
 		c.req.Reset()
 		c.req.Unmarshal(data)
 		ctx.ServiceMethod = c.req.GetServiceMethod()
 		ctx.Upgrade = c.req.GetUpgrade()
-		c.mutex.Lock()
-		c.seq++
-		ctx.Seq = c.seq
-		c.pending[ctx.Seq] = c.req.GetSeq()
-		c.mutex.Unlock()
+		ctx.Seq = c.req.GetSeq()
 	}
 	return nil
 }
@@ -103,15 +89,8 @@ func (c *serverCodec) ReadRequestBody(x interface{}) error {
 }
 
 func (c *serverCodec) WriteResponse(ctx *Context, x interface{}) error {
-	c.mutex.Lock()
-	reqSeq, ok := c.pending[ctx.Seq]
-	if !ok {
-		c.mutex.Unlock()
-		return errors.New("invalid sequence number in response")
-	}
-	delete(c.pending, ctx.Seq)
-	c.mutex.Unlock()
-
+	defer atomic.AddInt64(&c.count, -1)
+	reqSeq := ctx.Seq
 	var reply []byte
 	var data []byte
 	var err error
