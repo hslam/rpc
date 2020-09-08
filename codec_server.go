@@ -61,7 +61,6 @@ func (c *serverCodec) ReadRequestHeader(ctx *Context) error {
 	if err != nil {
 		return err
 	}
-	defer atomic.AddInt64(&c.count, 1)
 	if c.headerEncoder != nil {
 		c.headerEncoder.Request.Reset()
 		c.headerEncoder.Codec.Unmarshal(data, c.headerEncoder.Request)
@@ -75,6 +74,7 @@ func (c *serverCodec) ReadRequestHeader(ctx *Context) error {
 		ctx.Upgrade = c.req.GetUpgrade()
 		ctx.Seq = c.req.GetSeq()
 	}
+	atomic.AddInt64(&c.count, 1)
 	return nil
 }
 

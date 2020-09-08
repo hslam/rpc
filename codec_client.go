@@ -9,7 +9,7 @@ import (
 	"github.com/hslam/rpc/encoder"
 	"github.com/hslam/socket"
 	"io"
-	"sync"
+	"sync/atomic"
 )
 
 type clientCodec struct {
@@ -21,8 +21,7 @@ type clientCodec struct {
 	requestBuffer []byte
 	messages      socket.Messages
 	writer        io.WriteCloser
-	mutex         sync.Mutex
-	pending       map[uint64]bool
+	count         int64
 }
 
 func NewClientCodec(bodyCodec codec.Codec, headerEncoder *encoder.Encoder, messages socket.Messages) ClientCodec {
@@ -42,7 +41,6 @@ func NewClientCodec(bodyCodec codec.Codec, headerEncoder *encoder.Encoder, messa
 		bodyCodec:     bodyCodec,
 		argsBuffer:    make([]byte, 1024),
 		requestBuffer: make([]byte, 1024),
-		pending:       make(map[uint64]bool),
 	}
 	c.messages = messages
 	c.messages.SetBatch(c.Concurrency)
@@ -54,16 +52,10 @@ func NewClientCodec(bodyCodec codec.Codec, headerEncoder *encoder.Encoder, messa
 }
 
 func (c *clientCodec) Concurrency() int {
-	c.mutex.Lock()
-	concurrency := len(c.pending)
-	c.mutex.Unlock()
-	return concurrency
+	return int(atomic.LoadInt64(&c.count))
 }
 
 func (c *clientCodec) WriteRequest(ctx *Context, param interface{}) error {
-	c.mutex.Lock()
-	c.pending[ctx.Seq] = false
-	c.mutex.Unlock()
 	var args []byte
 	var data []byte
 	var err error
@@ -92,6 +84,7 @@ func (c *clientCodec) WriteRequest(ctx *Context, param interface{}) error {
 			return err
 		}
 	}
+	atomic.AddInt64(&c.count, 1)
 	return c.messages.WriteMessage(data)
 }
 
@@ -102,15 +95,13 @@ func (c *clientCodec) ReadResponseHeader(ctx *Context) error {
 	if err != nil {
 		return err
 	}
+	defer atomic.AddInt64(&c.count, -1)
 	if c.headerEncoder != nil {
 		c.headerEncoder.Response.Reset()
 		c.headerEncoder.Codec.Unmarshal(data, c.headerEncoder.Response)
 		ctx.Error = ""
 		ctx.Seq = c.headerEncoder.Response.GetSeq()
 		ctx.Upgrade = c.headerEncoder.Response.GetUpgrade()
-		c.mutex.Lock()
-		delete(c.pending, ctx.Seq)
-		c.mutex.Unlock()
 		if c.headerEncoder.Response.GetError() != "" || len(c.headerEncoder.Response.GetReply()) == 0 {
 			if len(c.headerEncoder.Response.GetError()) > 0 {
 				return fmt.Errorf("invalid error %v", c.headerEncoder.Response.GetError())
@@ -123,9 +114,6 @@ func (c *clientCodec) ReadResponseHeader(ctx *Context) error {
 		ctx.Error = ""
 		ctx.Seq = c.res.GetSeq()
 		ctx.Upgrade = c.res.GetUpgrade()
-		c.mutex.Lock()
-		delete(c.pending, ctx.Seq)
-		c.mutex.Unlock()
 		if c.res.GetError() != "" || len(c.res.GetReply()) == 0 {
 			if len(c.res.GetError()) > 0 {
 				return fmt.Errorf("invalid error %v", c.res.GetError())
