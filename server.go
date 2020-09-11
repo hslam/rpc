@@ -136,6 +136,30 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 	}
 }
 
+func (server *Server) ServeRequest(codec ServerCodec) error {
+	sending := new(sync.Mutex)
+	ctx, err := server.readRequest(codec)
+	if err != nil {
+		if !ctx.keepReading {
+			return err
+		}
+		if ctx.decodeHeader {
+			ctx.Error = err.Error()
+			server.sendResponse(sending, ctx, codec)
+		} else {
+			ctx.Reset()
+			server.ctxPool.Put(ctx)
+		}
+		return err
+	}
+	if ctx.heartbeat {
+		server.sendResponse(sending, ctx, codec)
+		return nil
+	}
+	server.callService(sending, nil, ctx, codec)
+	return nil
+}
+
 func (server *Server) readRequest(codec ServerCodec) (ctx *Context, err error) {
 	ctx = server.ctxPool.Get().(*Context)
 	ctx.decodeHeader = true
@@ -190,6 +214,7 @@ func (server *Server) readRequest(codec ServerCodec) (ctx *Context, err error) {
 	}
 	return
 }
+
 func (server *Server) callService(sending *sync.Mutex, wg *sync.WaitGroup, ctx *Context, codec ServerCodec) {
 	if wg != nil {
 		defer wg.Done()
