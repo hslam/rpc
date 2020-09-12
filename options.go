@@ -13,14 +13,13 @@ import (
 
 //Options defines the struct of options.
 type Options struct {
-	NewSocket   func() socket.Socket
-	NewCodec    func() codec.Codec
-	NewEncoder  func() *encoder.Encoder
-	NewMessages func() socket.Messages
-	Network     string
-	Address     string
-	Codec       string
-	Encoder     string
+	NewSocket  func() socket.Socket
+	NewCodec   func() codec.Codec
+	NewEncoder func() *encoder.Encoder
+	Network    string
+	Address    string
+	Codec      string
+	Encoder    string
 }
 
 //DefaultOptions returns a default options.

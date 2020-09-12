@@ -298,32 +298,8 @@ func (server *Server) ListenWithOptions(address string, opts *Options) error {
 	if opts.NewCodec == nil && opts.NewEncoder == nil && opts.Codec == "" {
 		return errors.New("need opts.NewCodec, opts.NewEncoder or opts.Codec")
 	}
-	if opts.NewSocket == nil && opts.NewMessages == nil && opts.Network == "" {
+	if opts.NewSocket == nil && opts.Network == "" {
 		return errors.New("need opts.NewSocket, opts.NewMessages or opts.Network")
-	}
-	if opts.NewMessages != nil {
-		if messages := opts.NewMessages(); messages == nil {
-			return errors.New("NewMessages failed")
-		} else {
-			var bodyCodec codec.Codec
-			if newCodec := NewCodec(opts.Codec); newCodec != nil {
-				bodyCodec = newCodec()
-			} else if opts.NewCodec != nil {
-				bodyCodec = opts.NewCodec()
-			}
-			var headerEncoder *encoder.Encoder
-			if newEncoder := NewEncoder(opts.Encoder); newEncoder != nil {
-				headerEncoder = newEncoder()
-			} else if opts.NewEncoder != nil {
-				headerEncoder = opts.NewEncoder()
-			}
-			if codec := NewServerCodec(bodyCodec, headerEncoder, messages); codec == nil {
-				return errors.New("NewClientCodec failed")
-			} else {
-				server.ServeCodec(codec)
-				return nil
-			}
-		}
 	}
 	var sock socket.Socket
 	if newSocket := NewSocket(opts.Network); newSocket != nil {
