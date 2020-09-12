@@ -41,7 +41,6 @@ type Context struct {
 	heartbeat     bool
 	noRequest     bool
 	noResponse    bool
-	decodeHeader  bool
 	keepReading   bool
 	f             *funcs.Func
 	args          funcs.Value

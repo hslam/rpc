@@ -8,12 +8,14 @@ import (
 	"errors"
 	"github.com/hslam/codec"
 	"github.com/hslam/funcs"
+	"github.com/hslam/poll"
 	"github.com/hslam/rpc/encoder"
 	"github.com/hslam/socket"
 	"io"
 	"os"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -26,6 +28,7 @@ type Server struct {
 	upgradeBuffer []byte
 	pipelining    bool
 	numWorkers    int
+	poll          bool
 }
 type NewServerCodecFunc func(messages socket.Messages) ServerCodec
 
@@ -55,6 +58,10 @@ func (server *Server) SetPipelining(enable bool) {
 	server.pipelining = enable
 }
 
+func (server *Server) SetPoll(enable bool) {
+	server.poll = enable
+}
+
 func (server *Server) getUpgrade() *upgrade {
 	return server.upgradePool.Get().(*upgrade)
 }
@@ -70,63 +77,17 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 	var ch chan *Context
 	var done chan struct{}
 	var workers chan struct{}
-	if !server.pipelining && server.numWorkers > 0 {
+	var worker bool
+	if !server.pipelining {
 		ch = make(chan *Context)
 		done = make(chan struct{}, 1)
 		workers = make(chan struct{}, server.numWorkers)
+		worker = true
 	}
 	for {
-		ctx, err := server.readRequest(codec)
-		if err != nil {
-			if err != io.EOF {
-				logger.Errorln("rpc:", err)
-			}
-			if !ctx.keepReading {
-				break
-			}
-			if ctx.decodeHeader {
-				ctx.Error = err.Error()
-				server.sendResponse(sending, ctx, codec)
-			} else {
-				ctx.Reset()
-				server.ctxPool.Put(ctx)
-			}
-			continue
-		}
-		if ctx.heartbeat {
-			server.sendResponse(sending, ctx, codec)
-			continue
-		}
-		if server.pipelining {
-			server.callService(sending, nil, ctx, codec)
-			continue
-		}
-		wg.Add(1)
-		if server.numWorkers > 0 {
-			select {
-			case ch <- ctx:
-			case workers <- struct{}{}:
-				go func(done chan struct{}, ch chan *Context, server *Server, sending *sync.Mutex, wg *sync.WaitGroup, codec ServerCodec, workers chan struct{}, ctx *Context) {
-					defer func() { <-workers }()
-					for {
-						server.callService(sending, wg, ctx, codec)
-						t := time.NewTimer(time.Second)
-						runtime.Gosched()
-						select {
-						case ctx = <-ch:
-							t.Stop()
-						case <-t.C:
-							return
-						case <-done:
-							return
-						}
-					}
-				}(done, ch, server, sending, wg, codec, workers, ctx)
-			default:
-				go server.callService(sending, wg, ctx, codec)
-			}
-		} else {
-			go server.callService(sending, wg, ctx, codec)
+		err := server.ServeRequest(codec, sending, wg, worker, ch, done, workers)
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
+			break
 		}
 	}
 	wg.Wait()
@@ -136,40 +97,65 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 	}
 }
 
-func (server *Server) ServeRequest(codec ServerCodec) error {
-	sending := new(sync.Mutex)
+func (server *Server) ServeRequest(codec ServerCodec, sending *sync.Mutex, wg *sync.WaitGroup, worker bool, ch chan *Context, done chan struct{}, workers chan struct{}) error {
 	ctx, err := server.readRequest(codec)
 	if err != nil {
-		if !ctx.keepReading {
-			return err
+		if err != io.EOF && err != io.ErrUnexpectedEOF && err != poll.EAGAIN {
+			logger.Errorln("rpc:", err)
 		}
-		if ctx.decodeHeader {
-			ctx.Error = err.Error()
-			server.sendResponse(sending, ctx, codec)
-		} else {
+		if !ctx.keepReading {
 			ctx.Reset()
 			server.ctxPool.Put(ctx)
+			return err
 		}
+		ctx.Error = err.Error()
+		server.sendResponse(sending, ctx, codec)
 		return err
 	}
 	if ctx.heartbeat {
 		server.sendResponse(sending, ctx, codec)
 		return nil
 	}
-	server.callService(sending, nil, ctx, codec)
+	if server.pipelining {
+		server.callService(sending, nil, ctx, codec)
+		return nil
+	}
+	if wg != nil {
+		wg.Add(1)
+	}
+	if worker {
+		select {
+		case ch <- ctx:
+		case workers <- struct{}{}:
+			go func(done chan struct{}, ch chan *Context, server *Server, sending *sync.Mutex, wg *sync.WaitGroup, codec ServerCodec, workers chan struct{}, ctx *Context) {
+				defer func() { <-workers }()
+				for {
+					server.callService(sending, wg, ctx, codec)
+					t := time.NewTimer(time.Second)
+					runtime.Gosched()
+					select {
+					case ctx = <-ch:
+						t.Stop()
+					case <-t.C:
+						return
+					case <-done:
+						return
+					}
+				}
+			}(done, ch, server, sending, wg, codec, workers, ctx)
+		default:
+			go server.callService(sending, wg, ctx, codec)
+		}
+	} else {
+		go server.callService(sending, wg, ctx, codec)
+	}
 	return nil
 }
 
 func (server *Server) readRequest(codec ServerCodec) (ctx *Context, err error) {
 	ctx = server.ctxPool.Get().(*Context)
-	ctx.decodeHeader = true
 	err = codec.ReadRequestHeader(ctx)
 	if err != nil {
-		ctx.decodeHeader = false
-		if err == io.EOF || err == io.ErrUnexpectedEOF {
-			return
-		}
-		err = errors.New("rpc: server cannot decode request: " + err.Error())
 		return
 	}
 	ctx.keepReading = true
@@ -240,20 +226,59 @@ func (server *Server) sendResponse(sending *sync.Mutex, ctx *Context, codec Serv
 	server.ctxPool.Put(ctx)
 }
 
-func (server *Server) listen(socket socket.Socket, address string, New NewServerCodecFunc) error {
+func (server *Server) listen(sock socket.Socket, address string, New NewServerCodecFunc) error {
 	logger.Noticef("pid - %d", os.Getpid())
-	logger.Noticef("network - %s", socket.Scheme())
+	if server.poll {
+		logger.Noticef("poll - %s", poll.Tag)
+	} else {
+		logger.Noticef("poll - %s", "disabled")
+	}
+	logger.Noticef("network - %s", sock.Scheme())
 	logger.Noticef("listening on %s", address)
-	lis, err := socket.Listen(address)
+	lis, err := sock.Listen(address)
 	if err != nil {
 		return err
 	}
-	for {
-		conn, err := lis.Accept()
-		if err != nil {
-			continue
+	type ServerContext struct {
+		codec   ServerCodec
+		sending *sync.Mutex
+		worker  bool
+		wg      *sync.WaitGroup
+		ch      chan *Context
+		done    chan struct{}
+		workers chan struct{}
+		closed  int32
+	}
+	if server.poll {
+		lis.ServeMessages(func(messages socket.Messages) (socket.Context, error) {
+			return &ServerContext{
+				codec:   New(messages),
+				sending: new(sync.Mutex),
+				wg:      new(sync.WaitGroup),
+			}, nil
+		}, func(context socket.Context) error {
+			ctx := context.(*ServerContext)
+			err := server.ServeRequest(ctx.codec, ctx.sending, ctx.wg, ctx.worker, ctx.ch, ctx.done, ctx.workers)
+			if err == io.EOF || err == io.ErrUnexpectedEOF {
+				if atomic.CompareAndSwapInt32(&ctx.closed, 0, 1) {
+					ctx.wg.Wait()
+					ctx.codec.Close()
+					if ctx.done != nil {
+						close(ctx.done)
+					}
+				}
+			}
+			return err
+		})
+		return nil
+	} else {
+		for {
+			conn, err := lis.Accept()
+			if err != nil {
+				continue
+			}
+			go server.ServeCodec(New(conn.Messages()))
 		}
-		go server.ServeCodec(New(conn.Messages()))
 	}
 }
 
@@ -331,6 +356,10 @@ func RegisterName(name string, rcvr interface{}) error {
 
 func SetPipelining(enable bool) {
 	DefaultServer.SetPipelining(enable)
+}
+
+func SetPoll(enable bool) {
+	DefaultServer.poll = enable
 }
 
 func ServeCodec(codec ServerCodec) {
