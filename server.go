@@ -8,7 +8,7 @@ import (
 	"errors"
 	"github.com/hslam/codec"
 	"github.com/hslam/funcs"
-	"github.com/hslam/poll"
+	"github.com/hslam/netpoll"
 	"github.com/hslam/rpc/encoder"
 	"github.com/hslam/socket"
 	"io"
@@ -100,7 +100,7 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 func (server *Server) ServeRequest(codec ServerCodec, sending *sync.Mutex, wg *sync.WaitGroup, worker bool, ch chan *Context, done chan struct{}, workers chan struct{}) error {
 	ctx, err := server.readRequest(codec)
 	if err != nil {
-		if err != io.EOF && err != io.ErrUnexpectedEOF && err != poll.EAGAIN {
+		if err != io.EOF && err != io.ErrUnexpectedEOF && err != netpoll.EAGAIN {
 			logger.Errorln("rpc:", err)
 		}
 		if !ctx.keepReading {
@@ -229,7 +229,7 @@ func (server *Server) sendResponse(sending *sync.Mutex, ctx *Context, codec Serv
 func (server *Server) listen(sock socket.Socket, address string, New NewServerCodecFunc) error {
 	logger.Noticef("pid - %d", os.Getpid())
 	if server.poll {
-		logger.Noticef("poll - %s", poll.Tag)
+		logger.Noticef("poll - %s", netpoll.Tag)
 	} else {
 		logger.Noticef("poll - %s", "disabled")
 	}
