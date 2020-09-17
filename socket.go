@@ -4,30 +4,27 @@
 package rpc
 
 import (
+	"crypto/tls"
 	"github.com/hslam/socket"
-	"github.com/hslam/socket/http"
-	"github.com/hslam/socket/tcp"
-	"github.com/hslam/socket/unix"
-	"github.com/hslam/socket/ws"
 	"sync"
 )
 
 var sockets = sync.Map{}
 
 func init() {
-	RegisterSocket("http", http.NewSocket)
-	RegisterSocket("tcp", tcp.NewSocket)
-	RegisterSocket("unix", unix.NewSocket)
-	RegisterSocket("ws", ws.NewSocket)
+	RegisterSocket("http", socket.NewHTTPSocket)
+	RegisterSocket("tcp", socket.NewTCPSocket)
+	RegisterSocket("unix", socket.NewUNIXSocket)
+	RegisterSocket("ws", socket.NewWSSocket)
 }
 
-func RegisterSocket(network string, New func() socket.Socket) {
+func RegisterSocket(network string, New func(config *tls.Config) socket.Socket) {
 	sockets.Store(network, New)
 }
 
-func NewSocket(network string) func() socket.Socket {
+func NewSocket(network string) func(config *tls.Config) socket.Socket {
 	if s, ok := sockets.Load(network); ok {
-		return s.(func() socket.Socket)
+		return s.(func(config *tls.Config) socket.Socket)
 	}
 	return nil
 }

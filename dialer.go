@@ -4,6 +4,7 @@
 package rpc
 
 import (
+	"crypto/tls"
 	"errors"
 	"github.com/hslam/codec"
 	"github.com/hslam/rpc/encoder"
@@ -13,7 +14,19 @@ import (
 func Dial(network, address, codec string) (*Client, error) {
 	if newSocket := NewSocket(network); newSocket != nil {
 		if newCodec := NewCodec(codec); newCodec != nil {
-			return NewClient().Dial(newSocket(), address, func(messages socket.Messages) ClientCodec {
+			return NewClient().Dial(newSocket(nil), address, func(messages socket.Messages) ClientCodec {
+				return NewClientCodec(newCodec(), nil, messages)
+			})
+		}
+		return nil, errors.New("unsupported codec: " + codec)
+	}
+	return nil, errors.New("unsupported protocol scheme: " + network)
+}
+
+func DialTLS(network, address, codec string, config *tls.Config) (*Client, error) {
+	if newSocket := NewSocket(network); newSocket != nil {
+		if newCodec := NewCodec(codec); newCodec != nil {
+			return NewClient().Dial(newSocket(config), address, func(messages socket.Messages) ClientCodec {
 				return NewClientCodec(newCodec(), nil, messages)
 			})
 		}
@@ -31,9 +44,9 @@ func DialWithOptions(address string, opts *Options) (*Client, error) {
 	}
 	var sock socket.Socket
 	if newSocket := NewSocket(opts.Network); newSocket != nil {
-		sock = newSocket()
+		sock = newSocket(opts.TLSConfig)
 	} else if opts.NewSocket != nil {
-		sock = opts.NewSocket()
+		sock = opts.NewSocket(opts.TLSConfig)
 	}
 	return NewClient().Dial(sock, address, func(messages socket.Messages) ClientCodec {
 		var bodyCodec codec.Codec

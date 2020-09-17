@@ -5,6 +5,7 @@
 package rpc
 
 import (
+	"crypto/tls"
 	"errors"
 	"github.com/hslam/codec"
 	"github.com/hslam/funcs"
@@ -285,7 +286,19 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 func (server *Server) Listen(network, address string, codec string) error {
 	if newSocket := NewSocket(network); newSocket != nil {
 		if newCodec := NewCodec(codec); newCodec != nil {
-			return server.listen(newSocket(), address, func(messages socket.Messages) ServerCodec {
+			return server.listen(newSocket(nil), address, func(messages socket.Messages) ServerCodec {
+				return NewServerCodec(newCodec(), nil, messages)
+			})
+		}
+		return errors.New("unsupported codec: " + codec)
+	}
+	return errors.New("unsupported protocol scheme: " + network)
+}
+
+func (server *Server) ListenTLS(network, address string, codec string, config *tls.Config) error {
+	if newSocket := NewSocket(network); newSocket != nil {
+		if newCodec := NewCodec(codec); newCodec != nil {
+			return server.listen(newSocket(config), address, func(messages socket.Messages) ServerCodec {
 				return NewServerCodec(newCodec(), nil, messages)
 			})
 		}
@@ -303,9 +316,9 @@ func (server *Server) ListenWithOptions(address string, opts *Options) error {
 	}
 	var sock socket.Socket
 	if newSocket := NewSocket(opts.Network); newSocket != nil {
-		sock = newSocket()
+		sock = newSocket(opts.TLSConfig)
 	} else if opts.NewSocket != nil {
-		sock = opts.NewSocket()
+		sock = opts.NewSocket(opts.TLSConfig)
 	}
 	return server.listen(sock, address, func(messages socket.Messages) ServerCodec {
 		var bodyCodec codec.Codec
