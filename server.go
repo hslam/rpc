@@ -86,7 +86,7 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 		worker = true
 	}
 	for {
-		err := server.ServeRequest(codec, sending, wg, worker, ch, done, workers)
+		err := server.ServeRequest(codec, nil, sending, wg, worker, ch, done, workers)
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			break
 		}
@@ -98,8 +98,14 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 	}
 }
 
-func (server *Server) ServeRequest(codec ServerCodec, sending *sync.Mutex, wg *sync.WaitGroup, worker bool, ch chan *Context, done chan struct{}, workers chan struct{}) error {
+func (server *Server) ServeRequest(codec ServerCodec, recving *sync.Mutex, sending *sync.Mutex, wg *sync.WaitGroup, worker bool, ch chan *Context, done chan struct{}, workers chan struct{}) error {
+	if recving != nil {
+		recving.Lock()
+	}
 	ctx, err := server.readRequest(codec)
+	if recving != nil {
+		recving.Unlock()
+	}
 	if err != nil {
 		if err != io.EOF && err != io.ErrUnexpectedEOF && err != netpoll.EAGAIN {
 			logger.Errorln("rpc:", err)
@@ -242,6 +248,7 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 	}
 	type ServerContext struct {
 		codec   ServerCodec
+		recving *sync.Mutex
 		sending *sync.Mutex
 		worker  bool
 		wg      *sync.WaitGroup
@@ -254,12 +261,13 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 		lis.ServeMessages(func(messages socket.Messages) (socket.Context, error) {
 			return &ServerContext{
 				codec:   New(messages),
+				recving: new(sync.Mutex),
 				sending: new(sync.Mutex),
 				wg:      new(sync.WaitGroup),
 			}, nil
 		}, func(context socket.Context) error {
 			ctx := context.(*ServerContext)
-			err := server.ServeRequest(ctx.codec, ctx.sending, ctx.wg, ctx.worker, ctx.ch, ctx.done, ctx.workers)
+			err := server.ServeRequest(ctx.codec, ctx.recving, ctx.sending, ctx.wg, ctx.worker, ctx.ch, ctx.done, ctx.workers)
 			if err == io.EOF || err == io.ErrUnexpectedEOF {
 				if atomic.CompareAndSwapInt32(&ctx.closed, 0, 1) {
 					ctx.wg.Wait()
