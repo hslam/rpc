@@ -2,13 +2,14 @@
 Package rpc provides access to the exported methods of an object across a network or other I/O connection.
 
 ## Feature
-* **Net Package** [net](https://github.com/golang/go/tree/master/src/net "net") / [netpoll](https://github.com/hslam/netpoll "netpoll") ( epoll / kqueue )
-* **Network** tcp / unix / http / ws
-* **[Codec](https://github.com/hslam/codec "codec")** json / code / pb
-* **Multiplexing / Pipelining**
-* **[Auto Batching](https://github.com/hslam/writer "writer")**
-* **Call / Go / RoundTrip / Ping**
-* **Client / Transport**
+* **[Netpoll](https://github.com/hslam/netpoll "netpoll")** epoll/kqueue/[net](https://github.com/golang/go/tree/master/src/net "net")
+* **[Socket](https://github.com/hslam/socket "socket")** tcp/unix/http/ws
+* **[Codec](https://github.com/hslam/codec "codec")** json/code/pb
+* Multiplexing/Pipelining
+* [Auto Batching](https://github.com/hslam/writer "writer")
+* Call/Go/RoundTrip/Ping
+* Client/Transport
+* TLS
 
 ## Get started
 
@@ -21,8 +22,9 @@ go get github.com/hslam/rpc
 import "github.com/hslam/rpc"
 ```
 
-## [Example](https://github.com/hslam/rpc/tree/master/examples "examples")
-### arith.proto
+### Usage
+#### [Examples](https://github.com/hslam/rpc/tree/master/examples "examples")
+arith.proto
 ```
 syntax = "proto3";
 package service;
@@ -36,11 +38,11 @@ message ArithResponse {
     int32 pro = 1;
 }
 ```
-**[gogoproto](https://github.com/gogo/protobuf "gogoproto")**
+**[Gogo Protobuf](https://github.com/gogo/protobuf "gogoprotobuf")**
 ```
 protoc ./arith.proto --gogofaster_out=./
 ```
-### arith.go
+arith.go
 ```
 package service
 
@@ -51,7 +53,7 @@ func (a *Arith) Multiply(req *ArithRequest, res *ArithResponse) error {
 	return nil
 }
 ```
-### server.go
+server.go
 ```go
 package main
 
@@ -67,7 +69,7 @@ func main() {
 ```
 
 
-### client.go
+client.go
 ```go
 package main
 
@@ -92,7 +94,7 @@ func main() {
 	fmt.Printf("%d * %d = %d\n", req.A, req.B, res.Pro)
 }
 ```
-### transport.go
+transport.go
 ```go
 package main
 
@@ -119,7 +121,7 @@ func main() {
 	fmt.Printf("%d * %d = %d\n", req.A, req.B, res.Pro)
 }
 ```
-### Output
+#### Output
 ```
 9 * 2 = 18
 ```
@@ -129,6 +131,6 @@ func main() {
 This package is licensed under a MIT license (Copyright (c) 2019 Meng Huang)
 
 
-### Authors
+### Author
 rpc was written by Meng Huang.
 
