@@ -31,6 +31,8 @@ type Server struct {
 	pipelining    bool
 	numWorkers    int
 	poll          bool
+	mut           sync.Mutex
+	listeners     []socket.Listener
 }
 
 // NewServerCodecFunc is the function to make a new ServerCodec by socket.Messages.
@@ -266,6 +268,9 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 	if err != nil {
 		return err
 	}
+	server.mut.Lock()
+	server.listeners = append(server.listeners, lis)
+	server.mut.Unlock()
 	type ServerContext struct {
 		codec   ServerCodec
 		recving *sync.Mutex
@@ -313,7 +318,7 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 	for {
 		conn, err := lis.Accept()
 		if err != nil {
-			continue
+			return err
 		}
 		go server.ServeCodec(New(conn.Messages()))
 	}
@@ -374,6 +379,20 @@ func (server *Server) ListenWithOptions(address string, opts *Options) error {
 		}
 		return NewServerCodec(bodyCodec, headerEncoder, messages)
 	})
+}
+
+// Close closes the server.
+func (server *Server) Close() error {
+	server.mut.Lock()
+	defer server.mut.Unlock()
+	for _, lis := range server.listeners {
+		err := lis.Close()
+		if err != nil {
+			return err
+		}
+	}
+	server.listeners = []socket.Listener{}
+	return nil
 }
 
 // Register publishes the receiver's methods in the DefaultServer.

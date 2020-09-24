@@ -274,8 +274,9 @@ func (t *Transport) newPersistConn(addr string) (*persistConn, error) {
 
 func (t *Transport) run() {
 	for {
+		timer := time.NewTimer(time.Second)
 		select {
-		case <-time.After(time.Second):
+		case <-timer.C:
 			t.now = time.Now()
 			t.connsMu.Lock()
 			for _, cs := range t.conns {
@@ -320,6 +321,7 @@ func (t *Transport) run() {
 
 			t.connsMu.Unlock()
 		case <-t.done:
+			timer.Stop()
 			return
 		}
 	}
@@ -353,6 +355,31 @@ func (t *Transport) CloseIdleConnections() {
 		}
 		delete(t.idleConns, cq.addr)
 	}
+}
+
+// Close closes the all connections.
+func (t *Transport) Close() {
+	t.connsMu.Lock()
+	defer t.connsMu.Unlock()
+	for _, cs := range t.conns {
+		length := len(cs.Conns)
+		for i := 0; i < length; i++ {
+			pc := cs.Conns[i]
+			pc.Close()
+		}
+	}
+	t.conns = make(map[string]*conns)
+	for _, cq := range t.idleConns {
+		length := cq.Length()
+		if length > 0 {
+			for i := 0; i < length; i++ {
+				pc := cq.Dequeue()
+				pc.Close()
+			}
+		}
+		delete(t.idleConns, cq.addr)
+	}
+	t.idleConns = make(map[string]*connQueue)
 }
 
 type persistConn struct {
