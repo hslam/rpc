@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/hslam/rpc"
-	"github.com/hslam/rpc/examples/socket/tcp/service"
+	"github.com/hslam/rpc/examples/poll/service"
 )
 
 func main() {

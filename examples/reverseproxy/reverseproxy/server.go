@@ -1,22 +1,9 @@
 package main
 
 import (
-	"flag"
 	"github.com/hslam/rpc"
-	"github.com/hslam/rpc/encoder/codepb"
-	"github.com/hslam/rpc/encoder/pb"
 	"github.com/hslam/rpc/examples/reverseproxy/service"
-	"github.com/hslam/socket"
 )
-
-var addr string
-var target string
-
-func init() {
-	flag.StringVar(&addr, "addr", ":8888", "-addr=:8888")
-	flag.StringVar(&target, "target", ":9999", "-addr=:9999")
-	flag.Parse()
-}
 
 //Arith defines the struct of arith.
 type Arith struct {
@@ -30,10 +17,10 @@ func (a *Arith) Multiply(req *service.ArithRequest, res *service.ArithResponse) 
 }
 
 func main() {
-	opts := &rpc.Options{NewSocket: socket.NewTCPSocket, NewCodec: pb.NewCodec, NewEncoder: codepb.NewEncoder}
+	opts := &rpc.Options{Network: "tcp", Codec: "pb"}
 	arith := new(Arith)
-	arith.ReverseProxy = rpc.NewSingleHostReverseProxy(target)
+	arith.ReverseProxy = rpc.NewSingleHostReverseProxy(":9999")
 	arith.ReverseProxy.Transport = &rpc.Transport{Options: opts}
 	rpc.Register(arith)
-	rpc.ListenWithOptions(addr, opts)
+	rpc.ListenWithOptions(":8888", opts)
 }

@@ -1,28 +1,15 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"github.com/hslam/rpc"
 	"github.com/hslam/rpc/examples/pipelining/service"
-	"log"
 )
 
-var network string
-var addr string
-var codec string
-
-func init() {
-	flag.StringVar(&network, "network", "tcp", "-network=tcp")
-	flag.StringVar(&addr, "addr", ":9999", "-addr=:9999")
-	flag.StringVar(&codec, "codec", "pb", "-codec=code")
-	flag.Parse()
-}
-
 func main() {
-	conn, err := rpc.Dial(network, addr, codec)
+	conn, err := rpc.Dial("tcp", ":9999", "pb")
 	if err != nil {
-		log.Fatalln("dailing error: ", err)
+		panic(err)
 	}
 	defer conn.Close()
 	req := &service.Message{}
@@ -40,7 +27,7 @@ func main() {
 		call := <-ch
 		<-call.Done
 		if call.Error != nil {
-			log.Fatalln("Seq error: ", call.Error)
+			panic(call.Error)
 		}
 		fmt.Printf("req:%d res:%d\n", call.Args, call.Reply)
 	}

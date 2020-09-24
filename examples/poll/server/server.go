@@ -2,10 +2,11 @@ package main
 
 import (
 	"github.com/hslam/rpc"
-	"github.com/hslam/rpc/examples/socket/unix/service"
+	"github.com/hslam/rpc/examples/poll/service"
 )
 
 func main() {
 	rpc.Register(new(service.Arith))
-	rpc.Listen("unix", "/tmp/unix", "pb")
+	rpc.SetPoll(true)
+	rpc.Listen("tcp", ":9999", "pb")
 }
