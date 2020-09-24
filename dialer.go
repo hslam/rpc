@@ -7,7 +7,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"github.com/hslam/codec"
-	"github.com/hslam/rpc/encoder"
 	"github.com/hslam/socket"
 )
 
@@ -39,7 +38,7 @@ func DialTLS(network, address, codec string, config *tls.Config) (*Client, error
 
 // DialWithOptions connects to an RPC server at the specified network address with Options.
 func DialWithOptions(address string, opts *Options) (*Client, error) {
-	if opts.NewCodec == nil && opts.NewEncoder == nil && opts.Codec == "" {
+	if opts.NewCodec == nil && opts.NewHeaderEncoder == nil && opts.Codec == "" {
 		return nil, errors.New("need opts.NewCodec, opts.NewEncoder or opts.Codec")
 	}
 	if opts.NewSocket == nil && opts.Network == "" {
@@ -58,11 +57,11 @@ func DialWithOptions(address string, opts *Options) (*Client, error) {
 		} else if opts.NewCodec != nil {
 			bodyCodec = opts.NewCodec()
 		}
-		var headerEncoder *encoder.Encoder
-		if newEncoder := NewEncoder(opts.Encoder); newEncoder != nil {
+		var headerEncoder *Encoder
+		if newEncoder := NewHeaderEncoder(opts.HeaderEncoder); newEncoder != nil {
 			headerEncoder = newEncoder()
-		} else if opts.NewEncoder != nil {
-			headerEncoder = opts.NewEncoder()
+		} else if opts.NewHeaderEncoder != nil {
+			headerEncoder = opts.NewHeaderEncoder()
 		}
 		return NewClientCodec(bodyCodec, headerEncoder, messages)
 	})

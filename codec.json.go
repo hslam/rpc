@@ -1,16 +1,16 @@
 // Copyright (c) 2019 Meng Huang (mhboy@outlook.com)
 // This package is licensed under a MIT license that can be found in the LICENSE file.
 
-package json
+package rpc
 
-type Request struct {
+type jsonRequest struct {
 	Seq           uint64 `json:"i"`
 	Upgrade       []byte `json:"u"`
 	ServiceMethod string `json:"m"`
 	Args          []byte `json:"p"`
 }
 
-type Response struct {
+type jsonResponse struct {
 	Seq     uint64 `json:"i"`
 	Upgrade []byte `json:"u"`
 	Error   string `json:"e"`

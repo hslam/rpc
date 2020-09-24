@@ -6,26 +6,24 @@ package rpc
 import (
 	"crypto/tls"
 	"github.com/hslam/codec"
-	"github.com/hslam/rpc/encoder"
-	"github.com/hslam/rpc/encoder/json"
 	"github.com/hslam/socket"
 )
 
 //Options defines the struct of options.
 type Options struct {
-	NewSocket  func(*tls.Config) socket.Socket
-	NewCodec   func() codec.Codec
-	NewEncoder func() *encoder.Encoder
-	Network    string
-	Codec      string
-	Encoder    string
-	TLSConfig  *tls.Config
+	NewSocket        func(*tls.Config) socket.Socket
+	NewCodec         func() codec.Codec
+	NewHeaderEncoder func() *Encoder
+	Network          string
+	Codec            string
+	HeaderEncoder    string
+	TLSConfig        *tls.Config
 }
 
 //DefaultOptions returns a default options.
 func DefaultOptions() *Options {
 	return &Options{
 		NewSocket: socket.NewTCPSocket,
-		NewCodec:  json.NewCodec,
+		NewCodec:  NewJSONCodec,
 	}
 }

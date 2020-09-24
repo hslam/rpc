@@ -14,7 +14,7 @@ func TestOptions(t *testing.T) {
 	opts := DefaultOptions()
 	opts.Network = network
 	opts.Codec = codec
-	opts.Encoder = "json"
+	opts.HeaderEncoder = "json"
 	server := NewServer()
 	err := server.Register(new(service.Arith))
 	if err != nil {

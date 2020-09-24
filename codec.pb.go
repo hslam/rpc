@@ -1,22 +1,43 @@
 // Copyright (c) 2019 Meng Huang (mhboy@outlook.com)
 // This package is licensed under a MIT license that can be found in the LICENSE file.
 
-package codepb
+package rpc
 
 import (
 	"fmt"
 	"github.com/hslam/code"
 )
 
-type Request struct {
+type pbRequest struct {
 	Seq           uint64
 	Upgrade       []byte
 	ServiceMethod string
 	Args          []byte
 }
 
-//Marshal marshals the Request into buf and returns the bytes.
-func (req *Request) Marshal(buf []byte) ([]byte, error) {
+// Size return the buf size.
+func (req *pbRequest) Size() (n int) {
+	var size uint64
+	size += 11
+	size += 11 + uint64(len(req.Upgrade))
+	size += 11 + uint64(len(req.ServiceMethod))
+	size += 11 + uint64(len(req.Args))
+	return int(size)
+}
+
+//Marshal marshals the pbRequest and returns the bytes.
+func (req *pbRequest) Marshal() ([]byte, error) {
+	size := req.Size()
+	buf := make([]byte, size)
+	n, err := req.MarshalTo(buf[:size])
+	if err != nil {
+		return nil, err
+	}
+	return buf[:n], nil
+}
+
+//MarshalTo marshals the pbRequest into buf and returns the bytes.
+func (req *pbRequest) MarshalTo(buf []byte) (int, error) {
 	var size uint64
 	size += 11
 	size += 11 + uint64(len(req.Upgrade))
@@ -25,7 +46,7 @@ func (req *Request) Marshal(buf []byte) ([]byte, error) {
 	if uint64(cap(buf)) >= size {
 		buf = buf[:size]
 	} else {
-		buf = make([]byte, size)
+		return 0, fmt.Errorf("proto: pbRequest: buf is too short")
 	}
 	var offset uint64
 	var n uint64
@@ -102,11 +123,11 @@ func (req *Request) Marshal(buf []byte) ([]byte, error) {
 		}
 		offset += n
 	}
-	return buf[:offset], nil
+	return int(offset), nil
 }
 
-//Unmarshal unmarshals the Request from buf and returns the number of bytes read (> 0).
-func (req *Request) Unmarshal(data []byte) (uint64, error) {
+//Unmarshal unmarshals the pbRequest from buf and returns the number of bytes read (> 0).
+func (req *pbRequest) Unmarshal(data []byte) error {
 	var length = uint64(len(data))
 	var offset uint64
 	var n uint64
@@ -125,42 +146,63 @@ func (req *Request) Unmarshal(data []byte) (uint64, error) {
 		switch fieldNumber {
 		case 1:
 			if wireType != 0 {
-				return 0, fmt.Errorf("proto: wrong wireType = %d for field Seq", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Seq", wireType)
 			}
 			n = code.DecodeVarint(data[offset:], &req.Seq)
 			offset += n
 		case 2:
 			if wireType != 2 {
-				return 0, fmt.Errorf("proto: wrong wireType = %d for field Upgrade", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Upgrade", wireType)
 			}
 			n = code.DecodeBytes(data[offset:], &req.Upgrade)
 			offset += n
 		case 3:
 			if wireType != 2 {
-				return 0, fmt.Errorf("proto: wrong wireType = %d for field ServiceMethod", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field ServiceMethod", wireType)
 			}
 			n = code.DecodeString(data[offset:], &req.ServiceMethod)
 			offset += n
 		case 4:
 			if wireType != 2 {
-				return 0, fmt.Errorf("proto: wrong wireType = %d for field Args", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Args", wireType)
 			}
 			n = code.DecodeBytes(data[offset:], &req.Args)
 			offset += n
 		}
 	}
-	return offset, nil
+	return nil
 }
 
-type Response struct {
+type pbResponse struct {
 	Seq     uint64
 	Upgrade []byte
 	Error   string
 	Reply   []byte
 }
 
-//Marshal marshals the Response into buf and returns the bytes.
-func (res *Response) Marshal(buf []byte) ([]byte, error) {
+// Size return the buf size.
+func (res *pbResponse) Size() (n int) {
+	var size uint64
+	size += 11
+	size += 11 + uint64(len(res.Upgrade))
+	size += 11 + uint64(len(res.Error))
+	size += 11 + uint64(len(res.Reply))
+	return int(size)
+}
+
+//Marshal marshals the pbResponse and returns the bytes.
+func (res *pbResponse) Marshal() ([]byte, error) {
+	size := res.Size()
+	buf := make([]byte, size)
+	n, err := res.MarshalTo(buf[:size])
+	if err != nil {
+		return nil, err
+	}
+	return buf[:n], nil
+}
+
+//MarshalTo marshals the pbResponse into buf and returns the bytes.
+func (res *pbResponse) MarshalTo(buf []byte) (int, error) {
 	var size uint64
 	size += 11
 	size += 11 + uint64(len(res.Upgrade))
@@ -169,7 +211,7 @@ func (res *Response) Marshal(buf []byte) ([]byte, error) {
 	if uint64(cap(buf)) >= size {
 		buf = buf[:size]
 	} else {
-		buf = make([]byte, size)
+		return 0, fmt.Errorf("proto: pbResponse: buf is too short")
 	}
 	var offset uint64
 	var n uint64
@@ -246,11 +288,11 @@ func (res *Response) Marshal(buf []byte) ([]byte, error) {
 		}
 		offset += n
 	}
-	return buf[:offset], nil
+	return int(offset), nil
 }
 
-//Unmarshal unmarshals the Response from buf and returns the number of bytes read (> 0).
-func (res *Response) Unmarshal(data []byte) (uint64, error) {
+//Unmarshal unmarshals the pbResponse from buf and returns the number of bytes read (> 0).
+func (res *pbResponse) Unmarshal(data []byte) error {
 	var length = uint64(len(data))
 	var offset uint64
 	var n uint64
@@ -269,19 +311,19 @@ func (res *Response) Unmarshal(data []byte) (uint64, error) {
 		switch fieldNumber {
 		case 1:
 			if wireType != 0 {
-				return 0, fmt.Errorf("proto: wrong wireType = %d for field Seq", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Seq", wireType)
 			}
 			n = code.DecodeVarint(data[offset:], &res.Seq)
 			offset += n
 		case 2:
 			if wireType != 2 {
-				return 0, fmt.Errorf("proto: wrong wireType = %d for field Upgrade", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Upgrade", wireType)
 			}
 			n = code.DecodeBytes(data[offset:], &res.Upgrade)
 			offset += n
 		case 3:
 			if wireType != 2 {
-				return 0, fmt.Errorf("proto: wrong wireType = %d for field Error", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Error", wireType)
 			}
 			if data[offset] > 0 {
 				n = code.DecodeString(data[offset:], &res.Error)
@@ -291,11 +333,11 @@ func (res *Response) Unmarshal(data []byte) (uint64, error) {
 			offset += n
 		case 4:
 			if wireType != 2 {
-				return 0, fmt.Errorf("proto: wrong wireType = %d for field Reply", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Reply", wireType)
 			}
 			n = code.DecodeBytes(data[offset:], &res.Reply)
 			offset += n
 		}
 	}
-	return offset, nil
+	return nil
 }

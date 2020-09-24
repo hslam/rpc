@@ -10,7 +10,6 @@ import (
 	"github.com/hslam/codec"
 	"github.com/hslam/funcs"
 	"github.com/hslam/netpoll"
-	"github.com/hslam/rpc/encoder"
 	"github.com/hslam/socket"
 	"io"
 	"os"
@@ -352,7 +351,7 @@ func (server *Server) ListenTLS(network, address string, codec string, config *t
 
 // ListenWithOptions announces on the local network address with Options.
 func (server *Server) ListenWithOptions(address string, opts *Options) error {
-	if opts.NewCodec == nil && opts.NewEncoder == nil && opts.Codec == "" {
+	if opts.NewCodec == nil && opts.NewHeaderEncoder == nil && opts.Codec == "" {
 		return errors.New("need opts.NewCodec, opts.NewEncoder or opts.Codec")
 	}
 	if opts.NewSocket == nil && opts.Network == "" {
@@ -371,11 +370,11 @@ func (server *Server) ListenWithOptions(address string, opts *Options) error {
 		} else if opts.NewCodec != nil {
 			bodyCodec = opts.NewCodec()
 		}
-		var headerEncoder *encoder.Encoder
-		if newEncoder := NewEncoder(opts.Encoder); newEncoder != nil {
+		var headerEncoder *Encoder
+		if newEncoder := NewHeaderEncoder(opts.HeaderEncoder); newEncoder != nil {
 			headerEncoder = newEncoder()
-		} else if opts.NewEncoder != nil {
-			headerEncoder = opts.NewEncoder()
+		} else if opts.NewHeaderEncoder != nil {
+			headerEncoder = opts.NewHeaderEncoder()
 		}
 		return NewServerCodec(bodyCodec, headerEncoder, messages)
 	})

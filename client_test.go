@@ -1,8 +1,6 @@
 package rpc
 
 import (
-	"github.com/hslam/rpc/encoder/code"
-	"github.com/hslam/rpc/encoder/json"
 	"github.com/hslam/rpc/examples/codec/json/service"
 	"github.com/hslam/socket"
 	"sync"
@@ -88,7 +86,7 @@ func TestNewClientWithCodec(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	clientCodec := NewClientCodec(json.NewCodec(), code.NewEncoder(), conn.Messages())
+	clientCodec := NewClientCodec(NewJSONCodec(), NewCODEEncoder(), conn.Messages())
 	client := NewClientWithCodec(clientCodec)
 	if client == nil {
 		t.Error("should not be nil")
