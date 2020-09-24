@@ -275,6 +275,7 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 		ch      chan *Context
 		done    chan struct{}
 		workers chan struct{}
+		pipe    int32
 		closed  int32
 	}
 	if server.poll {
@@ -287,7 +288,15 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 			}, nil
 		}, func(context socket.Context) error {
 			ctx := context.(*ServerContext)
+			if server.pipelining {
+				if !atomic.CompareAndSwapInt32(&ctx.pipe, 0, 1) {
+					return nil
+				}
+			}
 			err := server.ServeRequest(ctx.codec, ctx.recving, ctx.sending, ctx.wg, ctx.worker, ctx.ch, ctx.done, ctx.workers)
+			if server.pipelining {
+				atomic.StoreInt32(&ctx.pipe, 0)
+			}
 			if err == io.EOF || err == io.ErrUnexpectedEOF {
 				if atomic.CompareAndSwapInt32(&ctx.closed, 0, 1) {
 					ctx.wg.Wait()

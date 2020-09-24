@@ -325,7 +325,7 @@ func (t *Transport) run() {
 	}
 }
 
-// CloseIdleConnections closes idle connections.
+// CloseIdleConnections closes the idle connections.
 func (t *Transport) CloseIdleConnections() {
 	t.connsMu.Lock()
 	defer t.connsMu.Unlock()
