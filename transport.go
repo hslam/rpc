@@ -9,23 +9,33 @@ import (
 )
 
 const (
-	//DefaultMaxConnsPerHost defines the max conn per host
+	//DefaultMaxConnsPerHost is the default value of Transport's MaxConnsPerHost.
 	DefaultMaxConnsPerHost = 1
 	//DefaultMaxIdleConnsPerHost is the default value of Transport's MaxIdleConnsPerHost.
 	DefaultMaxIdleConnsPerHost = 1
-	DefaultKeepAlive           = 90 * time.Second
-	DefaultIdleConnTimeout     = 60 * time.Second
+	//DefaultKeepAlive is the default value of Transport's KeepAlive.
+	DefaultKeepAlive = 90 * time.Second
+	//DefaultIdleConnTimeout is the default value of Transport's IdleConnTimeout.
+	DefaultIdleConnTimeout = 60 * time.Second
 )
 
 var (
-	//MaxConnsPerHost defines the max conn per host
+	// MaxConnsPerHost optionally limits the total number of
+	// connections per host, including connections in the dialing,
+	// active, and idle states. On limit violation, dials will block.
 	MaxConnsPerHost = DefaultMaxConnsPerHost
-	//MaxIdleConnsPerHost is the default value of Transport's MaxIdleConnsPerHost.
+	// MaxIdleConnsPerHost controls the maximum idle
+	// (keep-alive) connections to keep per-host. If zero,
+	// DefaultMaxIdleConnsPerHost is used.
 	MaxIdleConnsPerHost = DefaultMaxIdleConnsPerHost
-	KeepAlive           = DefaultKeepAlive
-	IdleConnTimeout     = DefaultIdleConnTimeout
+	// KeepAlive specifies the maximum amount of time keeping the active connections in the Transport's conns.
+	KeepAlive = DefaultKeepAlive
+	// IdleConnTimeout specifies the maximum amount of time keeping the idle connections  in the Transport's idleConns.
+	IdleConnTimeout = DefaultIdleConnTimeout
 )
 
+// RoundTripper is an interface representing the ability to execute a
+// single RPC transaction, obtaining the Response for a given Request.
 type RoundTripper interface {
 	RoundTrip(addr string, call *Call) *Call
 	Call(addr, serviceMethod string, args interface{}, reply interface{}) error
@@ -53,6 +63,7 @@ type Transport struct {
 	done                chan bool
 }
 
+// DefaultTransport is a default RPC transport.
 var DefaultTransport = &Transport{
 	MaxConnsPerHost:     MaxConnsPerHost,
 	MaxIdleConnsPerHost: MaxIdleConnsPerHost,
@@ -64,6 +75,8 @@ var DefaultTransport = &Transport{
 	DialWithOptions:     DialWithOptions,
 }
 
+// RoundTrip executes a single RPC transaction, returning
+// a Response for the provided Request.
 func (t *Transport) RoundTrip(addr string, call *Call) *Call {
 	done := call.Done
 	if done == nil {
@@ -91,6 +104,7 @@ func (t *Transport) RoundTrip(addr string, call *Call) *Call {
 	return call
 }
 
+// Call invokes the named function, waits for it to complete, and returns its error status.
 func (t *Transport) Call(addr, serviceMethod string, args interface{}, reply interface{}) error {
 	client, err := t.getConn(addr)
 	if err != nil {
@@ -107,6 +121,10 @@ func (t *Transport) Call(addr, serviceMethod string, args interface{}, reply int
 	return err
 }
 
+// Go invokes the function asynchronously. It returns the Call structure representing
+// the invocation. The done channel will signal when the call is complete by returning
+// the same Call object. If done is nil, Go will allocate a new channel.
+// If non-nil, done must be buffered or Go will deliberately crash.
 func (t *Transport) Go(addr, serviceMethod string, args interface{}, reply interface{}, done chan *Call) *Call {
 	client, err := t.getConn(addr)
 	if err != nil {
@@ -137,6 +155,7 @@ func (t *Transport) Go(addr, serviceMethod string, args interface{}, reply inter
 	return call
 }
 
+// Ping is NOT ICMP ping, this is just used to test whether a connection is still alive.
 func (t *Transport) Ping(addr string) error {
 	client, err := t.getConn(addr)
 	if err != nil {
@@ -305,6 +324,8 @@ func (t *Transport) run() {
 		}
 	}
 }
+
+// CloseIdleConnections closes idle connections.
 func (t *Transport) CloseIdleConnections() {
 	t.connsMu.Lock()
 	defer t.connsMu.Unlock()
@@ -348,7 +369,7 @@ type conns struct {
 }
 
 func (c *conns) Cursor() int {
-	c.cursor += 1
+	c.cursor++
 	if c.cursor > len(c.Conns)-1 {
 		c.cursor = 0
 	}

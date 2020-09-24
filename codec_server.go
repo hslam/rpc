@@ -23,6 +23,7 @@ type serverCodec struct {
 	count          int64
 }
 
+// NewServerCodec returns a new ServerCodec.
 func NewServerCodec(bodyCodec codec.Codec, headerEncoder *encoder.Encoder, messages socket.Messages) ServerCodec {
 	if messages == nil {
 		return nil

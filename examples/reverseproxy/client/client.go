@@ -6,7 +6,7 @@ import (
 	"github.com/hslam/rpc"
 	"github.com/hslam/rpc/encoder/pb"
 	"github.com/hslam/rpc/examples/reverseproxy/service"
-	"github.com/hslam/socket/tcp"
+	"github.com/hslam/socket"
 	"github.com/hslam/stats"
 	"math/rand"
 	"time"
@@ -40,7 +40,7 @@ func main() {
 			MaxIdleConnsPerHost: 1,
 			KeepAlive:           time.Second * 60,
 			IdleConnTimeout:     time.Second * 60,
-			Options:             &rpc.Options{NewSocket: tcp.NewSocket, NewCodec: pb.NewCodec, NewEncoder: pb.NewEncoder},
+			Options:             &rpc.Options{NewSocket: socket.NewTCPSocket, NewCodec: pb.NewCodec, NewEncoder: pb.NewEncoder},
 		}
 		wrkClients = append(wrkClients, &WrkClient{trans})
 	}

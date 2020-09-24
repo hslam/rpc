@@ -11,6 +11,7 @@ import (
 	"github.com/hslam/socket"
 )
 
+// Dial connects to an RPC server at the specified network address.
 func Dial(network, address, codec string) (*Client, error) {
 	if newSocket := NewSocket(network); newSocket != nil {
 		if newCodec := NewCodec(codec); newCodec != nil {
@@ -23,6 +24,7 @@ func Dial(network, address, codec string) (*Client, error) {
 	return nil, errors.New("unsupported protocol scheme: " + network)
 }
 
+// DialTLS connects to an RPC server at the specified network address with tls.Config.
 func DialTLS(network, address, codec string, config *tls.Config) (*Client, error) {
 	if newSocket := NewSocket(network); newSocket != nil {
 		if newCodec := NewCodec(codec); newCodec != nil {
@@ -35,6 +37,7 @@ func DialTLS(network, address, codec string, config *tls.Config) (*Client, error
 	return nil, errors.New("unsupported protocol scheme: " + network)
 }
 
+// DialWithOptions connects to an RPC server at the specified network address with Options.
 func DialWithOptions(address string, opts *Options) (*Client, error) {
 	if opts.NewCodec == nil && opts.NewEncoder == nil && opts.Codec == "" {
 		return nil, errors.New("need opts.NewCodec, opts.NewEncoder or opts.Codec")

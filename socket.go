@@ -18,10 +18,12 @@ func init() {
 	RegisterSocket("ws", socket.NewWSSocket)
 }
 
+// RegisterSocket registers a network socket.
 func RegisterSocket(network string, New func(config *tls.Config) socket.Socket) {
 	sockets.Store(network, New)
 }
 
+// NewSocket returns a new Socket by network.
 func NewSocket(network string) func(config *tls.Config) socket.Socket {
 	if s, ok := sockets.Load(network); ok {
 		return s.(func(config *tls.Config) socket.Socket)

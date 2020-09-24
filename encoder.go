@@ -22,10 +22,12 @@ func init() {
 	RegisterEncoder("pb", pb.NewEncoder)
 }
 
+// RegisterEncoder registers a header Encoder.
 func RegisterEncoder(name string, New func() *encoder.Encoder) {
 	encoders.Store(name, New)
 }
 
+// NewEncoder returns a new header Encoder.
 func NewEncoder(name string) func() *encoder.Encoder {
 	if c, ok := encoders.Load(name); ok {
 		return c.(func() *encoder.Encoder)
@@ -33,6 +35,7 @@ func NewEncoder(name string) func() *encoder.Encoder {
 	return nil
 }
 
+// DefaultEncoder returns a default header Encoder.
 func DefaultEncoder() *encoder.Encoder {
 	return encoder.NewEncoder(code.NewRequest(), code.NewResponse(), &codec.CODECodec{})
 }

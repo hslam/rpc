@@ -6,7 +6,7 @@ import (
 	"github.com/hslam/rpc/encoder/codepb"
 	"github.com/hslam/rpc/encoder/pb"
 	"github.com/hslam/rpc/examples/reverseproxy/service"
-	"github.com/hslam/socket/tcp"
+	"github.com/hslam/socket"
 )
 
 var addr string
@@ -30,7 +30,7 @@ func (a *Arith) Multiply(req *service.ArithRequest, res *service.ArithResponse) 
 }
 
 func main() {
-	opts := &rpc.Options{NewSocket: tcp.NewSocket, NewCodec: pb.NewCodec, NewEncoder: codepb.NewEncoder}
+	opts := &rpc.Options{NewSocket: socket.NewTCPSocket, NewCodec: pb.NewCodec, NewEncoder: codepb.NewEncoder}
 	arith := new(Arith)
 	arith.ReverseProxy = rpc.NewSingleHostReverseProxy(target)
 	arith.ReverseProxy.Transport = &rpc.Transport{Options: opts}

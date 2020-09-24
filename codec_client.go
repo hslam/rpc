@@ -24,6 +24,7 @@ type clientCodec struct {
 	count         int64
 }
 
+// NewClientCodec returns a new ClientCodec.
 func NewClientCodec(bodyCodec codec.Codec, headerEncoder *encoder.Encoder, messages socket.Messages) ClientCodec {
 	if messages == nil {
 		return nil

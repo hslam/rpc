@@ -22,6 +22,7 @@ import (
 
 var numCPU = runtime.NumCPU()
 
+// Server represents an RPC Server.
 type Server struct {
 	Registry      *funcs.Funcs
 	ctxPool       *sync.Pool
@@ -31,6 +32,8 @@ type Server struct {
 	numWorkers    int
 	poll          bool
 }
+
+// NewServerCodecFunc is the function to make a new ServerCodec by socket.Messages.
 type NewServerCodecFunc func(messages socket.Messages) ServerCodec
 
 // NewServer returns a new Server.
@@ -47,18 +50,32 @@ func NewServer() *Server {
 // DefaultServer is the default instance of *Server.
 var DefaultServer = NewServer()
 
+// Register publishes in the server the set of methods of the
+// receiver value that satisfy the following conditions:
+//	- exported method of exported type
+//	- two arguments, both of exported type
+//	- the second argument is a pointer
+//	- one return value, of type error
+// It returns an error if the receiver is not an exported type or has
+// no suitable methods. It also logs the error using package log.
+// The client accesses each method using a string of the form "Type.Method",
+// where Type is the receiver's concrete type.
 func (server *Server) Register(obj interface{}) error {
 	return server.Registry.Register(obj)
 }
 
+// RegisterName is like Register but uses the provided name for the type
+// instead of the receiver's concrete type.
 func (server *Server) RegisterName(name string, obj interface{}) error {
 	return server.Registry.RegisterName(name, obj)
 }
 
+// SetPipelining enables the Server to use pipelining.
 func (server *Server) SetPipelining(enable bool) {
 	server.pipelining = enable
 }
 
+// SetPoll enables the Server to use netpoll based on epoll/kqueue.
 func (server *Server) SetPoll(enable bool) {
 	server.poll = enable
 }
@@ -72,6 +89,7 @@ func (server *Server) putUpgrade(u *upgrade) {
 	server.upgradePool.Put(u)
 }
 
+// ServeCodec uses the specified codec to decode requests and encode responses.
 func (server *Server) ServeCodec(codec ServerCodec) {
 	sending := new(sync.Mutex)
 	wg := new(sync.WaitGroup)
@@ -98,6 +116,8 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 	}
 }
 
+// ServeRequest is like ServeCodec but synchronously serves a single request.
+// It does not close the codec upon completion.
 func (server *Server) ServeRequest(codec ServerCodec, recving *sync.Mutex, sending *sync.Mutex, wg *sync.WaitGroup, worker bool, ch chan *Context, done chan struct{}, workers chan struct{}) error {
 	if recving != nil {
 		recving.Lock()
@@ -280,17 +300,17 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 			return err
 		})
 		return nil
-	} else {
-		for {
-			conn, err := lis.Accept()
-			if err != nil {
-				continue
-			}
-			go server.ServeCodec(New(conn.Messages()))
+	}
+	for {
+		conn, err := lis.Accept()
+		if err != nil {
+			continue
 		}
+		go server.ServeCodec(New(conn.Messages()))
 	}
 }
 
+// Listen announces on the local network address.
 func (server *Server) Listen(network, address string, codec string) error {
 	if newSocket := NewSocket(network); newSocket != nil {
 		if newCodec := NewCodec(codec); newCodec != nil {
@@ -303,6 +323,7 @@ func (server *Server) Listen(network, address string, codec string) error {
 	return errors.New("unsupported protocol scheme: " + network)
 }
 
+// ListenTLS announces on the local network address with tls.Config.
 func (server *Server) ListenTLS(network, address string, codec string, config *tls.Config) error {
 	if newSocket := NewSocket(network); newSocket != nil {
 		if newCodec := NewCodec(codec); newCodec != nil {
@@ -315,6 +336,7 @@ func (server *Server) ListenTLS(network, address string, codec string, config *t
 	return errors.New("unsupported protocol scheme: " + network)
 }
 
+// ListenWithOptions announces on the local network address with Options.
 func (server *Server) ListenWithOptions(address string, opts *Options) error {
 	if opts.NewCodec == nil && opts.NewEncoder == nil && opts.Codec == "" {
 		return errors.New("need opts.NewCodec, opts.NewEncoder or opts.Codec")
@@ -345,20 +367,26 @@ func (server *Server) ListenWithOptions(address string, opts *Options) error {
 	})
 }
 
+// Register publishes the receiver's methods in the DefaultServer.
 func Register(rcvr interface{}) error { return DefaultServer.Register(rcvr) }
 
+// RegisterName is like Register but uses the provided name for the type
+// instead of the receiver's concrete type.
 func RegisterName(name string, rcvr interface{}) error {
 	return DefaultServer.RegisterName(name, rcvr)
 }
 
+// SetPipelining enables the Server to use pipelining.
 func SetPipelining(enable bool) {
 	DefaultServer.SetPipelining(enable)
 }
 
+// SetPoll enables the Server to use netpoll based on epoll/kqueue.
 func SetPoll(enable bool) {
 	DefaultServer.poll = enable
 }
 
+// ServeCodec uses the specified codec to decode requests and encode responses.
 func ServeCodec(codec ServerCodec) {
 	DefaultServer.ServeCodec(codec)
 }

@@ -10,8 +10,10 @@ import (
 	"sync"
 )
 
+// ErrShutdown is returned when connection is shut down
 var ErrShutdown = errors.New("connection is shut down")
 
+// Call represents an active RPC.
 type Call struct {
 	heartbeat     bool
 	noRequest     bool
@@ -30,6 +32,10 @@ func (call *Call) done() {
 	}
 }
 
+// Client represents an RPC Client.
+// There may be multiple outstanding Calls associated
+// with a single Client, and a Client may be used by
+// multiple goroutines simultaneously.
 type Client struct {
 	codec         ClientCodec
 	reqMutex      sync.Mutex
@@ -45,8 +51,18 @@ type Client struct {
 	shutdown      bool
 }
 
+// NewClientCodecFunc is the function to make a new ClientCodec by socket.Messages.
 type NewClientCodecFunc func(messages socket.Messages) ClientCodec
 
+// NewClient returns a new Client to handle requests to the
+// set of services at the other end of the connection.
+// It adds a buffer to the write side of the connection so
+// the header and payload are sent as a unit.
+//
+// The read and write halves of the connection are serialized independently,
+// so no interlocking is required. However each half may be accessed
+// concurrently so the implementation of conn should protect against
+// concurrent reads or concurrent writes.
 func NewClient() *Client {
 	return &Client{
 		pending:       make(map[uint64]*Call),
@@ -57,6 +73,7 @@ func NewClient() *Client {
 	}
 }
 
+// Dial connects to an RPC server at the specified network address.
 func (client *Client) Dial(s socket.Socket, address string, New NewClientCodecFunc) (*Client, error) {
 	conn, err := s.Dial(address)
 	if err != nil {
@@ -67,6 +84,8 @@ func (client *Client) Dial(s socket.Socket, address string, New NewClientCodecFu
 	return client, nil
 }
 
+// NewClientWithCodec is like NewClient but uses the specified
+// codec to encode requests and decode responses.
 func NewClientWithCodec(codec ClientCodec) *Client {
 	c := NewClient()
 	c.codec = codec
@@ -196,6 +215,7 @@ func (client *Client) read() {
 	}
 }
 
+// NumCalls returns the number of calls.
 func (client *Client) NumCalls() (n uint64) {
 	client.mutex.Lock()
 	n = uint64(len(client.pending))
@@ -203,6 +223,8 @@ func (client *Client) NumCalls() (n uint64) {
 	return
 }
 
+// Close calls the underlying codec's Close method. If the connection is already
+// shutting down, ErrShutdown is returned.
 func (client *Client) Close() error {
 	client.mutex.Lock()
 	if client.closing {
@@ -214,6 +236,8 @@ func (client *Client) Close() error {
 	return client.codec.Close()
 }
 
+// RoundTrip executes a single RPC transaction, returning
+// a Response for the provided Request.
 func (client *Client) RoundTrip(call *Call) *Call {
 	done := call.Done
 	if done == nil {
@@ -228,6 +252,10 @@ func (client *Client) RoundTrip(call *Call) *Call {
 	return call
 }
 
+// Go invokes the function asynchronously. It returns the Call structure representing
+// the invocation. The done channel will signal when the call is complete by returning
+// the same Call object. If done is nil, Go will allocate a new channel.
+// If non-nil, done must be buffered or Go will deliberately crash.
 func (client *Client) Go(serviceMethod string, args interface{}, reply interface{}, done chan *Call) *Call {
 	call := new(Call)
 	call.ServiceMethod = serviceMethod
@@ -245,6 +273,7 @@ func (client *Client) Go(serviceMethod string, args interface{}, reply interface
 	return call
 }
 
+// Call invokes the named function, waits for it to complete, and returns its error status.
 func (client *Client) Call(serviceMethod string, args interface{}, reply interface{}) error {
 	done := client.donePool.Get().(chan *Call)
 	call := client.callPool.Get().(*Call)
@@ -264,6 +293,7 @@ func (client *Client) Call(serviceMethod string, args interface{}, reply interfa
 	return err
 }
 
+// Ping is NOT ICMP ping, this is just used to test whether a connection is still alive.
 func (client *Client) Ping() error {
 	done := client.donePool.Get().(chan *Call)
 	call := client.callPool.Get().(*Call)
