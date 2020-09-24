@@ -17,7 +17,6 @@ type Options struct {
 	NewCodec   func() codec.Codec
 	NewEncoder func() *encoder.Encoder
 	Network    string
-	Address    string
 	Codec      string
 	Encoder    string
 	TLSConfig  *tls.Config

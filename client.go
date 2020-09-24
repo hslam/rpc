@@ -87,6 +87,9 @@ func (client *Client) Dial(s socket.Socket, address string, New NewClientCodecFu
 // NewClientWithCodec is like NewClient but uses the specified
 // codec to encode requests and decode responses.
 func NewClientWithCodec(codec ClientCodec) *Client {
+	if codec == nil {
+		return nil
+	}
 	c := NewClient()
 	c.codec = codec
 	go c.read()

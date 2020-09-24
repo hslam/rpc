@@ -20,7 +20,7 @@ func TestUpgrade(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	*u = upgrade{}
+	u.Reset()
 	n, err := u.Unmarshal(data)
 	if err != nil {
 		t.Error(err)
