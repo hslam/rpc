@@ -1,4 +1,10 @@
 # rpc
+[![PkgGoDev](https://pkg.go.dev/badge/github.com/hslam/rpc)](https://pkg.go.dev/github.com/hslam/rpc)
+[![Build Status](https://travis-ci.org/hslam/rpc.svg?branch=master)](https://travis-ci.org/hslam/rpc)
+[![codecov](https://codecov.io/gh/hslam/rpc/branch/master/graph/badge.svg)](https://codecov.io/gh/hslam/rpc)
+[![Go Report Card](https://goreportcard.com/badge/github.com/hslam/rpc?v=7e100)](https://goreportcard.com/report/github.com/hslam/rpc)
+[![LICENSE](https://img.shields.io/github/license/hslam/rpc.svg?style=flat-square)](https://github.com/hslam/rpc/blob/master/LICENSE)
+
 Package rpc provides access to the exported methods of an object across a network or other I/O connection.
 
 ## Feature
