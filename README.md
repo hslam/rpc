@@ -2,9 +2,9 @@
 Package rpc provides access to the exported methods of an object across a network or other I/O connection.
 
 ## Feature
-* **[Netpoll](https://github.com/hslam/netpoll "netpoll")** epoll/kqueue/[net](https://github.com/golang/go/tree/master/src/net "net")
-* **[Socket](https://github.com/hslam/socket "socket")** tcp/unix/http/ws
-* **[Codec](https://github.com/hslam/codec "codec")** json/code/pb
+* **[Netpoll](https://github.com/hslam/netpoll "netpoll")** epoll/kqueue/net
+* **[Network](https://github.com/hslam/socket "socket")** tcp/unix/http/[ws](https://github.com/hslam/websocket "websocket")
+* **[Codec](https://github.com/hslam/codec "codec")** json/[code](https://github.com/hslam/code "code")/pb
 * Multiplexing/Pipelining
 * [Auto Batching](https://github.com/hslam/writer "writer")
 * Call/Go/RoundTrip/Ping
@@ -38,7 +38,7 @@ message ArithResponse {
     int32 pro = 1;
 }
 ```
-**[Gogo Protobuf](https://github.com/gogo/protobuf "gogoprotobuf")**
+**[GoGo Protobuf ](https://github.com/gogo/protobuf "gogoprotobuf")**
 ```
 protoc ./arith.proto --gogofaster_out=./
 ```
