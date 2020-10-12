@@ -4,25 +4,31 @@
 package rpc
 
 const (
-	// Heartbeat represents a heartbeat transaction.
-	Heartbeat = 0x1
 	// NoRequest represents a no request transaction.
-	NoRequest = 0x1
+	noRequest = 0x1
 	// NoResponse represents a no response transaction.
-	NoResponse = 0x1
+	noResponse = 0x1
 	// FlateCompress represents a flate compress transaction.
-	FlateCompress = 0x1
+	flateCompress = 0x1
 	// ZlibCompress represents a zlib compress transaction.
-	ZlibCompress = 0x2
+	zlibCompress = 0x2
 	// GzipCompress represents a gzip compress transaction.
-	GzipCompress = 0x3
+	gzipCompress = 0x3
+	// Heartbeat represents a heartbeat transaction.
+	heartbeat = 0x1
+	// Wait represents a Wait transaction.
+	wait = 0x1
+	// Watch represents a watch transaction.
+	watch = 0x1
 )
 
 type upgrade struct {
-	Heartbeat  byte
 	NoRequest  byte
 	NoResponse byte
 	Compress   byte
+	Heartbeat  byte
+	Wait       byte
+	Watch      byte
 	Reserve    byte
 }
 
@@ -38,7 +44,7 @@ func (u *upgrade) Marshal(buf []byte) ([]byte, error) {
 		buf = make([]byte, size)
 	}
 	var offset uint64
-	buf[0] = u.Heartbeat<<7 + u.NoRequest<<6 + u.NoResponse<<5 + u.Compress<<3 + u.Reserve
+	buf[0] = u.NoRequest<<7 + u.NoResponse<<6 + u.Compress<<4 + u.Heartbeat<<3 + u.Wait<<2 + u.Watch<<1 + u.Reserve
 	offset++
 	return buf[:offset], nil
 }
@@ -48,11 +54,13 @@ func (u *upgrade) Unmarshal(data []byte) (uint64, error) {
 	if uint64(len(data)) < offset+1 {
 		return 0, nil
 	}
-	u.Heartbeat = data[0] >> 7
-	u.NoRequest = data[0] >> 6 & 0x1
-	u.NoResponse = data[0] >> 5 & 0x1
-	u.Compress = data[0] >> 3 & 0x3
-	u.Reserve = data[0] & 0x7
+	u.NoRequest = data[0] >> 7 & 0x1
+	u.NoResponse = data[0] >> 6 & 0x1
+	u.Compress = data[0] >> 4 & 0x3
+	u.Heartbeat = data[0] >> 3 & 0x1
+	u.Wait = data[0] >> 2 & 0x1
+	u.Watch = data[0] >> 1 & 0x1
+	u.Reserve = data[0] & 0x1
 	offset++
 	return offset, nil
 }
