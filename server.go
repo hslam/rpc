@@ -243,11 +243,20 @@ func (server *Server) readRequest(codec ServerCodec) (ctx *Context, err error) {
 		}
 		server.putUpgrade(u)
 	}
-	if !ctx.heartbeat && !ctx.wait && !ctx.watch {
+	if !ctx.noRequest {
 		ctx.f = server.Registry.GetFunc(ctx.ServiceMethod)
 		if ctx.f == nil {
 			err = errors.New("rpc: can't find service " + ctx.ServiceMethod)
 			codec.ReadRequestBody(nil)
+			return
+		}
+		ctx.args = ctx.f.GetValueIn(0)
+		if ctx.args == funcs.ZeroValue {
+			err = errors.New("rpc: can't find args")
+			codec.ReadRequestBody(nil)
+			return
+		}
+		if err = codec.ReadRequestBody(ctx.args.Interface()); err != nil {
 			return
 		}
 	} else if ctx.wait {
@@ -271,24 +280,12 @@ func (server *Server) readRequest(codec ServerCodec) (ctx *Context, err error) {
 		server.watchs[ctx.ServiceMethod] = events
 		server.mutex.Unlock()
 	}
-	if !ctx.noRequest {
-		ctx.args = ctx.f.GetValueIn(0)
-		if ctx.args == funcs.ZeroValue {
-			err = errors.New("rpc: can't find args")
-			codec.ReadRequestBody(nil)
-			return
-		}
-		if err = codec.ReadRequestBody(ctx.args.Interface()); err != nil {
-			return
-		}
-	}
 	if !ctx.noResponse {
 		ctx.reply = ctx.f.GetValueIn(1)
 		if ctx.reply == funcs.ZeroValue {
 			err = errors.New("rpc: can't find reply")
 		}
 	}
-
 	return
 }
 
