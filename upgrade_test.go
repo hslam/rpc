@@ -9,10 +9,12 @@ import (
 
 func TestUpgrade(t *testing.T) {
 	u := &upgrade{
-		Heartbeat:  Heartbeat,
-		NoRequest:  NoRequest,
-		NoResponse: NoResponse,
-		Compress:   GzipCompress,
+		NoRequest:  noRequest,
+		NoResponse: noResponse,
+		Compress:   flateCompress,
+		Heartbeat:  heartbeat,
+		Wait:       wait,
+		Watch:      watch,
 		Reserve:    1,
 	}
 	buf := make([]byte, 64)
@@ -28,17 +30,23 @@ func TestUpgrade(t *testing.T) {
 	if n != 1 {
 		t.Errorf("%d", n)
 	}
-	if u.Heartbeat != Heartbeat {
-		t.Error("Heartbeat Unmarshal error")
-	}
-	if u.NoRequest != NoRequest {
+	if u.NoRequest != noRequest {
 		t.Error("NoRequest Unmarshal error")
 	}
-	if u.NoResponse != NoResponse {
+	if u.NoResponse != noResponse {
 		t.Error("NoResponse Unmarshal error")
 	}
-	if u.Compress != GzipCompress {
+	if u.Compress != flateCompress {
 		t.Errorf("Compress Unmarshal error %d", u.Compress)
+	}
+	if u.Heartbeat != heartbeat {
+		t.Error("Heartbeat Unmarshal error")
+	}
+	if u.Wait != wait {
+		t.Error("Heartbeat Unmarshal error")
+	}
+	if u.Watch != watch {
+		t.Error("Heartbeat Unmarshal error")
 	}
 	if u.Reserve != 1 {
 		t.Errorf("Reserve Unmarshal error %d", u.Reserve)
