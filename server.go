@@ -32,6 +32,9 @@ type Server struct {
 	poll          bool
 	mut           sync.Mutex
 	listeners     []socket.Listener
+	mutex         sync.RWMutex
+	waits         map[string]map[ServerCodec]*Context
+	watchs        map[string]map[ServerCodec]*Context
 }
 
 // NewServerCodecFunc is the function to make a new ServerCodec by socket.Messages.
@@ -45,6 +48,8 @@ func NewServer() *Server {
 		upgradePool:   &sync.Pool{New: func() interface{} { return &upgrade{} }},
 		upgradeBuffer: make([]byte, 1024),
 		numWorkers:    numCPU,
+		waits:         make(map[string]map[ServerCodec]*Context),
+		watchs:        make(map[string]map[ServerCodec]*Context),
 	}
 }
 
@@ -90,6 +95,21 @@ func (server *Server) putUpgrade(u *upgrade) {
 	server.upgradePool.Put(u)
 }
 
+// Trigger triggers the waiting clients with the watch name.
+func (server *Server) Trigger(watch string) {
+	server.mutex.Lock()
+	waits := server.waits[watch]
+	delete(server.waits, watch)
+	watchs := server.watchs[watch]
+	server.mutex.Unlock()
+	for _, ctx := range waits {
+		server.sendResponse(ctx)
+	}
+	for _, ctx := range watchs {
+		server.sendResponse(ctx)
+	}
+}
+
 // ServeCodec uses the specified codec to decode requests and encode responses.
 func (server *Server) ServeCodec(codec ServerCodec) {
 	sending := new(sync.Mutex)
@@ -111,6 +131,18 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 		}
 	}
 	wg.Wait()
+	server.mutex.Lock()
+	for _, events := range server.waits {
+		if _, ok := events[codec]; ok {
+			delete(events, codec)
+		}
+	}
+	for _, events := range server.watchs {
+		if _, ok := events[codec]; ok {
+			delete(events, codec)
+		}
+	}
+	server.mutex.Unlock()
 	codec.Close()
 	if done != nil {
 		close(done)
@@ -127,6 +159,8 @@ func (server *Server) ServeRequest(codec ServerCodec, recving *sync.Mutex, sendi
 	if recving != nil {
 		recving.Unlock()
 	}
+	ctx.sending = sending
+	ctx.codec = codec
 	if err != nil {
 		if err != io.EOF && err != io.ErrUnexpectedEOF && err != netpoll.EAGAIN {
 			logger.Errorln("rpc:", err)
@@ -137,15 +171,17 @@ func (server *Server) ServeRequest(codec ServerCodec, recving *sync.Mutex, sendi
 			return err
 		}
 		ctx.Error = err.Error()
-		server.sendResponse(sending, ctx, codec)
+		server.sendResponse(ctx)
 		return err
 	}
 	if ctx.heartbeat {
-		server.sendResponse(sending, ctx, codec)
+		server.sendResponse(ctx)
+		return nil
+	} else if ctx.wait || ctx.watch {
 		return nil
 	}
 	if server.pipelining {
-		server.callService(sending, nil, ctx, codec)
+		server.callService(nil, ctx)
 		return nil
 	}
 	if wg != nil {
@@ -155,10 +191,10 @@ func (server *Server) ServeRequest(codec ServerCodec, recving *sync.Mutex, sendi
 		select {
 		case ch <- ctx:
 		case workers <- struct{}{}:
-			go func(done chan struct{}, ch chan *Context, server *Server, sending *sync.Mutex, wg *sync.WaitGroup, codec ServerCodec, workers chan struct{}, ctx *Context) {
+			go func(done chan struct{}, ch chan *Context, server *Server, wg *sync.WaitGroup, workers chan struct{}, ctx *Context) {
 				defer func() { <-workers }()
 				for {
-					server.callService(sending, wg, ctx, codec)
+					server.callService(wg, ctx)
 					t := time.NewTimer(time.Second)
 					runtime.Gosched()
 					select {
@@ -170,12 +206,12 @@ func (server *Server) ServeRequest(codec ServerCodec, recving *sync.Mutex, sendi
 						return
 					}
 				}
-			}(done, ch, server, sending, wg, codec, workers, ctx)
+			}(done, ch, server, wg, workers, ctx)
 		default:
-			go server.callService(sending, wg, ctx, codec)
+			go server.callService(wg, ctx)
 		}
 	} else {
-		go server.callService(sending, wg, ctx, codec)
+		go server.callService(wg, ctx)
 	}
 	return nil
 }
@@ -190,24 +226,50 @@ func (server *Server) readRequest(codec ServerCodec) (ctx *Context, err error) {
 	if len(ctx.Upgrade) > 0 {
 		u := server.getUpgrade()
 		u.Unmarshal(ctx.Upgrade)
-		if u.Heartbeat == Heartbeat {
+		if u.Heartbeat == heartbeat {
 			ctx.heartbeat = true
 		}
-		if u.NoRequest == NoRequest {
+		if u.Wait == wait {
+			ctx.wait = true
+		}
+		if u.Watch == watch {
+			ctx.watch = true
+		}
+		if u.NoRequest == noRequest {
 			ctx.noRequest = true
 		}
-		if u.NoResponse == NoResponse {
+		if u.NoResponse == noResponse {
 			ctx.noResponse = true
 		}
 		server.putUpgrade(u)
 	}
-	if !ctx.heartbeat {
+	if !ctx.heartbeat && !ctx.wait && !ctx.watch {
 		ctx.f = server.Registry.GetFunc(ctx.ServiceMethod)
 		if ctx.f == nil {
 			err = errors.New("rpc: can't find service " + ctx.ServiceMethod)
 			codec.ReadRequestBody(nil)
 			return
 		}
+	} else if ctx.wait {
+		server.mutex.Lock()
+		var events map[ServerCodec]*Context
+		var ok bool
+		if events, ok = server.waits[ctx.ServiceMethod]; !ok {
+			events = make(map[ServerCodec]*Context)
+		}
+		events[codec] = ctx
+		server.waits[ctx.ServiceMethod] = events
+		server.mutex.Unlock()
+	} else if ctx.watch {
+		server.mutex.Lock()
+		var events map[ServerCodec]*Context
+		var ok bool
+		if events, ok = server.watchs[ctx.ServiceMethod]; !ok {
+			events = make(map[ServerCodec]*Context)
+		}
+		events[codec] = ctx
+		server.watchs[ctx.ServiceMethod] = events
+		server.mutex.Unlock()
 	}
 	if !ctx.noRequest {
 		ctx.args = ctx.f.GetValueIn(0)
@@ -226,32 +288,35 @@ func (server *Server) readRequest(codec ServerCodec) (ctx *Context, err error) {
 			err = errors.New("rpc: can't find reply")
 		}
 	}
+
 	return
 }
 
-func (server *Server) callService(sending *sync.Mutex, wg *sync.WaitGroup, ctx *Context, codec ServerCodec) {
+func (server *Server) callService(wg *sync.WaitGroup, ctx *Context) {
 	if wg != nil {
 		defer wg.Done()
 	}
 	if err := ctx.f.ValueCall(ctx.args, ctx.reply); err != nil {
 		ctx.Error = err.Error()
 	}
-	server.sendResponse(sending, ctx, codec)
+	server.sendResponse(ctx)
 }
 
-func (server *Server) sendResponse(sending *sync.Mutex, ctx *Context, codec ServerCodec) {
-	sending.Lock()
+func (server *Server) sendResponse(ctx *Context) {
+	ctx.sending.Lock()
 	var reply interface{}
 	if len(ctx.Error) == 0 && !ctx.noResponse {
 		reply = ctx.reply.Interface()
 	}
-	err := codec.WriteResponse(ctx, reply)
+	err := ctx.codec.WriteResponse(ctx, reply)
 	if err != nil {
 		logger.Allln("rpc: writing response:", err)
 	}
-	sending.Unlock()
-	ctx.Reset()
-	server.ctxPool.Put(ctx)
+	ctx.sending.Unlock()
+	if !ctx.watch {
+		ctx.Reset()
+		server.ctxPool.Put(ctx)
+	}
 }
 
 func (server *Server) listen(sock socket.Socket, address string, New NewServerCodecFunc) error {
@@ -304,6 +369,14 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 			if err == io.EOF || err == io.ErrUnexpectedEOF {
 				if atomic.CompareAndSwapInt32(&ctx.closed, 0, 1) {
 					ctx.wg.Wait()
+					server.mutex.Lock()
+					for _, events := range server.waits {
+						delete(events, ctx.codec)
+					}
+					for _, events := range server.watchs {
+						delete(events, ctx.codec)
+					}
+					server.mutex.Unlock()
 					ctx.codec.Close()
 					if ctx.done != nil {
 						close(ctx.done)
@@ -411,6 +484,11 @@ func SetPipelining(enable bool) {
 // SetPoll enables the Server to use netpoll based on epoll/kqueue.
 func SetPoll(enable bool) {
 	DefaultServer.poll = enable
+}
+
+// Trigger triggers the waiting clients with the watch name.
+func Trigger(watch string) {
+	DefaultServer.Trigger(watch)
 }
 
 // ServeCodec uses the specified codec to decode requests and encode responses.

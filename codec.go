@@ -37,12 +37,16 @@ type Context struct {
 	ServiceMethod string
 	Error         string
 	heartbeat     bool
+	wait          bool
+	watch         bool
 	noRequest     bool
 	noResponse    bool
 	keepReading   bool
 	f             *funcs.Func
 	args          funcs.Value
 	reply         funcs.Value
+	sending       *sync.Mutex
+	codec         ServerCodec
 }
 
 // Reset resets the Context.
