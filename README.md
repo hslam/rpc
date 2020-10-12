@@ -8,12 +8,13 @@
 Package rpc provides access to the exported methods of an object across a network or other I/O connection.
 
 ## Feature
+* More throughput and less latency.
 * **[Netpoll](https://github.com/hslam/netpoll "netpoll")** epoll/kqueue/net
 * **[Network](https://github.com/hslam/socket "socket")** tcp/unix/http/[ws](https://github.com/hslam/websocket "websocket")
 * **[Codec](https://github.com/hslam/codec "codec")** json/[code](https://github.com/hslam/code "code")/pb
 * Multiplexing/Pipelining
-* [Auto Batching](https://github.com/hslam/writer "writer")
-* Call/Go/RoundTrip/Ping
+* [Auto batching](https://github.com/hslam/writer "writer")
+* Call/Go/RoundTrip/Ping/Wait/Watch
 * Client/Transport
 * TLS
 
@@ -28,6 +29,7 @@ Package rpc provides access to the exported methods of an object across a networ
 |Client|Yes|Yes|Yes|Yes|Yes|
 |Transport|No|No|Yes|No|No|
 |Websocket|No|No|Yes|No|No|
+|Wait/Watch|No|No|Yes|No|No|
 
 ## [Benchmark](http://github.com/hslam/rpc-benchmark "rpc-benchmark")
 
