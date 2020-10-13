@@ -20,6 +20,7 @@ type Call struct {
 	heartbeat     bool
 	wait          bool
 	watch         bool
+	Value         []byte
 	ServiceMethod string
 	Args          interface{}
 	Reply         interface{}
@@ -189,6 +190,9 @@ func (client *Client) read() {
 			}
 			call.done()
 		default:
+			if len(ctx.value) > 0 {
+				call.Value = ctx.value
+			}
 			if len(ctx.Upgrade) > 0 {
 				u := client.getUpgrade()
 				u.Unmarshal(ctx.Upgrade)
@@ -331,11 +335,11 @@ func (client *Client) Watch(event string, done chan *Call) *Call {
 	return call
 }
 
-// Wait will return when the event is triggered.
-func (client *Client) Wait(event string) error {
+// Wait will return when the key is triggered.
+func (client *Client) Wait(key string) (value []byte, err error) {
 	done := client.donePool.Get().(chan *Call)
 	call := client.callPool.Get().(*Call)
-	call.ServiceMethod = event
+	call.ServiceMethod = key
 	call.noRequest = true
 	call.noResponse = true
 	call.wait = true
@@ -346,10 +350,11 @@ func (client *Client) Wait(event string) error {
 		<-done
 	}
 	client.donePool.Put(done)
-	err := call.Error
+	err = call.Error
+	value = call.Value
 	*call = Call{}
 	client.callPool.Put(call)
-	return err
+	return
 }
 
 // Ping is NOT ICMP ping, this is just used to test whether a connection is still alive.

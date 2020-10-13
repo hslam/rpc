@@ -119,6 +119,8 @@ func (c *clientCodec) ReadResponseHeader(ctx *Context) error {
 				return fmt.Errorf("invalid error %v", c.res.GetError())
 			}
 			ctx.Error = c.res.GetError()
+		} else if len(c.res.GetReply()) > 0 {
+			ctx.value = c.res.GetReply()
 		}
 	}
 
