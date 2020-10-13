@@ -33,7 +33,6 @@ type Server struct {
 	mut           sync.Mutex
 	listeners     []socket.Listener
 	mutex         sync.RWMutex
-	waits         map[string]map[ServerCodec]*Context
 	watchs        map[string]map[ServerCodec]*Context
 }
 
@@ -48,7 +47,6 @@ func NewServer() *Server {
 		upgradePool:   &sync.Pool{New: func() interface{} { return &upgrade{} }},
 		upgradeBuffer: make([]byte, 1024),
 		numWorkers:    numCPU,
-		waits:         make(map[string]map[ServerCodec]*Context),
 		watchs:        make(map[string]map[ServerCodec]*Context),
 	}
 }
@@ -98,14 +96,8 @@ func (server *Server) putUpgrade(u *upgrade) {
 // Trigger triggers the waiting clients with the watch name.
 func (server *Server) Trigger(key string, value []byte) {
 	server.mutex.RLock()
-	waits := server.waits[key]
-	delete(server.waits, key)
 	watchs := server.watchs[key]
 	server.mutex.RUnlock()
-	for _, ctx := range waits {
-		ctx.value = value
-		server.sendResponse(ctx)
-	}
 	for _, ctx := range watchs {
 		ctx.value = value
 		server.sendResponse(ctx)
@@ -135,11 +127,6 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 	}
 	wg.Wait()
 	server.mutex.Lock()
-	for _, events := range server.waits {
-		if _, ok := events[codec]; ok {
-			delete(events, codec)
-		}
-	}
 	for _, events := range server.watchs {
 		if _, ok := events[codec]; ok {
 			delete(events, codec)
@@ -180,7 +167,24 @@ func (server *Server) ServeRequest(codec ServerCodec, recving *sync.Mutex, sendi
 	if ctx.heartbeat {
 		server.sendResponse(ctx)
 		return nil
-	} else if ctx.wait || ctx.watch {
+	} else if ctx.watch == stopWatch {
+		server.mutex.Lock()
+		if events, ok := server.watchs[ctx.ServiceMethod]; ok {
+			delete(events, codec)
+		}
+		server.mutex.Unlock()
+		server.sendResponse(ctx)
+		return nil
+	} else if ctx.watch == watch {
+		server.mutex.Lock()
+		var events map[ServerCodec]*Context
+		var ok bool
+		if events, ok = server.watchs[ctx.ServiceMethod]; !ok {
+			events = make(map[ServerCodec]*Context)
+		}
+		events[codec] = ctx
+		server.watchs[ctx.ServiceMethod] = events
+		server.mutex.Unlock()
 		return nil
 	}
 	if server.pipelining {
@@ -232,12 +236,7 @@ func (server *Server) readRequest(codec ServerCodec) (ctx *Context, err error) {
 		if u.Heartbeat == heartbeat {
 			ctx.heartbeat = true
 		}
-		if u.Wait == wait {
-			ctx.wait = true
-		}
-		if u.Watch == watch {
-			ctx.watch = true
-		}
+		ctx.watch = u.Watch
 		if u.NoRequest == noRequest {
 			ctx.noRequest = true
 		}
@@ -262,26 +261,6 @@ func (server *Server) readRequest(codec ServerCodec) (ctx *Context, err error) {
 		if err = codec.ReadRequestBody(ctx.args.Interface()); err != nil {
 			return
 		}
-	} else if ctx.wait {
-		server.mutex.Lock()
-		var events map[ServerCodec]*Context
-		var ok bool
-		if events, ok = server.waits[ctx.ServiceMethod]; !ok {
-			events = make(map[ServerCodec]*Context)
-		}
-		events[codec] = ctx
-		server.waits[ctx.ServiceMethod] = events
-		server.mutex.Unlock()
-	} else if ctx.watch {
-		server.mutex.Lock()
-		var events map[ServerCodec]*Context
-		var ok bool
-		if events, ok = server.watchs[ctx.ServiceMethod]; !ok {
-			events = make(map[ServerCodec]*Context)
-		}
-		events[codec] = ctx
-		server.watchs[ctx.ServiceMethod] = events
-		server.mutex.Unlock()
 	}
 	if !ctx.noResponse {
 		ctx.reply = ctx.f.GetValueIn(1)
@@ -313,7 +292,7 @@ func (server *Server) sendResponse(ctx *Context) {
 		logger.Allln("rpc: writing response:", err)
 	}
 	ctx.sending.Unlock()
-	if !ctx.watch {
+	if ctx.watch != watch {
 		ctx.Reset()
 		server.ctxPool.Put(ctx)
 	}
@@ -370,9 +349,6 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 				if atomic.CompareAndSwapInt32(&ctx.closed, 0, 1) {
 					ctx.wg.Wait()
 					server.mutex.Lock()
-					for _, events := range server.waits {
-						delete(events, ctx.codec)
-					}
 					for _, events := range server.watchs {
 						delete(events, ctx.codec)
 					}

@@ -10,12 +10,13 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	watch := conn.Watch("foo", nil)
-	for {
-		<-watch.Done
-		if watch.Error != nil {
-			panic(watch.Error)
+	watch := conn.Watch("foo")
+	defer watch.Stop()
+	for i := 0; i < 3; i++ {
+		value, err := watch.Wait()
+		if err != nil {
+			panic(err)
 		}
-		fmt.Printf("Watch foo:%s\n", string(watch.Value))
+		fmt.Printf("Watch foo:%s\n", string(value))
 	}
 }

@@ -37,8 +37,7 @@ type Context struct {
 	ServiceMethod string
 	Error         string
 	heartbeat     bool
-	wait          bool
-	watch         bool
+	watch         byte
 	noRequest     bool
 	noResponse    bool
 	keepReading   bool

@@ -10,27 +10,33 @@ import (
 	"sync"
 )
 
-// ErrShutdown is returned when connection is shut down
-var ErrShutdown = errors.New("connection is shut down")
+// ErrShutdown is returned when the connection is shut down
+var ErrShutdown = errors.New("The connection is shut down")
+
+// ErrWatch is returned when the watch is existed.
+var ErrWatch = errors.New("The watch is existed")
 
 // Call represents an active RPC.
 type Call struct {
 	noRequest     bool
 	noResponse    bool
 	heartbeat     bool
-	wait          bool
-	watch         bool
+	watch         byte
 	Value         []byte
 	ServiceMethod string
 	Args          interface{}
 	Reply         interface{}
 	Error         error
 	Done          chan *Call
+	watcher       *Watch
 }
 
 func (call *Call) done() {
 	select {
 	case call.Done <- call:
+		if call.watcher != nil {
+			call.watcher.trigger(call.Value, call.Error)
+		}
 	default:
 	}
 }
@@ -46,6 +52,7 @@ type Client struct {
 	mutex         sync.Mutex
 	seq           uint64
 	pending       map[uint64]*Call
+	watchs        map[string]uint64
 	callPool      *sync.Pool
 	donePool      *sync.Pool
 	upgradePool   *sync.Pool
@@ -69,6 +76,7 @@ type NewClientCodecFunc func(messages socket.Messages) ClientCodec
 func NewClient() *Client {
 	return &Client{
 		pending:       make(map[uint64]*Call),
+		watchs:        make(map[string]uint64),
 		callPool:      &sync.Pool{New: func() interface{} { return &Call{} }},
 		donePool:      &sync.Pool{New: func() interface{} { return make(chan *Call, 10) }},
 		upgradePool:   &sync.Pool{New: func() interface{} { return &upgrade{} }},
@@ -119,27 +127,30 @@ func (client *Client) write(call *Call) {
 		return
 	}
 	seq := client.seq
+	if call.watch == watch {
+		if _, ok := client.watchs[call.ServiceMethod]; ok {
+			client.mutex.Unlock()
+			call.Error = ErrWatch
+			call.done()
+			return
+		}
+		client.watchs[call.ServiceMethod] = seq
+	}
 	client.seq++
 	client.pending[seq] = call
 	client.mutex.Unlock()
 	client.ctx = Context{}
 	client.ctx.Seq = seq
 	client.ctx.heartbeat = call.heartbeat
-	client.ctx.wait = call.wait
 	client.ctx.watch = call.watch
 	client.ctx.noRequest = call.noRequest
 	client.ctx.noResponse = call.noResponse
 	u := client.getUpgrade()
-	if call.heartbeat || call.wait || call.watch || call.noRequest || call.noResponse {
+	if call.heartbeat || call.watch == watch || call.watch == stopWatch || call.noRequest || call.noResponse {
 		if call.heartbeat {
 			u.Heartbeat = heartbeat
 		}
-		if call.wait {
-			u.Wait = wait
-		}
-		if call.watch {
-			u.Watch = watch
-		}
+		u.Watch = call.watch
 		if call.noRequest {
 			u.NoRequest = noRequest
 		}
@@ -154,6 +165,9 @@ func (client *Client) write(call *Call) {
 	if err != nil {
 		client.mutex.Lock()
 		delete(client.pending, seq)
+		if call.watch == watch {
+			delete(client.watchs, call.ServiceMethod)
+		}
 		client.mutex.Unlock()
 		if call != nil {
 			call.Error = err
@@ -196,11 +210,20 @@ func (client *Client) read() {
 			if len(ctx.Upgrade) > 0 {
 				u := client.getUpgrade()
 				u.Unmarshal(ctx.Upgrade)
-				if u.Heartbeat == heartbeat || u.Wait == wait || u.Watch == watch || u.NoResponse == noResponse {
+				if u.Heartbeat == heartbeat || u.Watch == watch || u.Watch == stopWatch || u.NoResponse == noResponse {
 					call.done()
 					if u.Watch == watch {
 						client.mutex.Lock()
-						client.pending[seq] = call
+						if _, ok := client.watchs[call.ServiceMethod]; ok {
+							client.pending[seq] = call
+						}
+						client.mutex.Unlock()
+					} else if u.Watch == stopWatch {
+						client.mutex.Lock()
+						if wseq, ok := client.watchs[call.ServiceMethod]; ok {
+							delete(client.pending, wseq)
+						}
+						delete(client.watchs, call.ServiceMethod)
 						client.mutex.Unlock()
 					}
 					client.putUpgrade(u)
@@ -316,45 +339,42 @@ func (client *Client) Call(serviceMethod string, args interface{}, reply interfa
 }
 
 // Watch invokes the function asynchronously. It returns the Watch structure representing
-// the invocation. The done channel will signal when the event is triggered.
-func (client *Client) Watch(event string, done chan *Call) *Call {
+// the invocation. The done channel will signal when the key is triggered.
+func (client *Client) Watch(key string) *Watch {
+	watcher := &Watch{client: client, C: make(chan *Watch, 10), key: key}
 	call := new(Call)
-	call.ServiceMethod = event
+	call.ServiceMethod = key
 	call.noRequest = true
 	call.noResponse = true
-	call.watch = true
-	if done == nil {
-		done = make(chan *Call, 10)
-	} else {
-		if cap(done) == 0 {
-			logger.Panic("rpc: done channel is unbuffered")
-		}
-	}
-	call.Done = done
+	call.watch = watch
+	call.Done = make(chan *Call, 10)
+	call.watcher = watcher
 	client.write(call)
-	return call
+	return watcher
 }
 
-// Wait will return when the key is triggered.
-func (client *Client) Wait(key string) (value []byte, err error) {
+// StopWatch stops the key watcher .
+func (client *Client) StopWatch(key string) error {
 	done := client.donePool.Get().(chan *Call)
 	call := client.callPool.Get().(*Call)
 	call.ServiceMethod = key
 	call.noRequest = true
 	call.noResponse = true
-	call.wait = true
+	call.watch = stopWatch
 	call.Done = done
 	client.write(call)
 	<-call.Done
 	for len(done) > 0 {
-		<-done
+		select {
+		case <-done:
+		default:
+		}
 	}
 	client.donePool.Put(done)
-	err = call.Error
-	value = call.Value
+	err := call.Error
 	*call = Call{}
 	client.callPool.Put(call)
-	return
+	return err
 }
 
 // Ping is NOT ICMP ping, this is just used to test whether a connection is still alive.

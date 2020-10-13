@@ -16,10 +16,10 @@ const (
 	gzipCompress = 0x3
 	// Heartbeat represents a heartbeat transaction.
 	heartbeat = 0x1
-	// Wait represents a Wait transaction.
-	wait = 0x1
-	// Watch represents a watch transaction.
+	// startWatch represents a start watch transaction.
 	watch = 0x1
+	// StopWatch represents a stop watch transaction.
+	stopWatch = 0x2
 )
 
 type upgrade struct {
@@ -27,7 +27,6 @@ type upgrade struct {
 	NoResponse byte
 	Compress   byte
 	Heartbeat  byte
-	Wait       byte
 	Watch      byte
 	Reserve    byte
 }
@@ -44,7 +43,7 @@ func (u *upgrade) Marshal(buf []byte) ([]byte, error) {
 		buf = make([]byte, size)
 	}
 	var offset uint64
-	buf[0] = u.NoRequest<<7 + u.NoResponse<<6 + u.Compress<<4 + u.Heartbeat<<3 + u.Wait<<2 + u.Watch<<1 + u.Reserve
+	buf[0] = u.NoRequest<<7 + u.NoResponse<<6 + u.Compress<<4 + u.Heartbeat<<3 + u.Watch<<1 + u.Reserve
 	offset++
 	return buf[:offset], nil
 }
@@ -58,8 +57,7 @@ func (u *upgrade) Unmarshal(data []byte) (uint64, error) {
 	u.NoResponse = data[0] >> 6 & 0x1
 	u.Compress = data[0] >> 4 & 0x3
 	u.Heartbeat = data[0] >> 3 & 0x1
-	u.Wait = data[0] >> 2 & 0x1
-	u.Watch = data[0] >> 1 & 0x1
+	u.Watch = data[0] >> 1 & 0x3
 	u.Reserve = data[0] & 0x1
 	offset++
 	return offset, nil
