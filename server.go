@@ -96,17 +96,20 @@ func (server *Server) putUpgrade(u *upgrade) {
 }
 
 // Trigger triggers the waiting clients with the watch name.
-func (server *Server) Trigger(watch string) {
-	server.mutex.Lock()
-	waits := server.waits[watch]
-	delete(server.waits, watch)
-	watchs := server.watchs[watch]
-	server.mutex.Unlock()
+func (server *Server) Trigger(key string, value []byte) {
+	server.mutex.RLock()
+	waits := server.waits[key]
+	delete(server.waits, key)
+	watchs := server.watchs[key]
+	server.mutex.RUnlock()
 	for _, ctx := range waits {
+		ctx.value = value
 		server.sendResponse(ctx)
 	}
 	for _, ctx := range watchs {
+		ctx.value = value
 		server.sendResponse(ctx)
+		ctx.value = nil
 	}
 }
 
@@ -484,8 +487,8 @@ func SetPoll(enable bool) {
 }
 
 // Trigger triggers the waiting clients with the watch name.
-func Trigger(watch string) {
-	DefaultServer.Trigger(watch)
+func Trigger(key string, value []byte) {
+	DefaultServer.Trigger(key, value)
 }
 
 // ServeCodec uses the specified codec to decode requests and encode responses.

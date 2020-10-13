@@ -47,6 +47,7 @@ type Context struct {
 	reply         funcs.Value
 	sending       *sync.Mutex
 	codec         ServerCodec
+	value         []byte
 }
 
 // Reset resets the Context.

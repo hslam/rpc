@@ -99,6 +99,8 @@ func (c *serverCodec) WriteResponse(ctx *Context, x interface{}) error {
 		if err != nil {
 			return err
 		}
+	} else if len(ctx.value) > 0 {
+		reply = ctx.value
 	}
 	if c.headerEncoder != nil {
 		c.headerEncoder.Response.SetSeq(reqSeq)
