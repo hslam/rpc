@@ -29,7 +29,7 @@ Package rpc provides access to the exported methods of an object across a networ
 |Client|Yes|Yes|Yes|Yes|Yes|
 |Transport|No|No|Yes|No|No|
 |Websocket|No|No|Yes|No|No|
-|Wait/Watch|No|No|Yes|No|No|
+|Watch|No|No|Yes|No|No|
 
 ## [Benchmark](http://github.com/hslam/rpc-benchmark "rpc-benchmark")
 
