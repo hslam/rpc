@@ -14,7 +14,7 @@ Package rpc provides access to the exported methods of an object across a networ
 * **[Codec](https://github.com/hslam/codec "codec")** json/[code](https://github.com/hslam/code "code")/pb
 * Multiplexing/Pipelining
 * [Auto batching](https://github.com/hslam/writer "writer")
-* Call/Go/RoundTrip/Ping/Wait/Watch
+* Call/Go/RoundTrip/Ping/Watch
 * Client/Transport
 * TLS
 
