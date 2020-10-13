@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"github.com/hslam/rpc"
-	"time"
 )
 
 func main() {
@@ -12,9 +11,10 @@ func main() {
 		panic(err)
 	}
 	for {
-		if err := conn.Wait("changes"); err != nil {
+		if value, err := conn.Wait("foo"); err != nil {
 			panic(err)
+		} else {
+			fmt.Printf("Wait foo:%s\n", string(value))
 		}
-		fmt.Printf("Wait changes - %v\n", time.Now().Format(time.Stamp))
 	}
 }

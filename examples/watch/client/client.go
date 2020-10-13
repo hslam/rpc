@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"github.com/hslam/rpc"
-	"time"
 )
 
 func main() {
@@ -11,12 +10,12 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	watch := conn.Watch("changes", nil)
+	watch := conn.Watch("foo", nil)
 	for {
 		<-watch.Done
 		if watch.Error != nil {
 			panic(watch.Error)
 		}
-		fmt.Printf("Watch changes - %v\n", time.Now().Format(time.Stamp))
+		fmt.Printf("Watch foo:%s\n", string(watch.Value))
 	}
 }
