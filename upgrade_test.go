@@ -13,7 +13,6 @@ func TestUpgrade(t *testing.T) {
 		NoResponse: noResponse,
 		Compress:   flateCompress,
 		Heartbeat:  heartbeat,
-		Wait:       wait,
 		Watch:      watch,
 		Reserve:    1,
 	}
@@ -42,11 +41,8 @@ func TestUpgrade(t *testing.T) {
 	if u.Heartbeat != heartbeat {
 		t.Error("Heartbeat Unmarshal error")
 	}
-	if u.Wait != wait {
-		t.Error("Heartbeat Unmarshal error")
-	}
 	if u.Watch != watch {
-		t.Error("Heartbeat Unmarshal error")
+		t.Error("Watch Unmarshal error")
 	}
 	if u.Reserve != 1 {
 		t.Errorf("Reserve Unmarshal error %d", u.Reserve)
