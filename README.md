@@ -15,6 +15,7 @@ Package rpc provides access to the exported methods of an object across a networ
 * Multiplexing/Pipelining
 * [Auto batching](https://github.com/hslam/writer "writer")
 * Call/Go/RoundTrip/Ping/Watch
+* Server push
 * Client/Transport
 * TLS
 
