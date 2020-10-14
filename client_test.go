@@ -59,7 +59,7 @@ func TestClient(t *testing.T) {
 	if res.Pro != A*B {
 		t.Error(res.Pro)
 	}
-
+	GetLogLevel()
 	conn.Close()
 	server.Close()
 	wg.Wait()
