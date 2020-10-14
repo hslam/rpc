@@ -329,7 +329,10 @@ func (client *Client) Call(serviceMethod string, args interface{}, reply interfa
 	client.write(call)
 	<-call.Done
 	for len(done) > 0 {
-		<-done
+		select {
+		case <-done:
+		default:
+		}
 	}
 	client.donePool.Put(done)
 	err := call.Error
@@ -388,7 +391,10 @@ func (client *Client) Ping() error {
 	client.write(call)
 	<-call.Done
 	for len(done) > 0 {
-		<-done
+		select {
+		case <-done:
+		default:
+		}
 	}
 	client.donePool.Put(done)
 	err := call.Error
