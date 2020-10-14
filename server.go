@@ -34,10 +34,14 @@ type Server struct {
 	listeners     []socket.Listener
 	mutex         sync.RWMutex
 	watchs        map[string]map[ServerCodec]*Context
+	watchFunc     WatchFunc
 }
 
 // NewServerCodecFunc is the function to make a new ServerCodec by socket.Messages.
 type NewServerCodecFunc func(messages socket.Messages) ServerCodec
+
+// WatchFunc is the function to get value by key.
+type WatchFunc func(key string) (value []byte, ok bool)
 
 // NewServer returns a new Server.
 func NewServer() *Server {
@@ -93,16 +97,25 @@ func (server *Server) putUpgrade(u *upgrade) {
 	server.upgradePool.Put(u)
 }
 
-// Trigger triggers the waiting clients with the watch name.
-func (server *Server) Trigger(key string, value []byte) {
+// Push triggers the waiting clients with the watch key value..
+func (server *Server) Push(key string, value []byte) {
 	server.mutex.RLock()
 	watchs := server.watchs[key]
 	server.mutex.RUnlock()
 	for _, ctx := range watchs {
-		ctx.value = value
-		server.sendResponse(ctx)
-		ctx.value = nil
+		server.push(ctx, value)
 	}
+}
+
+func (server *Server) push(ctx *Context, value []byte) {
+	ctx.value = value
+	server.sendResponse(ctx)
+	ctx.value = nil
+}
+
+// PushFunc sets a WatchFunc.
+func (server *Server) PushFunc(watchFunc WatchFunc) {
+	server.watchFunc = watchFunc
 }
 
 // ServeCodec uses the specified codec to decode requests and encode responses.
@@ -185,7 +198,6 @@ func (server *Server) ServeRequest(codec ServerCodec, recving *sync.Mutex, sendi
 		events[codec] = ctx
 		server.watchs[ctx.ServiceMethod] = events
 		server.mutex.Unlock()
-		return nil
 	}
 	if server.pipelining {
 		server.callService(nil, ctx)
@@ -274,6 +286,14 @@ func (server *Server) readRequest(codec ServerCodec) (ctx *Context, err error) {
 func (server *Server) callService(wg *sync.WaitGroup, ctx *Context) {
 	if wg != nil {
 		defer wg.Done()
+	}
+	if ctx.watch == watch {
+		if server.watchFunc != nil {
+			if value, ok := server.watchFunc(ctx.ServiceMethod); ok {
+				server.push(ctx, value)
+			}
+		}
+		return
 	}
 	if err := ctx.f.ValueCall(ctx.args, ctx.reply); err != nil {
 		ctx.Error = err.Error()
@@ -462,9 +482,14 @@ func SetPoll(enable bool) {
 	DefaultServer.poll = enable
 }
 
-// Trigger triggers the waiting clients with the watch name.
-func Trigger(key string, value []byte) {
-	DefaultServer.Trigger(key, value)
+// Push triggers the waiting clients with the watch key value.
+func Push(key string, value []byte) {
+	DefaultServer.Push(key, value)
+}
+
+// PushFunc sets a WatchFunc.
+func PushFunc(watchFunc WatchFunc) {
+	DefaultServer.PushFunc(watchFunc)
 }
 
 // ServeCodec uses the specified codec to decode requests and encode responses.
