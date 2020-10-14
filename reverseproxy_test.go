@@ -72,3 +72,14 @@ func TestReverseProxy(t *testing.T) {
 	server.Close()
 	wg.Wait()
 }
+
+func TestReverseProxyTransport(t *testing.T) {
+	addr := ":9999"
+	proxy := NewSingleHostReverseProxy(addr)
+	defer func() {
+		if e := recover(); e == nil {
+			t.Error("should panic")
+		}
+	}()
+	proxy.transport()
+}

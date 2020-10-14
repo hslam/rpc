@@ -20,20 +20,12 @@ func NewSingleHostReverseProxy(target string) *ReverseProxy {
 // RoundTrip executes a single RPC transaction, returning
 // a Response for the provided Request.
 func (c *ReverseProxy) RoundTrip(call *Call) *Call {
-	transport := c.Transport
-	if transport == nil {
-		transport = DefaultTransport
-	}
-	return transport.RoundTrip(c.TargetAddress, call)
+	return c.transport().RoundTrip(c.TargetAddress, call)
 }
 
 // Call invokes the named function, waits for it to complete, and returns its error status.
 func (c *ReverseProxy) Call(serviceMethod string, args interface{}, reply interface{}) error {
-	transport := c.Transport
-	if transport == nil {
-		transport = DefaultTransport
-	}
-	return transport.Call(c.TargetAddress, serviceMethod, args, reply)
+	return c.transport().Call(c.TargetAddress, serviceMethod, args, reply)
 }
 
 // Go invokes the function asynchronously. It returns the Call structure representing
@@ -41,18 +33,17 @@ func (c *ReverseProxy) Call(serviceMethod string, args interface{}, reply interf
 // the same Call object. If done is nil, Go will allocate a new channel.
 // If non-nil, done must be buffered or Go will deliberately crash.
 func (c *ReverseProxy) Go(serviceMethod string, args interface{}, reply interface{}, done chan *Call) *Call {
-	transport := c.Transport
-	if transport == nil {
-		transport = DefaultTransport
-	}
-	return transport.Go(c.TargetAddress, serviceMethod, args, reply, done)
+	return c.transport().Go(c.TargetAddress, serviceMethod, args, reply, done)
 }
 
 // Ping is NOT ICMP ping, this is just used to test whether a connection is still alive.
 func (c *ReverseProxy) Ping() error {
-	transport := c.Transport
-	if transport == nil {
-		transport = DefaultTransport
+	return c.transport().Ping(c.TargetAddress)
+}
+
+func (c *ReverseProxy) transport() RoundTripper {
+	if c.Transport == nil {
+		panic("Transport is nil")
 	}
-	return transport.Ping(c.TargetAddress)
+	return c.Transport
 }
