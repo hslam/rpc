@@ -198,6 +198,9 @@ func (server *Server) ServeRequest(codec ServerCodec, recving *sync.Mutex, sendi
 		events[codec] = ctx
 		server.watchs[ctx.ServiceMethod] = events
 		server.mutex.Unlock()
+		if server.watchFunc == nil {
+			return nil
+		}
 	}
 	if server.pipelining {
 		server.callService(nil, ctx)
