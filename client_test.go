@@ -87,6 +87,9 @@ func TestNewClientWithCodec(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	if NewClientWithCodec(nil) != nil {
+		t.Error("should be nil")
+	}
 	clientCodec := NewClientCodec(NewJSONCodec(), NewCODEEncoder(), conn.Messages())
 	client := NewClientWithCodec(clientCodec)
 	if client == nil {
@@ -103,4 +106,21 @@ func TestNewClientWithCodec(t *testing.T) {
 	}
 	server.Close()
 	wg.Wait()
+}
+
+func TestCallDone(t *testing.T) {
+	call := &Call{Done: make(chan *Call, 1)}
+	call.done()
+	call.done()
+}
+
+func TestResetDone(t *testing.T) {
+	done := make(chan *Call, 10)
+	call := &Call{Done: done}
+	call.done()
+	call.done()
+	ResetDone(done)
+	if len(done) != 0 {
+		t.Error(len(done))
+	}
 }

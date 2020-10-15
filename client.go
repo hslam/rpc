@@ -317,12 +317,7 @@ func (client *Client) Call(serviceMethod string, args interface{}, reply interfa
 	call.Done = done
 	client.write(call)
 	<-call.Done
-	for len(done) > 0 {
-		select {
-		case <-done:
-		default:
-		}
-	}
+	ResetDone(done)
 	client.donePool.Put(done)
 	err := call.Error
 	*call = Call{}
@@ -359,12 +354,7 @@ func (client *Client) StopWatch(key string) error {
 	call.Done = done
 	client.write(call)
 	<-call.Done
-	for len(done) > 0 {
-		select {
-		case <-done:
-		default:
-		}
-	}
+	ResetDone(done)
 	client.donePool.Put(done)
 	err := call.Error
 	*call = Call{}
@@ -384,15 +374,20 @@ func (client *Client) Ping() error {
 	call.Done = done
 	client.write(call)
 	<-call.Done
+	ResetDone(done)
+	client.donePool.Put(done)
+	err := call.Error
+	*call = Call{}
+	client.callPool.Put(call)
+	return err
+}
+
+// ResetDone resets the done.
+func ResetDone(done chan *Call) {
 	for len(done) > 0 {
 		select {
 		case <-done:
 		default:
 		}
 	}
-	client.donePool.Put(done)
-	err := call.Error
-	*call = Call{}
-	client.callPool.Put(call)
-	return err
 }
