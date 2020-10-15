@@ -385,9 +385,13 @@ func (client *Client) Ping() error {
 // ResetDone resets the done.
 func ResetDone(done chan *Call) {
 	for len(done) > 0 {
-		select {
-		case <-done:
-		default:
-		}
+		doneOnce(done)
+	}
+}
+
+func doneOnce(done chan *Call) {
+	select {
+	case <-done:
+	default:
 	}
 }

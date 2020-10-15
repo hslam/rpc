@@ -123,4 +123,5 @@ func TestResetDone(t *testing.T) {
 	if len(done) != 0 {
 		t.Error(len(done))
 	}
+	doneOnce(done)
 }
