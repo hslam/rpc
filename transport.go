@@ -17,6 +17,8 @@ const (
 	DefaultKeepAlive = 90 * time.Second
 	//DefaultIdleConnTimeout is the default value of Transport's IdleConnTimeout.
 	DefaultIdleConnTimeout = 60 * time.Second
+
+	defaultRunTicker = time.Second
 )
 
 var (
@@ -32,6 +34,8 @@ var (
 	KeepAlive = DefaultKeepAlive
 	// IdleConnTimeout specifies the maximum amount of time keeping the idle connections  in the Transport's idleConns.
 	IdleConnTimeout = DefaultIdleConnTimeout
+
+	runTicker = defaultRunTicker
 )
 
 // RoundTripper is an interface representing the ability to execute a
@@ -250,10 +254,10 @@ func (t *Transport) newPersistConn(addr string) (*persistConn, error) {
 }
 
 func (t *Transport) run() {
+	ticker := time.NewTicker(runTicker)
 	for {
-		timer := time.NewTimer(time.Second)
 		select {
-		case <-timer.C:
+		case <-ticker.C:
 			t.now = time.Now()
 			t.connsMu.Lock()
 			for _, cs := range t.conns {
@@ -298,7 +302,7 @@ func (t *Transport) run() {
 
 			t.connsMu.Unlock()
 		case <-t.done:
-			timer.Stop()
+			ticker.Stop()
 			return
 		}
 	}
@@ -379,9 +383,11 @@ func (c *conns) Cursor() int {
 	}
 	return c.cursor
 }
+
 func (c *conns) Append(pc *persistConn) {
 	c.Conns = append(c.Conns, pc)
 }
+
 func (c *conns) Delete(cursor int) {
 	copy(c.Conns[cursor:], c.Conns[cursor+1:])
 	c.Conns = c.Conns[:len(c.Conns)-1]
