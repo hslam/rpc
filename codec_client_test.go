@@ -36,7 +36,7 @@ func TestNewClientCodec(t *testing.T) {
 		t.Error("should not be nil")
 	}
 	if codec.ReadResponseBody(nil) == nil {
-		t.Error("should error")
+		t.Error("The err should not be nil")
 	}
 	message.Close()
 	lis.Close()

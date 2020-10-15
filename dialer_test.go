@@ -13,11 +13,11 @@ func TestDial(t *testing.T) {
 	network := ""
 	codec := ""
 	if _, err := Dial(network, addr, codec); err == nil {
-		t.Error("should error")
+		t.Error("The err should not be nil")
 	}
 	network = "tcp"
 	if _, err := Dial(network, addr, codec); err == nil {
-		t.Error("should error")
+		t.Error("The err should not be nil")
 	}
 }
 
@@ -26,11 +26,11 @@ func TestDialTLS(t *testing.T) {
 	network := ""
 	codec := ""
 	if _, err := DialTLS(network, addr, codec, socket.SkipVerifyTLSConfig()); err == nil {
-		t.Error("should error")
+		t.Error("The err should not be nil")
 	}
 	network = "tcp"
 	if _, err := DialTLS(network, addr, codec, socket.SkipVerifyTLSConfig()); err == nil {
-		t.Error("should error")
+		t.Error("The err should not be nil")
 	}
 }
 
@@ -53,11 +53,11 @@ func TestDialWithOptions(t *testing.T) {
 	opts.Network = ""
 	opts.Codec = ""
 	if _, err := DialWithOptions(addr, opts); err == nil {
-		t.Error("should error")
+		t.Error("The err should not be nil")
 	}
 	opts.Codec = "json"
 	if _, err := DialWithOptions(addr, opts); err == nil {
-		t.Error("should error")
+		t.Error("The err should not be nil")
 	}
 	opts.Codec = ""
 	opts.NewCodec = NewCodec("json")

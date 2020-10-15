@@ -60,6 +60,6 @@ func TestUpgradeUnmarshal(t *testing.T) {
 		t.Error(offset)
 	}
 	if err == nil {
-		t.Error("should error")
+		t.Error("The err should not be nil")
 	}
 }

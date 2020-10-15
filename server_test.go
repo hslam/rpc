@@ -260,6 +260,13 @@ func TestServerPush(t *testing.T) {
 			t.Errorf("Watch foo:%s\n", string(value))
 		}
 	}
+	func() {
+		watch := conn.Watch(k)
+		_, err := watch.Wait()
+		if err == nil {
+			t.Error("The err should not be nil")
+		}
+	}()
 	watch.Stop()
 	PushFunc(nil)
 	watch = conn.Watch(k)
