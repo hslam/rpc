@@ -36,10 +36,7 @@ type Context struct {
 	Upgrade       []byte
 	ServiceMethod string
 	Error         string
-	heartbeat     bool
-	watch         byte
-	noRequest     bool
-	noResponse    bool
+	upgrade       *upgrade
 	keepReading   bool
 	f             *funcs.Func
 	args          funcs.Value

@@ -59,7 +59,7 @@ func (c *clientCodec) WriteRequest(ctx *Context, param interface{}) error {
 	var args []byte
 	var data []byte
 	var err error
-	if !ctx.noRequest {
+	if ctx.upgrade.NoRequest != noRequest {
 		args, err = c.bodyCodec.Marshal(c.argsBuffer, param)
 		if err != nil {
 			return err

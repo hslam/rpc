@@ -18,10 +18,11 @@ var ErrWatch = errors.New("The watch is existed")
 
 // Call represents an active RPC.
 type Call struct {
-	noRequest     bool
-	noResponse    bool
-	heartbeat     bool
-	watch         byte
+	//noRequest     bool
+	//noResponse    bool
+	//heartbeat     bool
+	//watch         byte
+	upgrade       *upgrade
 	Value         []byte
 	ServiceMethod string
 	Args          interface{}
@@ -127,7 +128,7 @@ func (client *Client) write(call *Call) {
 		return
 	}
 	seq := client.seq
-	if call.watch == watch {
+	if call.upgrade.Watch == watch {
 		if _, ok := client.watchs[call.ServiceMethod]; ok {
 			client.mutex.Unlock()
 			call.Error = ErrWatch
@@ -141,31 +142,20 @@ func (client *Client) write(call *Call) {
 	client.mutex.Unlock()
 	client.ctx = Context{}
 	client.ctx.Seq = seq
-	client.ctx.heartbeat = call.heartbeat
-	client.ctx.watch = call.watch
-	client.ctx.noRequest = call.noRequest
-	client.ctx.noResponse = call.noResponse
-	u := client.getUpgrade()
-	if call.heartbeat || call.watch == watch || call.watch == stopWatch || call.noRequest || call.noResponse {
-		if call.heartbeat {
-			u.Heartbeat = heartbeat
-		}
-		u.Watch = call.watch
-		if call.noRequest {
-			u.NoRequest = noRequest
-		}
-		if call.noResponse {
-			u.NoResponse = noResponse
-		}
-		client.ctx.Upgrade, _ = u.Marshal(client.upgradeBuffer)
+	client.ctx.upgrade = call.upgrade
+	if call.upgrade.Heartbeat == heartbeat ||
+		call.upgrade.Watch == watch ||
+		call.upgrade.Watch == stopWatch ||
+		call.upgrade.NoRequest == noRequest ||
+		call.upgrade.NoResponse == noResponse {
+		client.ctx.Upgrade, _ = call.upgrade.Marshal(client.upgradeBuffer)
 	}
 	client.ctx.ServiceMethod = call.ServiceMethod
 	err := client.codec.WriteRequest(&client.ctx, call.Args)
-	client.putUpgrade(u)
 	if err != nil {
 		client.mutex.Lock()
 		delete(client.pending, seq)
-		if call.watch == watch {
+		if call.upgrade.Watch == watch {
 			delete(client.watchs, call.ServiceMethod)
 		}
 		client.mutex.Unlock()
@@ -207,18 +197,17 @@ func (client *Client) read() {
 			if len(ctx.value) > 0 {
 				call.Value = ctx.value
 			}
-			if len(ctx.Upgrade) > 0 {
-				u := client.getUpgrade()
-				u.Unmarshal(ctx.Upgrade)
-				if u.Heartbeat == heartbeat || u.Watch == watch || u.Watch == stopWatch || u.NoResponse == noResponse {
-					call.done()
-					if u.Watch == watch {
-						client.mutex.Lock()
-						if _, ok := client.watchs[call.ServiceMethod]; ok {
-							client.pending[seq] = call
-						}
-						client.mutex.Unlock()
-					} else if u.Watch == stopWatch {
+			u := call.upgrade
+			if u.Heartbeat == heartbeat || u.Watch == watch || u.Watch == stopWatch || u.NoResponse == noResponse {
+				call.done()
+				if u.Watch == watch {
+					client.mutex.Lock()
+					if _, ok := client.watchs[call.ServiceMethod]; ok {
+						client.pending[seq] = call
+					}
+					client.mutex.Unlock()
+				} else {
+					if u.Watch == stopWatch {
 						client.mutex.Lock()
 						if wseq, ok := client.watchs[call.ServiceMethod]; ok {
 							delete(client.pending, wseq)
@@ -227,10 +216,10 @@ func (client *Client) read() {
 						client.mutex.Unlock()
 					}
 					client.putUpgrade(u)
-					continue
 				}
-				client.putUpgrade(u)
+				continue
 			}
+			client.putUpgrade(u)
 			err = client.codec.ReadResponseBody(call.Reply)
 			if err != nil {
 				call.Error = errors.New("reading body " + err.Error())
@@ -292,6 +281,7 @@ func (client *Client) RoundTrip(call *Call) *Call {
 			logger.Panic("rpc: done channel is unbuffered")
 		}
 	}
+	call.upgrade = client.getUpgrade()
 	call.Done = done
 	client.write(call)
 	return call
@@ -306,6 +296,7 @@ func (client *Client) Go(serviceMethod string, args interface{}, reply interface
 	call.ServiceMethod = serviceMethod
 	call.Args = args
 	call.Reply = reply
+	call.upgrade = client.getUpgrade()
 	if done == nil {
 		done = make(chan *Call, 10)
 	} else {
@@ -321,10 +312,12 @@ func (client *Client) Go(serviceMethod string, args interface{}, reply interface
 // Call invokes the named function, waits for it to complete, and returns its error status.
 func (client *Client) Call(serviceMethod string, args interface{}, reply interface{}) error {
 	done := client.donePool.Get().(chan *Call)
+	upgrade := client.getUpgrade()
 	call := client.callPool.Get().(*Call)
 	call.ServiceMethod = serviceMethod
 	call.Args = args
 	call.Reply = reply
+	call.upgrade = upgrade
 	call.Done = done
 	client.write(call)
 	<-call.Done
@@ -344,11 +337,13 @@ func (client *Client) Call(serviceMethod string, args interface{}, reply interfa
 // Watch returns the Watcher.
 func (client *Client) Watch(key string) Watcher {
 	watcher := &watcher{client: client, C: make(chan *watcher, 10), key: key}
+	upgrade := client.getUpgrade()
+	upgrade.NoRequest = noRequest
+	upgrade.NoResponse = noResponse
+	upgrade.Watch = watch
 	call := new(Call)
 	call.ServiceMethod = key
-	call.noRequest = true
-	call.noResponse = true
-	call.watch = watch
+	call.upgrade = upgrade
 	call.Done = make(chan *Call, 10)
 	call.watcher = watcher
 	client.write(call)
@@ -357,12 +352,14 @@ func (client *Client) Watch(key string) Watcher {
 
 // StopWatch stops the key watcher .
 func (client *Client) StopWatch(key string) error {
+	upgrade := client.getUpgrade()
+	upgrade.NoRequest = noRequest
+	upgrade.NoResponse = noResponse
+	upgrade.Watch = stopWatch
 	done := client.donePool.Get().(chan *Call)
 	call := client.callPool.Get().(*Call)
 	call.ServiceMethod = key
-	call.noRequest = true
-	call.noResponse = true
-	call.watch = stopWatch
+	call.upgrade = upgrade
 	call.Done = done
 	client.write(call)
 	<-call.Done
@@ -381,11 +378,13 @@ func (client *Client) StopWatch(key string) error {
 
 // Ping is NOT ICMP ping, this is just used to test whether a connection is still alive.
 func (client *Client) Ping() error {
+	upgrade := client.getUpgrade()
+	upgrade.NoRequest = noRequest
+	upgrade.NoResponse = noResponse
+	upgrade.Heartbeat = heartbeat
 	done := client.donePool.Get().(chan *Call)
 	call := client.callPool.Get().(*Call)
-	call.noRequest = true
-	call.noResponse = true
-	call.heartbeat = true
+	call.upgrade = upgrade
 	call.Done = done
 	client.write(call)
 	<-call.Done

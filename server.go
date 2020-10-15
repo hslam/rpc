@@ -177,10 +177,10 @@ func (server *Server) ServeRequest(codec ServerCodec, recving *sync.Mutex, sendi
 		server.sendResponse(ctx)
 		return err
 	}
-	if ctx.heartbeat {
+	if ctx.upgrade.Heartbeat == heartbeat {
 		server.sendResponse(ctx)
 		return nil
-	} else if ctx.watch == stopWatch {
+	} else if ctx.upgrade.Watch == stopWatch {
 		server.mutex.Lock()
 		if events, ok := server.watchs[ctx.ServiceMethod]; ok {
 			delete(events, codec)
@@ -188,7 +188,7 @@ func (server *Server) ServeRequest(codec ServerCodec, recving *sync.Mutex, sendi
 		server.mutex.Unlock()
 		server.sendResponse(ctx)
 		return nil
-	} else if ctx.watch == watch {
+	} else if ctx.upgrade.Watch == watch {
 		server.mutex.Lock()
 		var events map[ServerCodec]*Context
 		var ok bool
@@ -240,27 +240,16 @@ func (server *Server) ServeRequest(codec ServerCodec, recving *sync.Mutex, sendi
 
 func (server *Server) readRequest(codec ServerCodec) (ctx *Context, err error) {
 	ctx = server.ctxPool.Get().(*Context)
+	ctx.upgrade = server.getUpgrade()
 	err = codec.ReadRequestHeader(ctx)
 	if err != nil {
 		return
 	}
 	ctx.keepReading = true
 	if len(ctx.Upgrade) > 0 {
-		u := server.getUpgrade()
-		u.Unmarshal(ctx.Upgrade)
-		if u.Heartbeat == heartbeat {
-			ctx.heartbeat = true
-		}
-		ctx.watch = u.Watch
-		if u.NoRequest == noRequest {
-			ctx.noRequest = true
-		}
-		if u.NoResponse == noResponse {
-			ctx.noResponse = true
-		}
-		server.putUpgrade(u)
+		ctx.upgrade.Unmarshal(ctx.Upgrade)
 	}
-	if !ctx.noRequest {
+	if ctx.upgrade.NoRequest != noRequest {
 		ctx.f = server.Registry.GetFunc(ctx.ServiceMethod)
 		if ctx.f == nil {
 			err = errors.New("rpc: can't find service " + ctx.ServiceMethod)
@@ -277,7 +266,7 @@ func (server *Server) readRequest(codec ServerCodec) (ctx *Context, err error) {
 			return
 		}
 	}
-	if !ctx.noResponse {
+	if ctx.upgrade.NoResponse != noResponse {
 		ctx.reply = ctx.f.GetValueIn(1)
 		if ctx.reply == funcs.ZeroValue {
 			err = errors.New("rpc: can't find reply")
@@ -290,7 +279,7 @@ func (server *Server) callService(wg *sync.WaitGroup, ctx *Context) {
 	if wg != nil {
 		defer wg.Done()
 	}
-	if ctx.watch == watch {
+	if ctx.upgrade.Watch == watch {
 		if server.watchFunc != nil {
 			if value, ok := server.watchFunc(ctx.ServiceMethod); ok {
 				server.push(ctx, value)
@@ -307,7 +296,7 @@ func (server *Server) callService(wg *sync.WaitGroup, ctx *Context) {
 func (server *Server) sendResponse(ctx *Context) {
 	ctx.sending.Lock()
 	var reply interface{}
-	if len(ctx.Error) == 0 && !ctx.noResponse {
+	if len(ctx.Error) == 0 && ctx.upgrade.NoResponse != noResponse {
 		reply = ctx.reply.Interface()
 	}
 	err := ctx.codec.WriteResponse(ctx, reply)
@@ -315,7 +304,8 @@ func (server *Server) sendResponse(ctx *Context) {
 		logger.Allln("rpc: writing response:", err)
 	}
 	ctx.sending.Unlock()
-	if ctx.watch != watch {
+	if ctx.upgrade.Watch != watch {
+		server.putUpgrade(ctx.upgrade)
 		ctx.Reset()
 		server.ctxPool.Put(ctx)
 	}
