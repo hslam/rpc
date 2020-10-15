@@ -123,5 +123,20 @@ func TestResetDone(t *testing.T) {
 	if len(done) != 0 {
 		t.Error(len(done))
 	}
-	doneOnce(done)
+	onceDone(done)
+}
+
+func TestCheckDone(t *testing.T) {
+	done := checkDone(nil)
+	if done == nil {
+		t.Error("should not be nil")
+	}
+	done = make(chan *Call)
+	defer func() {
+		e := recover()
+		if e == nil {
+			t.Error("should panix")
+		}
+	}()
+	checkDone(done)
 }

@@ -270,13 +270,7 @@ func (client *Client) Close() error {
 // a Response for the provided Request.
 func (client *Client) RoundTrip(call *Call) *Call {
 	done := call.Done
-	if done == nil {
-		done = make(chan *Call, 10)
-	} else {
-		if cap(done) == 0 {
-			logger.Panic("rpc: done channel is unbuffered")
-		}
-	}
+	done = checkDone(done)
 	call.upgrade = client.getUpgrade()
 	call.Done = done
 	client.write(call)
@@ -293,13 +287,7 @@ func (client *Client) Go(serviceMethod string, args interface{}, reply interface
 	call.Args = args
 	call.Reply = reply
 	call.upgrade = client.getUpgrade()
-	if done == nil {
-		done = make(chan *Call, 10)
-	} else {
-		if cap(done) == 0 {
-			logger.Panic("rpc: done channel is unbuffered")
-		}
-	}
+	done = checkDone(done)
 	call.Done = done
 	client.write(call)
 	return call
@@ -385,13 +373,23 @@ func (client *Client) Ping() error {
 // ResetDone resets the done.
 func ResetDone(done chan *Call) {
 	for len(done) > 0 {
-		doneOnce(done)
+		onceDone(done)
 	}
 }
 
-func doneOnce(done chan *Call) {
+func onceDone(done chan *Call) {
 	select {
 	case <-done:
 	default:
 	}
+}
+
+func checkDone(done chan *Call) chan *Call {
+	if done == nil {
+		return make(chan *Call, 10)
+	}
+	if cap(done) == 0 {
+		panic("rpc: done channel is unbuffered")
+	}
+	return done
 }
