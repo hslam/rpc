@@ -28,7 +28,7 @@ type Call struct {
 	Reply         interface{}
 	Error         error
 	Done          chan *Call
-	watcher       *Watch
+	watcher       *watcher
 }
 
 func (call *Call) done() {
@@ -341,10 +341,9 @@ func (client *Client) Call(serviceMethod string, args interface{}, reply interfa
 	return err
 }
 
-// Watch invokes the function asynchronously. It returns the Watch structure representing
-// the invocation. The done channel will signal when the key is triggered.
-func (client *Client) Watch(key string) *Watch {
-	watcher := &Watch{client: client, C: make(chan *Watch, 10), key: key}
+// Watch returns the Watcher.
+func (client *Client) Watch(key string) Watcher {
+	watcher := &watcher{client: client, C: make(chan *watcher, 10), key: key}
 	call := new(Call)
 	call.ServiceMethod = key
 	call.noRequest = true

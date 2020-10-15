@@ -1,15 +1,20 @@
 package rpc
 
-// Watch represents a watcher.
-type Watch struct {
+// Watcher represents a watcher.
+type Watcher interface {
+	Wait() ([]byte, error)
+	Stop() error
+}
+
+type watcher struct {
 	client *Client
-	C      chan *Watch
+	C      chan *watcher
 	key    string
 	Value  []byte
 	Error  error
 }
 
-func (w *Watch) trigger(value []byte, err error) {
+func (w *watcher) trigger(value []byte, err error) {
 	w.Value = value
 	w.Error = err
 	select {
@@ -19,12 +24,12 @@ func (w *Watch) trigger(value []byte, err error) {
 }
 
 // Wait will return value when the key is triggered.
-func (w *Watch) Wait() ([]byte, error) {
+func (w *watcher) Wait() ([]byte, error) {
 	<-w.C
 	return w.Value, w.Error
 }
 
 // Stop stops the watch.
-func (w *Watch) Stop() error {
+func (w *watcher) Stop() error {
 	return w.client.StopWatch(w.key)
 }
