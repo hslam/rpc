@@ -18,10 +18,6 @@ var ErrWatch = errors.New("The watch is existed")
 
 // Call represents an active RPC.
 type Call struct {
-	//noRequest     bool
-	//noResponse    bool
-	//heartbeat     bool
-	//watch         byte
 	upgrade       *upgrade
 	Value         []byte
 	ServiceMethod string
