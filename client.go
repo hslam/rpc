@@ -259,7 +259,7 @@ func (client *Client) Close() error {
 	client.mutex.Lock()
 	if client.closing {
 		client.mutex.Unlock()
-		return ErrShutdown
+		return nil
 	}
 	client.closing = true
 	client.mutex.Unlock()

@@ -89,12 +89,7 @@ func (t *Transport) RoundTrip(addr string, call *Call) *Call {
 	}
 	client.RoundTrip(call)
 	client.lastTime = t.now
-	if call.Error == ErrShutdown {
-		client.mu.Lock()
-		client.alive = false
-		client.mu.Unlock()
-		client.Close()
-	}
+	checkPersistConnErr(call.Error, client)
 	return call
 }
 
@@ -106,12 +101,7 @@ func (t *Transport) Call(addr, serviceMethod string, args interface{}, reply int
 	}
 	err = client.Call(serviceMethod, args, reply)
 	client.lastTime = t.now
-	if err == ErrShutdown {
-		client.mu.Lock()
-		client.alive = false
-		client.mu.Unlock()
-		client.Close()
-	}
+	checkPersistConnErr(err, client)
 	return err
 }
 
@@ -134,12 +124,7 @@ func (t *Transport) Go(addr, serviceMethod string, args interface{}, reply inter
 	}
 	call := client.Go(serviceMethod, args, reply, done)
 	client.lastTime = t.now
-	if call.Error == ErrShutdown {
-		client.mu.Lock()
-		client.alive = false
-		client.mu.Unlock()
-		client.Close()
-	}
+	checkPersistConnErr(call.Error, client)
 	return call
 }
 
@@ -151,13 +136,17 @@ func (t *Transport) Ping(addr string) error {
 	}
 	err = client.Ping()
 	client.lastTime = t.now
-	if err != nil {
-		client.mu.Lock()
-		client.alive = false
-		client.mu.Unlock()
-		client.Close()
-	}
+	checkPersistConnErr(err, client)
 	return err
+}
+
+func checkPersistConnErr(err error, pc *persistConn) {
+	if err == ErrShutdown {
+		pc.mu.Lock()
+		pc.alive = false
+		pc.mu.Unlock()
+		pc.Close()
+	}
 }
 
 func (t *Transport) getConn(addr string) (pc *persistConn, err error) {

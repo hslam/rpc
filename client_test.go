@@ -90,6 +90,7 @@ func TestNewClientWithCodec(t *testing.T) {
 	if NewClientWithCodec(nil) != nil {
 		t.Error("should be nil")
 	}
+
 	clientCodec := NewClientCodec(NewJSONCodec(), NewCODEEncoder(), conn.Messages())
 	client := NewClientWithCodec(clientCodec)
 	if client == nil {
@@ -103,6 +104,11 @@ func TestNewClientWithCodec(t *testing.T) {
 	err = client.Ping()
 	if err != ErrShutdown {
 		t.Error(err)
+	}
+	pc := &persistConn{Client: client}
+	checkPersistConnErr(ErrShutdown, pc)
+	if pc.alive == true {
+		t.Error("should not be alive")
 	}
 	server.Close()
 	wg.Wait()
