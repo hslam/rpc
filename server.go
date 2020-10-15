@@ -7,6 +7,7 @@ package rpc
 import (
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"github.com/hslam/codec"
 	"github.com/hslam/funcs"
 	"github.com/hslam/netpoll"
@@ -166,7 +167,7 @@ func (server *Server) ServeRequest(codec ServerCodec, recving *sync.Mutex, sendi
 	ctx.codec = codec
 	if err != nil {
 		if err != io.EOF && err != io.ErrUnexpectedEOF && err != netpoll.EAGAIN {
-			logger.Errorln("rpc:", err)
+			logger.Errorln(err)
 		}
 		if !ctx.keepReading {
 			ctx.Reset()
@@ -241,6 +242,11 @@ func (server *Server) ServeRequest(codec ServerCodec, recving *sync.Mutex, sendi
 func (server *Server) readRequest(codec ServerCodec) (ctx *Context, err error) {
 	ctx = server.ctxPool.Get().(*Context)
 	ctx.upgrade = server.getUpgrade()
+	defer func() {
+		if e := recover(); e != nil {
+			err = fmt.Errorf("%v", e)
+		}
+	}()
 	err = codec.ReadRequestHeader(ctx)
 	if err != nil {
 		return
@@ -252,13 +258,13 @@ func (server *Server) readRequest(codec ServerCodec) (ctx *Context, err error) {
 	if ctx.upgrade.NoRequest != noRequest {
 		ctx.f = server.Registry.GetFunc(ctx.ServiceMethod)
 		if ctx.f == nil {
-			err = errors.New("rpc: can't find service " + ctx.ServiceMethod)
+			err = errors.New("can't find service " + ctx.ServiceMethod)
 			codec.ReadRequestBody(nil)
 			return
 		}
 		ctx.args = ctx.f.GetValueIn(0)
 		if ctx.args == funcs.ZeroValue {
-			err = errors.New("rpc: can't find args")
+			err = errors.New("can't find args")
 			codec.ReadRequestBody(nil)
 			return
 		}
@@ -269,7 +275,7 @@ func (server *Server) readRequest(codec ServerCodec) (ctx *Context, err error) {
 	if ctx.upgrade.NoResponse != noResponse {
 		ctx.reply = ctx.f.GetValueIn(1)
 		if ctx.reply == funcs.ZeroValue {
-			err = errors.New("rpc: can't find reply")
+			err = errors.New("can't find reply")
 		}
 	}
 	return
@@ -301,7 +307,7 @@ func (server *Server) sendResponse(ctx *Context) {
 	}
 	err := ctx.codec.WriteResponse(ctx, reply)
 	if err != nil {
-		logger.Allln("rpc: writing response:", err)
+		logger.Allln("writing response:", err)
 	}
 	ctx.sending.Unlock()
 	if ctx.upgrade.Watch != watch {
