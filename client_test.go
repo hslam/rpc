@@ -60,6 +60,7 @@ func TestClient(t *testing.T) {
 		t.Error(res.Pro)
 	}
 	GetLogLevel()
+	time.Sleep(time.Second)
 	conn.Close()
 	server.Close()
 	wg.Wait()
