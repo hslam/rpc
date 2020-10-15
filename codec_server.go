@@ -4,6 +4,7 @@
 package rpc
 
 import (
+	"errors"
 	"github.com/hslam/codec"
 	"github.com/hslam/socket"
 	"sync/atomic"
@@ -78,7 +79,7 @@ func (c *serverCodec) ReadRequestHeader(ctx *Context) error {
 
 func (c *serverCodec) ReadRequestBody(x interface{}) error {
 	if x == nil {
-		return nil
+		return errors.New("x is nil")
 	}
 	if c.headerEncoder != nil {
 		return c.bodyCodec.Unmarshal(c.headerEncoder.Request.GetArgs(), x)

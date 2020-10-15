@@ -4,6 +4,7 @@
 package rpc
 
 import (
+	"errors"
 	"fmt"
 	"github.com/hslam/codec"
 	"github.com/hslam/socket"
@@ -125,7 +126,7 @@ func (c *clientCodec) ReadResponseHeader(ctx *Context) error {
 
 func (c *clientCodec) ReadResponseBody(x interface{}) error {
 	if x == nil {
-		return nil
+		return errors.New("x is nil")
 	}
 	if c.headerEncoder != nil {
 		return c.bodyCodec.Unmarshal(c.headerEncoder.Response.GetReply(), x)
