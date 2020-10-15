@@ -84,3 +84,37 @@ func TestTransport(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+func TestConnQueue(t *testing.T) {
+	capacity := 1
+	cq := newConnQueue(capacity, ":9999")
+	if cq.Capacity() != capacity {
+		t.Error(cq.Capacity())
+	}
+	if cq.Front() != nil {
+		t.Error(cq.Front())
+	}
+	if cq.Rear() != nil {
+		t.Error(cq.Rear())
+	}
+	if !cq.Enqueue(&persistConn{}) {
+		t.Error("should be ok")
+	}
+	if cq.Enqueue(&persistConn{}) {
+		t.Error("should not be ok")
+	}
+	if cq.Front() == nil {
+		t.Error("should not be nil")
+	}
+	if cq.Rear() == nil {
+		t.Error("should not be nil")
+	}
+	p := cq.Dequeue()
+	if p == nil {
+		t.Error("should not be nil")
+	}
+	p = cq.Dequeue()
+	if p != nil {
+		t.Error("should be nil")
+	}
+}
