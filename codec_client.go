@@ -101,7 +101,6 @@ func (c *clientCodec) ReadResponseHeader(ctx *Context) error {
 		c.headerEncoder.Codec.Unmarshal(data, c.headerEncoder.Response)
 		ctx.Error = ""
 		ctx.Seq = c.headerEncoder.Response.GetSeq()
-		ctx.Upgrade = c.headerEncoder.Response.GetUpgrade()
 		if c.headerEncoder.Response.GetError() != "" || len(c.headerEncoder.Response.GetReply()) == 0 {
 			if len(c.headerEncoder.Response.GetError()) > 0 {
 				return fmt.Errorf("invalid error %v", c.headerEncoder.Response.GetError())
@@ -113,7 +112,6 @@ func (c *clientCodec) ReadResponseHeader(ctx *Context) error {
 		c.res.Unmarshal(data)
 		ctx.Error = ""
 		ctx.Seq = c.res.GetSeq()
-		ctx.Upgrade = c.res.GetUpgrade()
 		if c.res.GetError() != "" || len(c.res.GetReply()) == 0 {
 			if len(c.res.GetError()) > 0 {
 				return fmt.Errorf("invalid error %v", c.res.GetError())

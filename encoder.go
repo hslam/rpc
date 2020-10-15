@@ -51,8 +51,6 @@ type Request interface {
 type Response interface {
 	SetSeq(uint64)
 	GetSeq() uint64
-	SetUpgrade([]byte)
-	GetUpgrade() []byte
 	SetError(string)
 	GetError() string
 	SetReply([]byte)

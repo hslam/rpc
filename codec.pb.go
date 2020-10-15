@@ -174,17 +174,15 @@ func (req *pbRequest) Unmarshal(data []byte) error {
 }
 
 type pbResponse struct {
-	Seq     uint64
-	Upgrade []byte
-	Error   string
-	Reply   []byte
+	Seq   uint64
+	Error string
+	Reply []byte
 }
 
 // Size return the buf size.
 func (res *pbResponse) Size() (n int) {
 	var size uint64
 	size += 11
-	size += 11 + uint64(len(res.Upgrade))
 	size += 11 + uint64(len(res.Error))
 	size += 11 + uint64(len(res.Reply))
 	return int(size)
@@ -205,7 +203,6 @@ func (res *pbResponse) Marshal() ([]byte, error) {
 func (res *pbResponse) MarshalTo(buf []byte) (int, error) {
 	var size uint64
 	size += 11
-	size += 11 + uint64(len(res.Upgrade))
 	size += 11 + uint64(len(res.Error))
 	size += 11 + uint64(len(res.Reply))
 	if uint64(cap(buf)) >= size {
@@ -231,27 +228,8 @@ func (res *pbResponse) MarshalTo(buf []byte) (int, error) {
 		}
 		offset += n
 	}
-	if len(res.Upgrade) > 0 {
-		buf[offset] = 2<<3 | 2
-		offset++
-		//n = code.EncodeBytes(buf[offset:], res.Upgrade)
-		{
-			var length = uint64(len(res.Upgrade))
-			var lengthSize = code.SizeofVarint(length)
-			var s = lengthSize + length
-			t := length
-			for i := uint64(0); i < lengthSize-1; i++ {
-				buf[offset+i] = byte(t) | 0x80
-				t >>= 7
-			}
-			buf[offset+lengthSize-1] = byte(t)
-			copy(buf[offset+lengthSize:], res.Upgrade)
-			n = s
-		}
-		offset += n
-	}
 	if len(res.Error) > 0 {
-		buf[offset] = 3<<3 | 2
+		buf[offset] = 2<<3 | 2
 		offset++
 		//n = code.EncodeString(buf[offset:], res.Error)
 		{
@@ -270,7 +248,7 @@ func (res *pbResponse) MarshalTo(buf []byte) (int, error) {
 		offset += n
 	}
 	if len(res.Reply) > 0 {
-		buf[offset] = 4<<3 | 2
+		buf[offset] = 3<<3 | 2
 		offset++
 		//n = code.EncodeBytes(buf[offset:], res.Reply)
 		{
@@ -317,12 +295,6 @@ func (res *pbResponse) Unmarshal(data []byte) error {
 			offset += n
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Upgrade", wireType)
-			}
-			n = code.DecodeBytes(data[offset:], &res.Upgrade)
-			offset += n
-		case 3:
-			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Error", wireType)
 			}
 			if data[offset] > 0 {
@@ -331,7 +303,7 @@ func (res *pbResponse) Unmarshal(data []byte) error {
 				n = 1
 			}
 			offset += n
-		case 4:
+		case 3:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Reply", wireType)
 			}

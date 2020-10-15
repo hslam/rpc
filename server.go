@@ -254,6 +254,7 @@ func (server *Server) readRequest(codec ServerCodec) (ctx *Context, err error) {
 	ctx.keepReading = true
 	if len(ctx.Upgrade) > 0 {
 		ctx.upgrade.Unmarshal(ctx.Upgrade)
+		ctx.Upgrade = nil
 	}
 	if ctx.upgrade.NoRequest != noRequest {
 		ctx.f = server.Registry.GetFunc(ctx.ServiceMethod)

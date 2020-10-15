@@ -104,7 +104,6 @@ func (c *serverCodec) WriteResponse(ctx *Context, x interface{}) error {
 	}
 	if c.headerEncoder != nil {
 		c.headerEncoder.Response.SetSeq(reqSeq)
-		c.headerEncoder.Response.SetUpgrade(ctx.Upgrade)
 		c.headerEncoder.Response.SetError(ctx.Error)
 		c.headerEncoder.Response.SetReply(reply)
 		data, err = c.headerEncoder.Codec.Marshal(c.responseBuffer, c.headerEncoder.Response)
@@ -113,7 +112,6 @@ func (c *serverCodec) WriteResponse(ctx *Context, x interface{}) error {
 		}
 	} else {
 		c.res.SetSeq(reqSeq)
-		c.res.SetUpgrade(ctx.Upgrade)
 		c.res.SetError(ctx.Error)
 		c.res.SetReply(reply)
 		data, err = c.res.Marshal(c.responseBuffer)

@@ -87,16 +87,6 @@ func (res *pbResponse) GetSeq() uint64 {
 	return res.Seq
 }
 
-// SetUpgrade sets the value of Upgrade.
-func (res *pbResponse) SetUpgrade(upgrade []byte) {
-	res.Upgrade = upgrade
-}
-
-// GetUpgrade returns the value of Upgrade.
-func (res *pbResponse) GetUpgrade() []byte {
-	return res.Upgrade
-}
-
 // SetError sets the value of Error.
 func (res *pbResponse) SetError(errorMsg string) {
 	res.Error = errorMsg
