@@ -2,7 +2,9 @@ package rpc
 
 // Watcher represents a watcher.
 type Watcher interface {
+	// Wait will return value when the key is triggered.
 	Wait() ([]byte, error)
+	// Stop stops the watch.
 	Stop() error
 }
 
@@ -23,13 +25,11 @@ func (w *watcher) trigger(value []byte, err error) {
 	}
 }
 
-// Wait will return value when the key is triggered.
 func (w *watcher) Wait() ([]byte, error) {
 	<-w.C
 	return w.Value, w.Error
 }
 
-// Stop stops the watch.
 func (w *watcher) Stop() error {
 	return w.client.StopWatch(w.key)
 }
