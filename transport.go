@@ -79,13 +79,7 @@ var DefaultTransport = &Transport{
 // a Response for the provided Request.
 func (t *Transport) RoundTrip(addr string, call *Call) *Call {
 	done := call.Done
-	if done == nil {
-		done = make(chan *Call, 10)
-	} else {
-		if cap(done) == 0 {
-			logger.Panic("rpc: done channel is unbuffered")
-		}
-	}
+	done = checkDone(done)
 	call.Done = done
 	client, err := t.getConn(addr)
 	if err != nil {
@@ -95,7 +89,7 @@ func (t *Transport) RoundTrip(addr string, call *Call) *Call {
 	}
 	client.RoundTrip(call)
 	client.lastTime = t.now
-	if err == ErrShutdown {
+	if call.Error == ErrShutdown {
 		client.mu.Lock()
 		client.alive = false
 		client.mu.Unlock()
@@ -132,13 +126,7 @@ func (t *Transport) Go(addr, serviceMethod string, args interface{}, reply inter
 		call.ServiceMethod = serviceMethod
 		call.Args = args
 		call.Reply = reply
-		if done == nil {
-			done = make(chan *Call, 10)
-		} else {
-			if cap(done) == 0 {
-				logger.Panic("rpc: done channel is unbuffered")
-			}
-		}
+		done = checkDone(done)
 		call.Done = done
 		call.Error = err
 		call.done()
@@ -146,7 +134,7 @@ func (t *Transport) Go(addr, serviceMethod string, args interface{}, reply inter
 	}
 	call := client.Go(serviceMethod, args, reply, done)
 	client.lastTime = t.now
-	if err == ErrShutdown {
+	if call.Error == ErrShutdown {
 		client.mu.Lock()
 		client.alive = false
 		client.mu.Unlock()
@@ -177,7 +165,6 @@ func (t *Transport) getConn(addr string) (pc *persistConn, err error) {
 	defer t.connsMu.Unlock()
 	if !t.running {
 		t.once.Do(func() {
-			t.running = true
 			t.idleConns = make(map[string]*connQueue)
 			t.conns = make(map[string]*conns)
 			t.done = make(chan bool, 10)
@@ -202,6 +189,7 @@ func (t *Transport) getConn(addr string) (pc *persistConn, err error) {
 			if t.DialWithOptions == nil {
 				t.DialWithOptions = DialWithOptions
 			}
+			t.running = true
 			go t.run()
 		})
 	}
@@ -414,22 +402,6 @@ type node struct {
 	value    *persistConn
 	previous *node
 	next     *node
-}
-
-func (n *node) Value() *persistConn {
-	return n.value
-}
-
-func (n *node) Set(value *persistConn) {
-	n.value = value
-}
-
-func (n *node) Previous() *node {
-	return n.previous
-}
-
-func (n *node) Next() *node {
-	return n.next
 }
 
 type connQueue struct {
