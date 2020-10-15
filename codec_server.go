@@ -62,13 +62,19 @@ func (c *serverCodec) ReadRequestHeader(ctx *Context) error {
 	}
 	if c.headerEncoder != nil {
 		c.headerEncoder.Request.Reset()
-		c.headerEncoder.Codec.Unmarshal(data, c.headerEncoder.Request)
+		err = c.headerEncoder.Codec.Unmarshal(data, c.headerEncoder.Request)
+		if err != nil {
+			return err
+		}
 		ctx.ServiceMethod = c.headerEncoder.Request.GetServiceMethod()
 		ctx.Upgrade = c.headerEncoder.Request.GetUpgrade()
 		ctx.Seq = c.headerEncoder.Request.GetSeq()
 	} else {
 		c.req.Reset()
-		c.req.Unmarshal(data)
+		_, err = c.req.Unmarshal(data)
+		if err != nil {
+			return err
+		}
 		ctx.ServiceMethod = c.req.GetServiceMethod()
 		ctx.Upgrade = c.req.GetUpgrade()
 		ctx.Seq = c.req.GetSeq()

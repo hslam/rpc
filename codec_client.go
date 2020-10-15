@@ -5,7 +5,6 @@ package rpc
 
 import (
 	"errors"
-	"fmt"
 	"github.com/hslam/codec"
 	"github.com/hslam/socket"
 	"sync/atomic"
@@ -97,30 +96,29 @@ func (c *clientCodec) ReadResponseHeader(ctx *Context) error {
 	defer atomic.AddInt64(&c.count, -1)
 	if c.headerEncoder != nil {
 		c.headerEncoder.Response.Reset()
-		c.headerEncoder.Codec.Unmarshal(data, c.headerEncoder.Response)
+		err = c.headerEncoder.Codec.Unmarshal(data, c.headerEncoder.Response)
+		if err != nil {
+			return err
+		}
 		ctx.Error = ""
 		ctx.Seq = c.headerEncoder.Response.GetSeq()
 		if c.headerEncoder.Response.GetError() != "" || len(c.headerEncoder.Response.GetReply()) == 0 {
-			if len(c.headerEncoder.Response.GetError()) > 0 {
-				return fmt.Errorf("invalid error %v", c.headerEncoder.Response.GetError())
-			}
 			ctx.Error = c.headerEncoder.Response.GetError()
 		}
 	} else {
 		c.res.Reset()
-		c.res.Unmarshal(data)
+		_, err = c.res.Unmarshal(data)
+		if err != nil {
+			return err
+		}
 		ctx.Error = ""
 		ctx.Seq = c.res.GetSeq()
 		if c.res.GetError() != "" || len(c.res.GetReply()) == 0 {
-			if len(c.res.GetError()) > 0 {
-				return fmt.Errorf("invalid error %v", c.res.GetError())
-			}
 			ctx.Error = c.res.GetError()
 		} else if len(c.res.GetReply()) > 0 {
 			ctx.value = c.res.GetReply()
 		}
 	}
-
 	return nil
 }
 
