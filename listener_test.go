@@ -122,3 +122,57 @@ func TestListenWithOptions(t *testing.T) {
 	DefaultServer.Close()
 	wg.Wait()
 }
+
+func TestServerListen(t *testing.T) {
+	addr := ":8880"
+	network := ""
+	codec := ""
+
+	if err := DefaultServer.Listen(network, addr, codec); err == nil {
+		t.Error("The err should not be nil")
+	}
+	network = "tcp"
+	if err := DefaultServer.Listen(network, addr, codec); err == nil {
+		t.Error("The err should not be nil")
+	}
+}
+
+func TestServerListenTLS(t *testing.T) {
+	addr := ":8880"
+	network := ""
+	codec := ""
+	if err := DefaultServer.ListenTLS(network, addr, codec, socket.SkipVerifyTLSConfig()); err == nil {
+		t.Error("The err should not be nil")
+	}
+	network = "tcp"
+	if err := DefaultServer.ListenTLS(network, addr, codec, socket.SkipVerifyTLSConfig()); err == nil {
+		t.Error("The err should not be nil")
+	}
+}
+
+func TestServerListenWithOptions(t *testing.T) {
+	addr := ":9999"
+	opts := &Options{}
+	opts.Network = "tcp"
+	opts.Codec = "json"
+	opts.Network = ""
+	opts.Codec = ""
+	server := NewServer()
+	if err := server.ListenWithOptions(addr, opts); err == nil {
+		t.Error("The err should not be nil")
+	}
+	opts.Codec = "json"
+	if err := server.ListenWithOptions(addr, opts); err == nil {
+		t.Error("The err should not be nil")
+	}
+	opts.NewSocket = NewSocket("tcp")
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		server.ListenWithOptions(addr, opts)
+	}()
+	time.Sleep(time.Millisecond * 10)
+	server.Close()
+	wg.Wait()
+}
