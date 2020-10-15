@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"github.com/hslam/codec"
 	"github.com/hslam/socket"
-	"io"
 	"sync/atomic"
 )
 
@@ -19,7 +18,6 @@ type clientCodec struct {
 	argsBuffer    []byte
 	requestBuffer []byte
 	messages      socket.Messages
-	writer        io.WriteCloser
 	count         int64
 }
 
@@ -136,8 +134,5 @@ func (c *clientCodec) ReadResponseBody(x interface{}) error {
 }
 
 func (c *clientCodec) Close() error {
-	if c.writer != nil {
-		c.writer.Close()
-	}
 	return c.messages.Close()
 }

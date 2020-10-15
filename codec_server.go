@@ -6,7 +6,6 @@ package rpc
 import (
 	"github.com/hslam/codec"
 	"github.com/hslam/socket"
-	"io"
 	"sync/atomic"
 )
 
@@ -18,7 +17,6 @@ type serverCodec struct {
 	replyBuffer    []byte
 	responseBuffer []byte
 	messages       socket.Messages
-	writer         io.WriteCloser
 	count          int64
 }
 
@@ -123,8 +121,5 @@ func (c *serverCodec) WriteResponse(ctx *Context, x interface{}) error {
 }
 
 func (c *serverCodec) Close() error {
-	if c.writer != nil {
-		c.writer.Close()
-	}
 	return c.messages.Close()
 }
