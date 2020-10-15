@@ -38,10 +38,10 @@ type Server struct {
 	watchFunc     WatchFunc
 }
 
-// NewServerCodecFunc is the function to make a new ServerCodec by socket.Messages.
+// NewServerCodecFunc is the function making a new ServerCodec by socket.Messages.
 type NewServerCodecFunc func(messages socket.Messages) ServerCodec
 
-// WatchFunc is the function to get value by key.
+// WatchFunc is the function getting value by key.
 type WatchFunc func(key string) (value []byte, ok bool)
 
 // NewServer returns a new Server.
