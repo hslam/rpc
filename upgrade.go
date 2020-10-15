@@ -3,6 +3,8 @@
 
 package rpc
 
+import "errors"
+
 const (
 	// NoRequest represents a no request transaction.
 	noRequest = 0x1
@@ -51,7 +53,7 @@ func (u *upgrade) Marshal(buf []byte) ([]byte, error) {
 func (u *upgrade) Unmarshal(data []byte) (uint64, error) {
 	var offset uint64
 	if uint64(len(data)) < offset+1 {
-		return 0, nil
+		return 0, errors.New("data is too short")
 	}
 	u.NoRequest = data[0] >> 7 & 0x1
 	u.NoResponse = data[0] >> 6 & 0x1

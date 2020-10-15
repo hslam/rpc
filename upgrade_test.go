@@ -8,6 +8,11 @@ import (
 )
 
 func TestUpgrade(t *testing.T) {
+	testUpgrade(nil, t)
+	testUpgrade(make([]byte, 1), t)
+}
+
+func testUpgrade(buf []byte, t *testing.T) {
 	u := &upgrade{
 		NoRequest:  noRequest,
 		NoResponse: noResponse,
@@ -16,7 +21,6 @@ func TestUpgrade(t *testing.T) {
 		Watch:      watch,
 		Reserve:    1,
 	}
-	buf := make([]byte, 64)
 	data, err := u.Marshal(buf)
 	if err != nil {
 		t.Error(err)
@@ -46,5 +50,16 @@ func TestUpgrade(t *testing.T) {
 	}
 	if u.Reserve != 1 {
 		t.Errorf("Reserve Unmarshal error %d", u.Reserve)
+	}
+}
+
+func TestUpgradeUnmarshal(t *testing.T) {
+	u := &upgrade{}
+	offset, err := u.Unmarshal(nil)
+	if offset != 0 {
+		t.Error(offset)
+	}
+	if err == nil {
+		t.Error("should error")
 	}
 }
