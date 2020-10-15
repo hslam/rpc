@@ -5,6 +5,7 @@ package rpc
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -65,6 +66,8 @@ type Transport struct {
 	DialWithOptions     func(address string, opts *Options) (*Client, error)
 	running             bool
 	done                chan bool
+	closed              uint32
+	ticker              time.Duration
 }
 
 // DefaultTransport is a default RPC transport.
@@ -254,7 +257,10 @@ func (t *Transport) newPersistConn(addr string) (*persistConn, error) {
 }
 
 func (t *Transport) run() {
-	ticker := time.NewTicker(runTicker)
+	if t.ticker <= 0 {
+		t.ticker = runTicker
+	}
+	ticker := time.NewTicker(t.ticker)
 	for {
 		select {
 		case <-ticker.C:
@@ -340,6 +346,9 @@ func (t *Transport) CloseIdleConnections() {
 
 // Close closes the all connections.
 func (t *Transport) Close() {
+	if !atomic.CompareAndSwapUint32(&t.closed, 0, 1) {
+		return
+	}
 	t.connsMu.Lock()
 	defer t.connsMu.Unlock()
 	for _, cs := range t.conns {
@@ -361,6 +370,7 @@ func (t *Transport) Close() {
 		delete(t.idleConns, cq.addr)
 	}
 	t.idleConns = make(map[string]*connQueue)
+	close(t.done)
 }
 
 type persistConn struct {
