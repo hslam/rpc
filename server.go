@@ -140,9 +140,12 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 	}
 	wg.Wait()
 	server.mutex.Lock()
-	for _, events := range server.watchs {
+	for k, events := range server.watchs {
 		if _, ok := events[codec]; ok {
 			delete(events, codec)
+		}
+		if len(events) == 0 {
+			delete(server.watchs, k)
 		}
 	}
 	server.mutex.Unlock()

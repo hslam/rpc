@@ -331,3 +331,28 @@ func TestServerPush(t *testing.T) {
 	DefaultServer.Close()
 	wg.Wait()
 }
+
+func TestServerPushClose(t *testing.T) {
+	network := "tcp"
+	addr := ":9999"
+	codec := "json"
+	var k = "foo"
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	server := NewServer()
+	go func() {
+		defer wg.Done()
+		server.Listen(network, addr, codec)
+	}()
+	time.Sleep(time.Millisecond * 10)
+	conn, err := Dial(network, addr, codec)
+	if err != nil {
+		t.Error(err)
+	}
+	conn.Watch(k)
+	time.Sleep(time.Millisecond * 100)
+	conn.Close()
+	time.Sleep(time.Millisecond * 100)
+	server.Close()
+	wg.Wait()
+}
