@@ -115,17 +115,24 @@ func TestServerPollPipelining(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
-	A := int32(4)
-	B := int32(8)
-	req := &service.ArithRequest{A: A, B: B}
-	var res service.ArithResponse
-	if err := conn.Call("Arith.Multiply", req, &res); err != nil {
-		t.Error(err)
+	cwg := sync.WaitGroup{}
+	for i := 0; i < 64; i++ {
+		cwg.Add(1)
+		go func() {
+			defer cwg.Done()
+			A := int32(4)
+			B := int32(8)
+			req := &service.ArithRequest{A: A, B: B}
+			var res service.ArithResponse
+			if err := conn.Call("Arith.Multiply", req, &res); err != nil {
+				t.Error(err)
+			}
+			if res.Pro != A*B {
+				t.Error(res.Pro)
+			}
+		}()
 	}
-	if res.Pro != A*B {
-		t.Error(res.Pro)
-	}
+	cwg.Wait()
 	conn.Close()
 	DefaultServer.Close()
 	wg.Wait()

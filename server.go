@@ -369,9 +369,6 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 					}
 					server.mutex.Unlock()
 					ctx.codec.Close()
-					if ctx.done != nil {
-						close(ctx.done)
-					}
 				}
 			}
 			return err

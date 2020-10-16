@@ -43,6 +43,11 @@ func TestListen(t *testing.T) {
 		t.Error(res.Pro)
 	}
 	conn.Close()
+
+	err = Listen(network, addr, codec)
+	if err == nil {
+		t.Error("The err should be address already in use")
+	}
 	DefaultServer.Close()
 	wg.Wait()
 }
