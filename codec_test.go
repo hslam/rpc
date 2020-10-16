@@ -5,17 +5,18 @@ package rpc
 
 import (
 	"github.com/hslam/codec"
+	"strings"
 	"testing"
 )
 
 func TestCodecCODE(t *testing.T) {
-	var req = request{Seq: 1024, Upgrade: make([]byte, 1), ServiceMethod: "Arith.Multiply", Args: make([]byte, 512)}
-	var res = response{Seq: 1024, Error: "Error", Reply: make([]byte, 512)}
+	var req = request{Seq: 1024, Upgrade: make([]byte, 512), ServiceMethod: strings.Repeat("a", 512), Args: make([]byte, 512)}
+	var res = response{Seq: 1024, CallError: true, Error: strings.Repeat("e", 512), Reply: make([]byte, 512)}
 	var c = codec.CODECodec{}
 	var data []byte
 	{
-		var bufq = make([]byte, 1024)
-		var bufs = make([]byte, 1024)
+		var bufq = make([]byte, 10240)
+		var bufs = make([]byte, 10240)
 		var reqCopy request
 		var resCopy response
 		data, _ = c.Marshal(bufq, &req)
@@ -55,13 +56,13 @@ func BenchmarkRoundtripCODE(t *testing.B) {
 }
 
 func TestCodecPB(t *testing.T) {
-	var req = pbRequest{Seq: 1024, Upgrade: make([]byte, 1), ServiceMethod: "Arith.Multiply", Args: make([]byte, 512)}
-	var res = pbResponse{Seq: 1024, Error: "Error", Reply: make([]byte, 512)}
+	var req = pbRequest{Seq: 1024, Upgrade: make([]byte, 512), ServiceMethod: strings.Repeat("a", 512), Args: make([]byte, 512)}
+	var res = pbResponse{Seq: 1024, CallError: true, Error: strings.Repeat("e", 512), Reply: make([]byte, 512)}
 	var c = codec.GOGOPBCodec{}
 	var data []byte
 	{
-		var bufq = make([]byte, 1024)
-		var bufs = make([]byte, 1024)
+		var bufq = make([]byte, 10240)
+		var bufs = make([]byte, 10240)
 		var reqCopy pbRequest
 		var resCopy pbResponse
 		data, _ = c.Marshal(bufq, &req)
@@ -76,6 +77,14 @@ func TestCodecPB(t *testing.T) {
 		c.Unmarshal(data, &reqCopy)
 		data, _ = c.Marshal(nil, &res)
 		c.Unmarshal(data, &resCopy)
+	}
+	{
+		if n, err := req.MarshalTo(nil); n > 0 || err == nil {
+			t.Error("The err should not be nil")
+		}
+		if n, err := res.MarshalTo(nil); n > 0 || err == nil {
+			t.Error("The err should not be nil")
+		}
 	}
 }
 
@@ -101,11 +110,11 @@ func BenchmarkRoundtripPB(t *testing.B) {
 }
 
 func TestCodecJSON(t *testing.T) {
-	var req = jsonRequest{Seq: 1024, Upgrade: make([]byte, 1), ServiceMethod: "Arith.Multiply", Args: make([]byte, 512)}
-	var res = jsonResponse{Seq: 1024, Error: "Error", Reply: make([]byte, 512)}
+	var req = jsonRequest{Seq: 1024, Upgrade: make([]byte, 512), ServiceMethod: strings.Repeat("a", 512), Args: make([]byte, 512)}
+	var res = jsonResponse{Seq: 1024, CallError: true, Error: strings.Repeat("e", 512), Reply: make([]byte, 512)}
 	var c = codec.JSONCodec{}
-	var bufq = make([]byte, 1024)
-	var bufs = make([]byte, 1024)
+	var bufq = make([]byte, 10240)
+	var bufs = make([]byte, 10240)
 	var reqCopy jsonRequest
 	var resCopy jsonResponse
 	var data []byte

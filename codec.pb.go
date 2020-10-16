@@ -38,11 +38,7 @@ func (req *pbRequest) Marshal() ([]byte, error) {
 
 //MarshalTo marshals the pbRequest into buf and returns the bytes.
 func (req *pbRequest) MarshalTo(buf []byte) (int, error) {
-	var size uint64
-	size += 11
-	size += 11 + uint64(len(req.Upgrade))
-	size += 11 + uint64(len(req.ServiceMethod))
-	size += 11 + uint64(len(req.Args))
+	var size = uint64(req.Size())
 	if uint64(cap(buf)) >= size {
 		buf = buf[:size]
 	} else {
@@ -184,6 +180,7 @@ type pbResponse struct {
 func (res *pbResponse) Size() (n int) {
 	var size uint64
 	size += 11
+	size += 11
 	size += 11 + uint64(len(res.Error))
 	size += 11 + uint64(len(res.Reply))
 	return int(size)
@@ -202,11 +199,7 @@ func (res *pbResponse) Marshal() ([]byte, error) {
 
 //MarshalTo marshals the pbResponse into buf and returns the bytes.
 func (res *pbResponse) MarshalTo(buf []byte) (int, error) {
-	var size uint64
-	size += 11
-	size += 11
-	size += 11 + uint64(len(res.Error))
-	size += 11 + uint64(len(res.Reply))
+	var size = uint64(res.Size())
 	if uint64(cap(buf)) >= size {
 		buf = buf[:size]
 	} else {
