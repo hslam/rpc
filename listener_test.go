@@ -184,6 +184,7 @@ func TestServerListenWithOptions(t *testing.T) {
 	}
 	{
 		opts.Codec = ""
+		opts.HeaderEncoder = ""
 		opts.NewCodec = nil
 		opts.NewHeaderEncoder = NewHeaderEncoder("json")
 		wg.Add(1)

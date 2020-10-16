@@ -107,33 +107,38 @@ func TestServerPollPipelining(t *testing.T) {
 		Listen(network, addr, codec)
 	}()
 	time.Sleep(time.Millisecond * 10)
-	conn, err := Dial(network, addr, codec)
-	if err != nil {
-		t.Error(err)
-	}
-	err = conn.Ping()
-	if err != nil {
-		t.Error(err)
-	}
-	cwg := sync.WaitGroup{}
+	connwg := sync.WaitGroup{}
 	for i := 0; i < 64; i++ {
-		cwg.Add(1)
+		connwg.Add(1)
 		go func() {
-			defer cwg.Done()
-			A := int32(4)
-			B := int32(8)
-			req := &service.ArithRequest{A: A, B: B}
-			var res service.ArithResponse
-			if err := conn.Call("Arith.Multiply", req, &res); err != nil {
+			defer connwg.Done()
+			conn, err := Dial(network, addr, codec)
+			if err != nil {
 				t.Error(err)
 			}
-			if res.Pro != A*B {
-				t.Error(res.Pro)
+			err = conn.Ping()
+			if err != nil {
+				t.Error(err)
 			}
+			cwg := sync.WaitGroup{}
+			for i := 0; i < 64; i++ {
+				cwg.Add(1)
+				go func() {
+					defer cwg.Done()
+					A := int32(4)
+					B := int32(8)
+					req := &service.ArithRequest{A: A, B: B}
+					var res service.ArithResponse
+					if err := conn.Call("Arith.Multiply", req, &res); err != nil {
+						t.Error(err)
+					}
+				}()
+			}
+			cwg.Wait()
+			conn.Close()
 		}()
 	}
-	cwg.Wait()
-	conn.Close()
+	connwg.Wait()
 	DefaultServer.Close()
 	wg.Wait()
 }
@@ -162,6 +167,11 @@ func (a *arith) Divide(req *arithRequest, res *arithResponse) error {
 		return errors.New("B can not be 0")
 	}
 	res.C = req.A / req.B
+	return nil
+}
+
+func (a *arith) Sleep(req *arithRequest, res *arithResponse) error {
+	time.Sleep(time.Millisecond * 1)
 	return nil
 }
 
