@@ -53,7 +53,7 @@ func TestClient(t *testing.T) {
 	call = new(Call)
 	call.ServiceMethod = "Arith.Multiply"
 	call.Args = req
-	call.Reply = &service.ArithResponse{}
+	call.Reply = &res
 	conn.RoundTrip(call)
 	<-call.Done
 	if res.Pro != A*B {
@@ -110,6 +110,60 @@ func TestNewClientWithCodec(t *testing.T) {
 	if pc.alive == true {
 		t.Error("should not be alive")
 	}
+	server.Close()
+	wg.Wait()
+}
+
+func TestClientWrite(t *testing.T) {
+	network := "tcp"
+	addr := ":9999"
+	codec := "code"
+	server := NewServer()
+	err := server.Register(new(service.Arith))
+	if err != nil {
+		t.Error(err)
+	}
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		server.Listen(network, addr, codec)
+	}()
+	time.Sleep(time.Millisecond * 10)
+	conn, err := Dial(network, addr, codec)
+	if err != nil {
+		t.Error(err)
+	}
+	err = conn.Ping()
+	if err != nil {
+		t.Error(err)
+	}
+
+	A := int32(4)
+	B := int32(8)
+	req := &service.ArithRequest{A: A, B: B}
+	var res service.ArithResponse
+	call := new(Call)
+	call.ServiceMethod = "Arith.Multiply"
+	{
+		call.Args = nil
+		call.Reply = &res
+		conn.RoundTrip(call)
+		<-call.Done
+		if call.Error == nil {
+			t.Error("The err should not be nil")
+		}
+	}
+	{
+		call.Args = req
+		call.Reply = nil
+		conn.RoundTrip(call)
+		<-call.Done
+		if call.Error == nil {
+			t.Error("The err should not be nil")
+		}
+	}
+	conn.Close()
 	server.Close()
 	wg.Wait()
 }
