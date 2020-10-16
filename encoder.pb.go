@@ -87,6 +87,16 @@ func (res *pbResponse) GetSeq() uint64 {
 	return res.Seq
 }
 
+// SetCallError sets the value of CallError.
+func (res *pbResponse) SetCallError(callError bool) {
+	res.CallError = callError
+}
+
+// GetCallError returns the value of CallError.
+func (res *pbResponse) GetCallError() bool {
+	return res.CallError
+}
+
 // SetError sets the value of Error.
 func (res *pbResponse) SetError(errorMsg string) {
 	res.Error = errorMsg

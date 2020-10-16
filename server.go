@@ -289,6 +289,7 @@ func (server *Server) callService(wg *sync.WaitGroup, ctx *Context) {
 		return
 	}
 	if err := ctx.f.ValueCall(ctx.args, ctx.reply); err != nil {
+		ctx.CallError = true
 		ctx.Error = err.Error()
 	}
 	server.sendResponse(ctx)

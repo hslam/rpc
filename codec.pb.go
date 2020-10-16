@@ -174,9 +174,10 @@ func (req *pbRequest) Unmarshal(data []byte) error {
 }
 
 type pbResponse struct {
-	Seq   uint64
-	Error string
-	Reply []byte
+	Seq       uint64
+	CallError bool
+	Error     string
+	Reply     []byte
 }
 
 // Size return the buf size.
@@ -203,6 +204,7 @@ func (res *pbResponse) Marshal() ([]byte, error) {
 func (res *pbResponse) MarshalTo(buf []byte) (int, error) {
 	var size uint64
 	size += 11
+	size += 11
 	size += 11 + uint64(len(res.Error))
 	size += 11 + uint64(len(res.Reply))
 	if uint64(cap(buf)) >= size {
@@ -228,8 +230,14 @@ func (res *pbResponse) MarshalTo(buf []byte) (int, error) {
 		}
 		offset += n
 	}
+	if res.CallError {
+		buf[offset] = 2<<3 | 0
+		offset++
+		n = code.EncodeBool(buf[offset:], res.CallError)
+		offset += n
+	}
 	if len(res.Error) > 0 {
-		buf[offset] = 2<<3 | 2
+		buf[offset] = 3<<3 | 2
 		offset++
 		//n = code.EncodeString(buf[offset:], res.Error)
 		{
@@ -248,7 +256,7 @@ func (res *pbResponse) MarshalTo(buf []byte) (int, error) {
 		offset += n
 	}
 	if len(res.Reply) > 0 {
-		buf[offset] = 3<<3 | 2
+		buf[offset] = 4<<3 | 2
 		offset++
 		//n = code.EncodeBytes(buf[offset:], res.Reply)
 		{
@@ -294,6 +302,12 @@ func (res *pbResponse) Unmarshal(data []byte) error {
 			n = code.DecodeVarint(data[offset:], &res.Seq)
 			offset += n
 		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Seq", wireType)
+			}
+			n = code.DecodeBool(data[offset:], &res.CallError)
+			offset += n
+		case 3:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Error", wireType)
 			}
@@ -303,7 +317,7 @@ func (res *pbResponse) Unmarshal(data []byte) error {
 				n = 1
 			}
 			offset += n
-		case 3:
+		case 4:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Reply", wireType)
 			}

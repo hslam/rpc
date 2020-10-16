@@ -23,6 +23,7 @@ type Call struct {
 	ServiceMethod string
 	Args          interface{}
 	Reply         interface{}
+	CallError     bool
 	Error         error
 	Done          chan *Call
 	watcher       *watcher
