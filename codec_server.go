@@ -102,7 +102,7 @@ func (c *serverCodec) WriteResponse(ctx *Context, x interface{}) error {
 	if len(ctx.Error) == 0 && ctx.upgrade.NoResponse != noResponse {
 		reply, err = c.bodyCodec.Marshal(c.replyBuffer, x)
 		if err != nil {
-			return err
+			ctx.Error = err.Error()
 		}
 	} else if len(ctx.value) > 0 {
 		reply = ctx.value
