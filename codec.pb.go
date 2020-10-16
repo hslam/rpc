@@ -304,11 +304,7 @@ func (res *pbResponse) Unmarshal(data []byte) error {
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Error", wireType)
 			}
-			if data[offset] > 0 {
-				n = code.DecodeString(data[offset:], &res.Error)
-			} else {
-				n = 1
-			}
+			n = code.DecodeString(data[offset:], &res.Error)
 			offset += n
 		case 4:
 			if wireType != 2 {
