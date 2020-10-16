@@ -82,7 +82,7 @@ message ArithResponse {
 protoc ./arith.proto --gogofaster_out=./
 ```
 arith.go
-```
+```go
 package service
 
 type Arith struct{}
