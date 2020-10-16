@@ -7,7 +7,6 @@ package rpc
 import (
 	"crypto/tls"
 	"errors"
-	"fmt"
 	"github.com/hslam/codec"
 	"github.com/hslam/funcs"
 	"github.com/hslam/netpoll"
@@ -242,11 +241,6 @@ func (server *Server) ServeRequest(codec ServerCodec, recving *sync.Mutex, sendi
 func (server *Server) readRequest(codec ServerCodec) (ctx *Context, err error) {
 	ctx = server.ctxPool.Get().(*Context)
 	ctx.upgrade = server.getUpgrade()
-	defer func() {
-		if e := recover(); e != nil {
-			err = fmt.Errorf("%v", e)
-		}
-	}()
 	err = codec.ReadRequestHeader(ctx)
 	if err != nil {
 		return

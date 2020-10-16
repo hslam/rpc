@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"errors"
 	"github.com/hslam/rpc/examples/codec/json/service"
 	"sync"
 	"testing"
@@ -130,13 +131,30 @@ func TestServerPollPipelining(t *testing.T) {
 	wg.Wait()
 }
 
+type arithRequest struct {
+	A int32
+	B int32
+}
+
+type arithResponse struct {
+	C int32
+}
+
 type arith struct{}
 
-func (a *arith) Add() error {
+func (a *arith) Load() error {
 	return nil
 }
 
-func (a *arith) Divide(req *service.ArithRequest) error {
+func (a *arith) Add(req *arithRequest) error {
+	return nil
+}
+
+func (a *arith) Divide(req *arithRequest, res *arithResponse) error {
+	if req.B == 0 {
+		return errors.New("B can not be 0")
+	}
+	res.C = req.A / req.B
 	return nil
 }
 
@@ -167,14 +185,24 @@ func TestFunc(t *testing.T) {
 	conn.Close()
 	A := int32(4)
 	B := int32(8)
-	req := &service.ArithRequest{A: A, B: B}
-	var res service.ArithResponse
+	req := &arithRequest{A: A, B: B}
+	var res arithResponse
 	{
 		conn, err := Dial(network, addr, codec)
 		if err != nil {
 			t.Error(err)
 		}
 		if err := conn.Call("Arith.Multiply", req, &res); err == nil {
+			t.Error("error")
+		}
+		conn.Close()
+	}
+	{
+		conn, err := Dial(network, addr, codec)
+		if err != nil {
+			t.Error(err)
+		}
+		if err := conn.Call("Arith.Load", req, &res); err == nil {
 			t.Error("error")
 		}
 		conn.Close()
@@ -194,6 +222,7 @@ func TestFunc(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
+		req.B = 0
 		if err := conn.Call("Arith.Divide", req, &res); err == nil {
 			t.Error("error")
 		}
