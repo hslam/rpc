@@ -7,6 +7,7 @@ import (
 	"errors"
 	"github.com/hslam/codec"
 	"github.com/hslam/socket"
+	"io"
 	"sync/atomic"
 )
 
@@ -19,6 +20,7 @@ type clientCodec struct {
 	requestBuffer []byte
 	messages      socket.Messages
 	count         int64
+	closed        uint32
 }
 
 // NewClientCodec returns a new ClientCodec.
@@ -83,6 +85,9 @@ func (c *clientCodec) WriteRequest(ctx *Context, param interface{}) error {
 		}
 	}
 	atomic.AddInt64(&c.count, 1)
+	if atomic.LoadUint32(&c.closed) == 1 {
+		return io.EOF
+	}
 	return c.messages.WriteMessage(data)
 }
 
@@ -91,6 +96,9 @@ func (c *clientCodec) ReadResponseHeader(ctx *Context) error {
 	var err error
 	data, err = c.messages.ReadMessage()
 	if err != nil {
+		if err == io.EOF {
+			atomic.StoreUint32(&c.closed, 1)
+		}
 		return err
 	}
 	defer atomic.AddInt64(&c.count, -1)
@@ -137,5 +145,6 @@ func (c *clientCodec) ReadResponseBody(x interface{}) error {
 }
 
 func (c *clientCodec) Close() error {
+	atomic.StoreUint32(&c.closed, 1)
 	return c.messages.Close()
 }

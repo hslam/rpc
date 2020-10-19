@@ -183,6 +183,75 @@ func TestNewPersistConn(t *testing.T) {
 	wg.Wait()
 }
 
+//func TestGetConn(t *testing.T) {
+//	network := "tcp"
+//	addr := ":9999"
+//	codec := "json"
+//	server := NewServer()
+//	err := server.Register(new(service.Arith))
+//	if err != nil {
+//		t.Error(err)
+//	}
+//	wg := sync.WaitGroup{}
+//	wg.Add(1)
+//	go func() {
+//		defer wg.Done()
+//		server.Listen(network, addr, codec)
+//	}()
+//	time.Sleep(time.Millisecond * 10)
+//	trans := &Transport{
+//		MaxConnsPerHost:     64,
+//		MaxIdleConnsPerHost: 32,
+//		KeepAlive:           time.Millisecond * 10,
+//		IdleConnTimeout:     time.Second * 60,
+//		Network:             network,
+//		Codec:               codec,
+//		ticker:              time.Millisecond * 10,
+//	}
+//	err = trans.Ping(addr)
+//	if err != nil {
+//		t.Error(err)
+//	}
+//	cwg := sync.WaitGroup{}
+//	for i := 0; i < 64; i++ {
+//		cwg.Add(1)
+//		go func() {
+//			defer cwg.Done()
+//			trans.Ping(addr)
+//		}()
+//	}
+//	time.Sleep(time.Millisecond * 300)
+//	for i := 0; i < 64; i++ {
+//		cwg.Add(1)
+//		go func() {
+//			defer cwg.Done()
+//			trans.Ping(addr)
+//		}()
+//	}
+//	trans.CloseIdleConnections()
+//	time.Sleep(time.Millisecond * 300)
+//	trans.CloseIdleConnections()
+//	for i := 0; i < 64; i++ {
+//		cwg.Add(1)
+//		go func() {
+//			defer cwg.Done()
+//			trans.Ping(addr)
+//		}()
+//	}
+//	cwg.Wait()
+//	server.Close()
+//	for i := 0; i < 512; i++ {
+//		cwg.Add(1)
+//		go func() {
+//			defer cwg.Done()
+//			trans.Ping(addr)
+//		}()
+//	}
+//	time.Sleep(time.Millisecond * 300)
+//	trans.Close()
+//	wg.Wait()
+//}
+
 func TestGetConn(t *testing.T) {
 	network := "tcp"
 	addr := ":9999"
@@ -193,54 +262,118 @@ func TestGetConn(t *testing.T) {
 		t.Error(err)
 	}
 	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		server.Listen(network, addr, codec)
-	}()
-	time.Sleep(time.Millisecond * 10)
-	trans := &Transport{
-		MaxConnsPerHost:     32,
-		MaxIdleConnsPerHost: 16,
-		KeepAlive:           time.Millisecond * 10,
-		IdleConnTimeout:     time.Second * 60,
-		Network:             network,
-		Codec:               codec,
-		ticker:              time.Millisecond * 10,
-	}
-	err = trans.Ping(addr)
-	if err != nil {
-		t.Error(err)
-	}
 	cwg := sync.WaitGroup{}
-	for i := 0; i < 64; i++ {
-		cwg.Add(1)
+	{
+		wg.Add(1)
 		go func() {
-			defer cwg.Done()
-			trans.Ping(addr)
+			defer wg.Done()
+			server.Listen(network, addr, codec)
 		}()
+		time.Sleep(time.Millisecond * 10)
+		trans := &Transport{
+			MaxConnsPerHost:     4,
+			MaxIdleConnsPerHost: 2,
+			KeepAlive:           time.Millisecond * 10,
+			IdleConnTimeout:     time.Second * 60,
+			Network:             network,
+			Codec:               codec,
+			ticker:              time.Millisecond * 10,
+		}
+		err = trans.Ping(addr)
+		if err != nil {
+			t.Error(err)
+		}
+
+		for i := 0; i < 4; i++ {
+			cwg.Add(1)
+			go func() {
+				defer cwg.Done()
+				trans.Ping(addr)
+			}()
+		}
+		cwg.Wait()
+		time.Sleep(time.Millisecond * 100)
+		server.Close()
+		for i := 0; i < 16; i++ {
+			cwg.Add(1)
+			go func() {
+				defer cwg.Done()
+				trans.Ping(addr)
+			}()
+		}
+		cwg.Wait()
+		time.Sleep(time.Millisecond * 100)
+		for i := 0; i < 16; i++ {
+			cwg.Add(1)
+			go func() {
+				defer cwg.Done()
+				trans.Ping(addr)
+			}()
+		}
+		cwg.Wait()
+		time.Sleep(time.Millisecond * 100)
+		trans.Close()
+		wg.Wait()
 	}
-	time.Sleep(time.Millisecond * 300)
-	for i := 0; i < 64; i++ {
-		cwg.Add(1)
+	{
+		wg.Add(1)
 		go func() {
-			defer cwg.Done()
-			trans.Ping(addr)
+			defer wg.Done()
+			server.Listen(network, addr, codec)
 		}()
-	}
-	trans.CloseIdleConnections()
-	time.Sleep(time.Millisecond * 300)
-	trans.CloseIdleConnections()
-	for i := 0; i < 64; i++ {
-		cwg.Add(1)
+		time.Sleep(time.Millisecond * 10)
+		trans := &Transport{
+			MaxConnsPerHost:     4,
+			MaxIdleConnsPerHost: 2,
+			KeepAlive:           time.Millisecond * 10,
+			IdleConnTimeout:     time.Second * 60,
+			Network:             network,
+			Codec:               codec,
+			ticker:              time.Second * 60,
+		}
+		err = trans.Ping(addr)
+		if err != nil {
+			t.Error(err)
+		}
+
+		for i := 0; i < 4; i++ {
+			cwg.Add(1)
+			go func() {
+				defer cwg.Done()
+				trans.Ping(addr)
+			}()
+		}
+		cwg.Wait()
+		time.Sleep(time.Millisecond * 100)
+		server.Close()
+		for i := 0; i < 16; i++ {
+			cwg.Add(1)
+			go func() {
+				defer cwg.Done()
+				trans.Ping(addr)
+			}()
+		}
+		cwg.Wait()
+		time.Sleep(time.Millisecond * 100)
+		wg.Add(1)
 		go func() {
-			defer cwg.Done()
-			trans.Ping(addr)
+			defer wg.Done()
+			server.Listen(network, addr, codec)
 		}()
+		time.Sleep(time.Millisecond * 10)
+		for i := 0; i < 16; i++ {
+			cwg.Add(1)
+			go func() {
+				defer cwg.Done()
+				trans.Ping(addr)
+			}()
+		}
+		cwg.Wait()
+		time.Sleep(time.Millisecond * 100)
+		trans.Close()
+		server.Close()
+		wg.Wait()
 	}
-	cwg.Wait()
-	server.Close()
-	wg.Wait()
 }
 
 func TestTransportCloseIdleConnections(t *testing.T) {

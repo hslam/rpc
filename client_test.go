@@ -257,6 +257,65 @@ func TestServerCodecWriteResponse(t *testing.T) {
 	wg.Wait()
 }
 
+func TestClientRead(t *testing.T) {
+	network := "tcp"
+	addr := ":9999"
+	codec := "json"
+	server := NewServer()
+	err := server.RegisterName("Arith", new(arith))
+	if err != nil {
+		t.Error(err)
+	}
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		server.Listen(network, addr, codec)
+	}()
+	time.Sleep(time.Millisecond * 10)
+	A := int32(4)
+	B := int32(8)
+	req := &arithRequest{A: A, B: B}
+	var res arithResponse
+	req.A = 300
+	conn, err := Dial(network, addr, codec)
+	if err != nil {
+		t.Error(err)
+	}
+	conn.Go("Arith.Sleep", req, &res, nil)
+	time.Sleep(time.Millisecond * 10)
+	for seq := range conn.pending {
+		delete(conn.pending, seq)
+	}
+	time.Sleep(time.Millisecond * 500)
+	conn.Close()
+	server.Close()
+	wg.Wait()
+}
+
+func TestClientWatch(t *testing.T) {
+	network := "tcp"
+	addr := ":9999"
+	codec := "json"
+	var k = "foo"
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	server := NewServer()
+	go func() {
+		defer wg.Done()
+		server.Listen(network, addr, codec)
+	}()
+	time.Sleep(time.Millisecond * 10)
+	conn, err := Dial(network, addr, codec)
+	if err != nil {
+		t.Error(err)
+	}
+	conn.codec.Close()
+	conn.Watch(k)
+	server.Close()
+	wg.Wait()
+}
+
 func TestCallDone(t *testing.T) {
 	call := &Call{Done: make(chan *Call, 1)}
 	call.done()

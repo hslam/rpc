@@ -13,33 +13,33 @@ type LogLevel int
 
 const (
 	logPrefix = "rpc"
-	//DebugLevel defines the level of debug in test environments.
-	DebugLevel LogLevel = 1
-	//TraceLevel defines the level of trace in test environments.
-	TraceLevel LogLevel = 2
-	//AllLevel defines the lowest level in production environments.
-	AllLevel LogLevel = 3
-	//InfoLevel defines the level of info.
-	InfoLevel LogLevel = 4
-	//NoticeLevel defines the level of notice.
-	NoticeLevel LogLevel = 5
-	//WarnLevel defines the level of warn.
-	WarnLevel LogLevel = 6
-	//ErrorLevel defines the level of error.
-	ErrorLevel LogLevel = 7
-	//PanicLevel defines the level of panic.
-	PanicLevel LogLevel = 8
-	//FatalLevel defines the level of fatal.
-	FatalLevel LogLevel = 9
-	//OffLevel defines the level of no log.
-	OffLevel LogLevel = 10
+	//DebugLogLevel defines the level of debug in test environments.
+	DebugLogLevel LogLevel = 1
+	//TraceLogLevel defines the level of trace in test environments.
+	TraceLogLevel LogLevel = 2
+	//AllLogLevel defines the lowest level in production environments.
+	AllLogLevel LogLevel = 3
+	//InfoLogLevel defines the level of info.
+	InfoLogLevel LogLevel = 4
+	//NoticeLogLevel defines the level of notice.
+	NoticeLogLevel LogLevel = 5
+	//WarnLogLevel defines the level of warn.
+	WarnLogLevel LogLevel = 6
+	//ErrorLogLevel defines the level of error.
+	ErrorLogLevel LogLevel = 7
+	//PanicLogLevel defines the level of panic.
+	PanicLogLevel LogLevel = 8
+	//FatalLogLevel defines the level of fatal.
+	FatalLogLevel LogLevel = 9
+	//OffLogLevel defines the level of no log.
+	OffLogLevel LogLevel = 10
 )
 
 var logger = log.New()
 
 func init() {
 	logger.SetPrefix(logPrefix)
-	SetLogLevel(InfoLevel)
+	SetLogLevel(InfoLogLevel)
 }
 
 //SetLogLevel sets log's level

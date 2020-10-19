@@ -33,6 +33,7 @@ type Server struct {
 	mut           sync.Mutex
 	listeners     []socket.Listener
 	mutex         sync.RWMutex
+	codecs        map[ServerCodec]io.Closer
 	watchs        map[string]map[ServerCodec]*Context
 	watchFunc     WatchFunc
 }
@@ -51,6 +52,7 @@ func NewServer() *Server {
 		upgradePool:   &sync.Pool{New: func() interface{} { return &upgrade{} }},
 		upgradeBuffer: make([]byte, 1024),
 		numWorkers:    numCPU,
+		codecs:        make(map[ServerCodec]io.Closer),
 		watchs:        make(map[string]map[ServerCodec]*Context),
 	}
 }
@@ -140,6 +142,7 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 	}
 	wg.Wait()
 	server.mutex.Lock()
+	delete(server.codecs, codec)
 	for k, events := range server.watchs {
 		if _, ok := events[codec]; ok {
 			delete(events, codec)
@@ -306,7 +309,7 @@ func (server *Server) sendResponse(ctx *Context) {
 	}
 	err := ctx.codec.WriteResponse(ctx, reply)
 	if err != nil {
-		logger.Allln("writing response:", err)
+		logger.Errorln("writing response:", err)
 	}
 	ctx.sending.Unlock()
 	if ctx.upgrade.Watch != watch {
@@ -346,8 +349,12 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 	}
 	if server.poll {
 		lis.ServeMessages(func(messages socket.Messages) (socket.Context, error) {
+			codec := New(messages)
+			server.mutex.Lock()
+			server.codecs[codec] = messages
+			server.mutex.Unlock()
 			return &ServerContext{
-				codec:   New(messages),
+				codec:   codec,
 				recving: new(sync.Mutex),
 				sending: new(sync.Mutex),
 				wg:      new(sync.WaitGroup),
@@ -367,6 +374,7 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 				if atomic.CompareAndSwapInt32(&ctx.closed, 0, 1) {
 					ctx.wg.Wait()
 					server.mutex.Lock()
+					delete(server.codecs, ctx.codec)
 					for _, events := range server.watchs {
 						delete(events, ctx.codec)
 					}
@@ -383,7 +391,14 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 		if err != nil {
 			return err
 		}
-		go server.ServeCodec(New(conn.Messages()))
+		go func() {
+			messages := conn.Messages()
+			codec := New(messages)
+			server.mutex.Lock()
+			server.codecs[codec] = messages
+			server.mutex.Unlock()
+			server.ServeCodec(codec)
+		}()
 	}
 }
 
@@ -447,14 +462,18 @@ func (server *Server) ListenWithOptions(address string, opts *Options) error {
 // Close closes the server.
 func (server *Server) Close() error {
 	server.mut.Lock()
-	defer server.mut.Unlock()
 	for _, lis := range server.listeners {
-		err := lis.Close()
-		if err != nil {
-			return err
-		}
+		lis.Close()
 	}
 	server.listeners = []socket.Listener{}
+	server.mut.Unlock()
+
+	server.mutex.Lock()
+	for codec, closer := range server.codecs {
+		delete(server.codecs, codec)
+		closer.Close()
+	}
+	server.mutex.Unlock()
 	return nil
 }
 

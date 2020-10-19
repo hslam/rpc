@@ -31,6 +31,11 @@ func TestNewServerCodec(t *testing.T) {
 		if codec.ReadRequestBody(nil) == nil {
 			t.Error("The err should not be nil")
 		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			ServeCodec(codec)
+		}()
 		message.Close()
 		lis.Close()
 	}()

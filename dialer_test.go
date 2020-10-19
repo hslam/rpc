@@ -62,15 +62,21 @@ func TestDialWithOptions(t *testing.T) {
 	opts.Codec = ""
 	opts.NewCodec = NewCodec("json")
 	opts.NewSocket = NewSocket("tcp")
-	if _, err := DialWithOptions(addr, opts); err != nil {
+	if client, err := DialWithOptions(addr, opts); err != nil {
 		t.Error(err)
+	} else {
+		client.Close()
 	}
-	if _, err := DialWithOptions(addr, opts); err != nil {
+	if client, err := DialWithOptions(addr, opts); err != nil {
 		t.Error(err)
+	} else {
+		client.Close()
 	}
 	opts.NewHeaderEncoder = NewHeaderEncoder("json")
-	if _, err := DialWithOptions(addr, opts); err != nil {
+	if client, err := DialWithOptions(addr, opts); err != nil {
 		t.Error(err)
+	} else {
+		client.Close()
 	}
 	DefaultServer.Close()
 	wg.Wait()
