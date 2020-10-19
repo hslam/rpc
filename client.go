@@ -316,7 +316,7 @@ func (client *Client) Call(serviceMethod string, args interface{}, reply interfa
 
 // Watch returns the Watcher.
 func (client *Client) Watch(key string) Watcher {
-	watcher := &watcher{client: client, C: make(chan *watcher, 10), key: key}
+	watcher := &watcher{client: client, C: make(chan *watcher, 10), key: key, done: make(chan struct{}, 1)}
 	upgrade := client.getUpgrade()
 	upgrade.NoRequest = noRequest
 	upgrade.NoResponse = noResponse

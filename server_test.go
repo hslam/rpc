@@ -314,6 +314,7 @@ func TestServerPush(t *testing.T) {
 		}
 	}()
 	watch.Stop()
+	watch.Stop()
 	PushFunc(nil)
 	watch = conn.Watch(k)
 	for i := 0; i < 3; i++ {

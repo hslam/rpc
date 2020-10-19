@@ -1,5 +1,9 @@
 package rpc
 
+import (
+	"sync/atomic"
+)
+
 // Watcher represents a watcher.
 type Watcher interface {
 	// Wait will return value when the key is triggered.
@@ -14,6 +18,8 @@ type watcher struct {
 	key    string
 	Value  []byte
 	Error  error
+	done   chan struct{}
+	closed uint32
 }
 
 func (w *watcher) trigger(value []byte, err error) {
@@ -26,10 +32,18 @@ func (w *watcher) trigger(value []byte, err error) {
 }
 
 func (w *watcher) Wait() ([]byte, error) {
-	<-w.C
-	return w.Value, w.Error
+	select {
+	case <-w.C:
+		return w.Value, w.Error
+	case <-w.done:
+		return nil, nil
+	}
 }
 
 func (w *watcher) Stop() error {
+	if !atomic.CompareAndSwapUint32(&w.closed, 0, 1) {
+		return nil
+	}
+	close(w.done)
 	return w.client.StopWatch(w.key)
 }
