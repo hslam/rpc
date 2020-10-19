@@ -33,7 +33,10 @@ func (call *Call) done() {
 	select {
 	case call.Done <- call:
 		if call.watcher != nil {
-			call.watcher.trigger(call.Value, call.Error)
+			e := getEvent()
+			e.Value = call.Value
+			e.Error = call.Error
+			call.watcher.trigger(e)
 		}
 	default:
 	}
@@ -316,7 +319,7 @@ func (client *Client) Call(serviceMethod string, args interface{}, reply interfa
 
 // Watch returns the Watcher.
 func (client *Client) Watch(key string) Watcher {
-	watcher := &watcher{client: client, C: make(chan *watcher, 10), key: key, done: make(chan struct{}, 1)}
+	watcher := &watcher{client: client, C: make(chan *event, 10), key: key, done: make(chan struct{}, 1)}
 	upgrade := client.getUpgrade()
 	upgrade.NoRequest = noRequest
 	upgrade.NoResponse = noResponse

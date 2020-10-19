@@ -1,8 +1,31 @@
 package rpc
 
 import (
+	"errors"
+	"sync"
 	"sync/atomic"
 )
+
+// ErrWatcherShutdown is returned when the watcher is shut down.
+var ErrWatcherShutdown = errors.New("The watcher is shut down")
+
+var eventPool = sync.Pool{New: func() interface{} {
+	return &event{}
+}}
+
+type event struct {
+	Value []byte
+	Error error
+}
+
+func getEvent() *event {
+	return eventPool.Get().(*event)
+}
+
+func freeEvent(e *event) {
+	*e = event{}
+	eventPool.Put(e)
+}
 
 // Watcher represents a watcher.
 type Watcher interface {
@@ -14,30 +37,53 @@ type Watcher interface {
 
 type watcher struct {
 	client *Client
-	C      chan *watcher
+	C      chan *event
 	key    string
-	Value  []byte
-	Error  error
+	mut    sync.Mutex
+	events []*event
 	done   chan struct{}
 	closed uint32
 }
 
-func (w *watcher) trigger(value []byte, err error) {
-	w.Value = value
-	w.Error = err
-	select {
-	case w.C <- w:
-	default:
+func (w *watcher) trigger(e *event) {
+	w.mut.Lock()
+	defer w.mut.Unlock()
+	if len(w.events) == 0 {
+		select {
+		case w.C <- e:
+			return
+		default:
+		}
+	}
+	w.events = append(w.events, e)
+}
+
+func (w *watcher) triggerNext() {
+	w.mut.Lock()
+	defer w.mut.Unlock()
+	if len(w.events) > 0 {
+		for cap(w.C) > len(w.C) && len(w.events) > 0 {
+			next := w.events[0]
+			select {
+			case w.C <- next:
+				w.events = w.events[1:]
+			default:
+			}
+		}
 	}
 }
 
-func (w *watcher) Wait() ([]byte, error) {
+func (w *watcher) Wait() (value []byte, err error) {
 	select {
-	case <-w.C:
-		return w.Value, w.Error
+	case e := <-w.C:
+		w.triggerNext()
+		value = e.Value
+		err = e.Error
+		freeEvent(e)
 	case <-w.done:
-		return nil, nil
+		err = ErrWatcherShutdown
 	}
+	return
 }
 
 func (w *watcher) Stop() error {
