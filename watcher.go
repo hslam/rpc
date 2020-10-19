@@ -64,11 +64,9 @@ func (w *watcher) triggerNext() {
 	if len(w.events) > 0 {
 		for cap(w.C) > len(w.C) && len(w.events) > 0 {
 			next := w.events[0]
-			select {
-			case w.C <- next:
-				w.events = w.events[1:]
-			default:
-			}
+			w.C <- next
+			n := copy(w.events, w.events[1:])
+			w.events = w.events[:n]
 		}
 	}
 }
