@@ -200,9 +200,9 @@ func TestGetConn(t *testing.T) {
 	}()
 	time.Sleep(time.Millisecond * 10)
 	trans := &Transport{
-		MaxConnsPerHost:     4,
-		MaxIdleConnsPerHost: 2,
-		KeepAlive:           time.Millisecond * 100,
+		MaxConnsPerHost:     32,
+		MaxIdleConnsPerHost: 16,
+		KeepAlive:           time.Millisecond * 10,
 		IdleConnTimeout:     time.Second * 60,
 		Network:             network,
 		Codec:               codec,
