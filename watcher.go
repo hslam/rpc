@@ -61,13 +61,11 @@ func (w *watcher) trigger(e *event) {
 func (w *watcher) triggerNext() {
 	w.mut.Lock()
 	defer w.mut.Unlock()
-	if len(w.events) > 0 {
-		for cap(w.C) > len(w.C) && len(w.events) > 0 {
-			next := w.events[0]
-			w.C <- next
-			n := copy(w.events, w.events[1:])
-			w.events = w.events[:n]
-		}
+	for len(w.events) > 0 && cap(w.C) > len(w.C) {
+		next := w.events[0]
+		w.C <- next
+		n := copy(w.events, w.events[1:])
+		w.events = w.events[:n]
 	}
 }
 
