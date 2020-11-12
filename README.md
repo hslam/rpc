@@ -36,11 +36,11 @@ Package rpc provides access to the exported methods of an object across a networ
 
 ##### Low Concurrency
 
-<img src="https://raw.githubusercontent.com/hslam/rpc/master/rpc-bar-qps.png" width = "400" height = "300" alt="rpc" align=center><img src="https://raw.githubusercontent.com/hslam/rpc/master/rpc-bar-p99.png" width = "400" height = "300" alt="rpc" align=center>
+<img src="https://raw.githubusercontent.com/hslam/rpc-benchmark/master/rpc-bar-qps.png" width = "400" height = "300" alt="rpc" align=center><img src="https://raw.githubusercontent.com/hslam/rpc-benchmark/master/rpc-bar-p99.png" width = "400" height = "300" alt="rpc" align=center>
 
 ##### High Concurrency
 
-<img src="https://raw.githubusercontent.com/hslam/rpc/master/rpc-curve-qps.png" width = "400" height = "300" alt="rpc" align=center><img src="https://raw.githubusercontent.com/hslam/rpc/master/rpc-curve-p99.png" width = "400" height = "300" alt="rpc" align=center>
+<img src="https://raw.githubusercontent.com/hslam/rpc-benchmark/master/rpc-curve-qps.png" width = "400" height = "300" alt="rpc" align=center><img src="https://raw.githubusercontent.com/hslam/rpc-benchmark/master/rpc-curve-p99.png" width = "400" height = "300" alt="rpc" align=center>
 
 ## Get started
 
