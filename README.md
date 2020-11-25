@@ -5,7 +5,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/hslam/rpc?v=7e100)](https://goreportcard.com/report/github.com/hslam/rpc)
 [![LICENSE](https://img.shields.io/github/license/hslam/rpc.svg?style=flat-square)](https://github.com/hslam/rpc/blob/master/LICENSE)
 
-Package rpc provides access to the exported methods of an object across a network or other I/O connection.
+Package rpc implements a remote procedure call over TCP, UNIX, HTTP and WS. The rpc is faster than net/rpc by improving throughput and reducing latency.
 
 ## Feature
 * More throughput and less latency.
