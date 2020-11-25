@@ -111,7 +111,7 @@ func TestServerPollPipelining(t *testing.T) {
 	}()
 	time.Sleep(time.Millisecond * 10)
 	connwg := sync.WaitGroup{}
-	for i := 0; i < 64; i++ {
+	for i := 0; i < 4; i++ {
 		connwg.Add(1)
 		go func() {
 			defer connwg.Done()
@@ -124,7 +124,7 @@ func TestServerPollPipelining(t *testing.T) {
 				t.Error(err)
 			}
 			cwg := sync.WaitGroup{}
-			for i := 0; i < 64; i++ {
+			for i := 0; i < 4; i++ {
 				cwg.Add(1)
 				go func() {
 					defer cwg.Done()
