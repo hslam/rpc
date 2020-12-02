@@ -149,17 +149,15 @@ func (req *request) Unmarshal(data []byte) (uint64, error) {
 }
 
 type response struct {
-	Seq       uint64
-	CallError bool
-	Error     string
-	Reply     []byte
+	Seq   uint64
+	Error string
+	Reply []byte
 }
 
 //Marshal marshals the Response into buf and returns the bytes.
 func (res *response) Marshal(buf []byte) ([]byte, error) {
 	var size uint64
 	size += 10
-	size++
 	size += 10 + uint64(len(res.Error))
 	size += 10 + uint64(len(res.Reply))
 	if uint64(cap(buf)) >= size {
@@ -180,8 +178,6 @@ func (res *response) Marshal(buf []byte) ([]byte, error) {
 		buf[offset+size-1] = byte(t)
 		n = size
 	}
-	offset += n
-	n = code.EncodeBool(buf[offset:], res.CallError)
 	offset += n
 	//n = code.EncodeString(buf[offset:], res.Error)
 	if len(res.Error) > 127 {
@@ -237,8 +233,6 @@ func (res *response) Unmarshal(data []byte) (uint64, error) {
 	var offset uint64
 	var n uint64
 	n = code.DecodeVarint(data[offset:], &res.Seq)
-	offset += n
-	n = code.DecodeBool(data[offset:], &res.CallError)
 	offset += n
 	if data[offset] > 0 {
 		n = code.DecodeString(data[offset:], &res.Error)

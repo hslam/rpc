@@ -11,8 +11,7 @@ type jsonRequest struct {
 }
 
 type jsonResponse struct {
-	Seq       uint64 `json:"i"`
-	CallError bool   `json:"c"`
-	Error     string `json:"e"`
-	Reply     []byte `json:"r"`
+	Seq   uint64 `json:"i"`
+	Error string `json:"e"`
+	Reply []byte `json:"r"`
 }

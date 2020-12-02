@@ -87,16 +87,6 @@ func (res *jsonResponse) GetSeq() uint64 {
 	return res.Seq
 }
 
-// SetCallError sets the value of CallError.
-func (res *jsonResponse) SetCallError(callError bool) {
-	res.CallError = callError
-}
-
-// GetCallError returns the value of CallError.
-func (res *jsonResponse) GetCallError() bool {
-	return res.CallError
-}
-
 // SetError sets the value of Error.
 func (res *jsonResponse) SetError(errorMsg string) {
 	res.Error = errorMsg

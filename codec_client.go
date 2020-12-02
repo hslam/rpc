@@ -111,7 +111,6 @@ func (c *clientCodec) ReadResponseHeader(ctx *Context) error {
 		ctx.Error = ""
 		ctx.Seq = c.headerEncoder.Response.GetSeq()
 		if c.headerEncoder.Response.GetError() != "" || len(c.headerEncoder.Response.GetReply()) == 0 {
-			ctx.CallError = c.headerEncoder.Response.GetCallError()
 			ctx.Error = c.headerEncoder.Response.GetError()
 		} else if len(c.headerEncoder.Response.GetReply()) > 0 {
 			ctx.value = c.headerEncoder.Response.GetReply()
@@ -125,7 +124,6 @@ func (c *clientCodec) ReadResponseHeader(ctx *Context) error {
 		ctx.Error = ""
 		ctx.Seq = c.res.GetSeq()
 		if c.res.GetError() != "" || len(c.res.GetReply()) == 0 {
-			ctx.CallError = c.res.GetCallError()
 			ctx.Error = c.res.GetError()
 		} else if len(c.res.GetReply()) > 0 {
 			ctx.value = c.res.GetReply()

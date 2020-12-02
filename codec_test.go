@@ -11,7 +11,7 @@ import (
 
 func TestCodecCODE(t *testing.T) {
 	var req = request{Seq: 1024, Upgrade: make([]byte, 512), ServiceMethod: strings.Repeat("a", 512), Args: make([]byte, 512)}
-	var res = response{Seq: 1024, CallError: true, Error: strings.Repeat("e", 512), Reply: make([]byte, 512)}
+	var res = response{Seq: 1024, Error: strings.Repeat("e", 512), Reply: make([]byte, 512)}
 	var c = codec.CODECodec{}
 	var data []byte
 	{
@@ -57,7 +57,7 @@ func BenchmarkRoundtripCODE(t *testing.B) {
 
 func TestCodecPB(t *testing.T) {
 	var req = pbRequest{Seq: 1024, Upgrade: make([]byte, 512), ServiceMethod: strings.Repeat("a", 512), Args: make([]byte, 512)}
-	var res = pbResponse{Seq: 1024, CallError: true, Error: strings.Repeat("e", 512), Reply: make([]byte, 512)}
+	var res = pbResponse{Seq: 1024, Error: strings.Repeat("e", 512), Reply: make([]byte, 512)}
 	var c = codec.GOGOPBCodec{}
 	var data []byte
 	{
@@ -111,7 +111,7 @@ func BenchmarkRoundtripPB(t *testing.B) {
 
 func TestCodecJSON(t *testing.T) {
 	var req = jsonRequest{Seq: 1024, Upgrade: make([]byte, 512), ServiceMethod: strings.Repeat("a", 512), Args: make([]byte, 512)}
-	var res = jsonResponse{Seq: 1024, CallError: true, Error: strings.Repeat("e", 512), Reply: make([]byte, 512)}
+	var res = jsonResponse{Seq: 1024, Error: strings.Repeat("e", 512), Reply: make([]byte, 512)}
 	var c = codec.JSONCodec{}
 	var bufq = make([]byte, 10240)
 	var bufs = make([]byte, 10240)

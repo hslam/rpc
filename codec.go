@@ -35,7 +35,6 @@ type Context struct {
 	Seq           uint64
 	Upgrade       []byte
 	ServiceMethod string
-	CallError     bool
 	Error         string
 	upgrade       *upgrade
 	keepReading   bool
