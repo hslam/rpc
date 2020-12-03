@@ -28,6 +28,7 @@ type Server struct {
 	upgradePool   *sync.Pool
 	upgradeBuffer []byte
 	pipelining    bool
+	noBatch       bool
 	numWorkers    int
 	poll          bool
 	mut           sync.Mutex
@@ -83,6 +84,11 @@ func (server *Server) RegisterName(name string, obj interface{}) error {
 // SetPipelining enables the Server to use pipelining.
 func (server *Server) SetPipelining(enable bool) {
 	server.pipelining = enable
+}
+
+// SetNoBatch disables the Server to use batch writer.
+func (server *Server) SetNoBatch(noBatch bool) {
+	server.noBatch = noBatch
 }
 
 // SetPoll enables the Server to use netpoll based on epoll/kqueue.
@@ -406,7 +412,7 @@ func (server *Server) Listen(network, address string, codec string) error {
 	if newSocket := NewSocket(network); newSocket != nil {
 		if newCodec := NewCodec(codec); newCodec != nil {
 			return server.listen(newSocket(nil), address, func(messages socket.Messages) ServerCodec {
-				return NewServerCodec(newCodec(), nil, messages)
+				return NewServerCodec(newCodec(), nil, messages, server.noBatch)
 			})
 		}
 		return errors.New("unsupported codec: " + codec)
@@ -419,7 +425,7 @@ func (server *Server) ListenTLS(network, address string, codec string, config *t
 	if newSocket := NewSocket(network); newSocket != nil {
 		if newCodec := NewCodec(codec); newCodec != nil {
 			return server.listen(newSocket(config), address, func(messages socket.Messages) ServerCodec {
-				return NewServerCodec(newCodec(), nil, messages)
+				return NewServerCodec(newCodec(), nil, messages, server.noBatch)
 			})
 		}
 		return errors.New("unsupported codec: " + codec)
@@ -454,7 +460,7 @@ func (server *Server) ListenWithOptions(address string, opts *Options) error {
 		} else if opts.NewHeaderEncoder != nil {
 			headerEncoder = opts.NewHeaderEncoder()
 		}
-		return NewServerCodec(bodyCodec, headerEncoder, messages)
+		return NewServerCodec(bodyCodec, headerEncoder, messages, server.noBatch)
 	})
 }
 
@@ -490,9 +496,14 @@ func SetPipelining(enable bool) {
 	DefaultServer.SetPipelining(enable)
 }
 
+// SetNoBatch disables the Server to use batch writer.
+func SetNoBatch(noBatch bool) {
+	DefaultServer.SetNoBatch(noBatch)
+}
+
 // SetPoll enables the Server to use netpoll based on epoll/kqueue.
 func SetPoll(enable bool) {
-	DefaultServer.poll = enable
+	DefaultServer.SetPoll(enable)
 }
 
 // Push triggers the waiting clients with the watch key value.

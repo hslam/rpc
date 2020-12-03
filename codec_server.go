@@ -24,7 +24,7 @@ type serverCodec struct {
 }
 
 // NewServerCodec returns a new ServerCodec.
-func NewServerCodec(bodyCodec codec.Codec, headerEncoder *Encoder, messages socket.Messages) ServerCodec {
+func NewServerCodec(bodyCodec codec.Codec, headerEncoder *Encoder, messages socket.Messages, noBatch bool) ServerCodec {
 	if messages == nil {
 		return nil
 	}
@@ -43,7 +43,9 @@ func NewServerCodec(bodyCodec codec.Codec, headerEncoder *Encoder, messages sock
 		responseBuffer: make([]byte, 1024),
 	}
 	c.messages = messages
-	c.messages.SetConcurrency(c.Concurrency)
+	if !noBatch {
+		c.messages.SetConcurrency(c.Concurrency)
+	}
 	if headerEncoder == nil {
 		c.req = &request{}
 		c.res = &response{}
