@@ -15,8 +15,8 @@ type pbRequest struct {
 	Args          []byte
 }
 
-// Size return the buf size.
-func (req *pbRequest) Size() (n int) {
+// Size returns the size of the buffer required to represent the data when encoded.
+func (req *pbRequest) Size() int {
 	var size uint64
 	size += 11
 	size += 11 + uint64(len(req.Upgrade))
@@ -25,7 +25,7 @@ func (req *pbRequest) Size() (n int) {
 	return int(size)
 }
 
-//Marshal marshals the pbRequest and returns the bytes.
+// Marshal returns the encoded bytes.
 func (req *pbRequest) Marshal() ([]byte, error) {
 	size := req.Size()
 	buf := make([]byte, size)
@@ -36,7 +36,7 @@ func (req *pbRequest) Marshal() ([]byte, error) {
 	return buf[:n], nil
 }
 
-//MarshalTo marshals the pbRequest into buf and returns the bytes.
+// MarshalTo marshals into buf and returns the number of bytes.
 func (req *pbRequest) MarshalTo(buf []byte) (int, error) {
 	var size = uint64(req.Size())
 	if uint64(cap(buf)) >= size {
@@ -122,7 +122,7 @@ func (req *pbRequest) MarshalTo(buf []byte) (int, error) {
 	return int(offset), nil
 }
 
-//Unmarshal unmarshals the pbRequest from buf and returns the number of bytes read (> 0).
+// Unmarshal unmarshals from data.
 func (req *pbRequest) Unmarshal(data []byte) error {
 	var length = uint64(len(data))
 	var offset uint64
@@ -175,7 +175,7 @@ type pbResponse struct {
 	Reply []byte
 }
 
-// Size return the buf size.
+// Size returns the size of the buffer required to represent the data when encoded.
 func (res *pbResponse) Size() (n int) {
 	var size uint64
 	size += 11
@@ -184,7 +184,7 @@ func (res *pbResponse) Size() (n int) {
 	return int(size)
 }
 
-//Marshal marshals the pbResponse and returns the bytes.
+// Marshal returns the encoded bytes.
 func (res *pbResponse) Marshal() ([]byte, error) {
 	size := res.Size()
 	buf := make([]byte, size)
@@ -195,7 +195,7 @@ func (res *pbResponse) Marshal() ([]byte, error) {
 	return buf[:n], nil
 }
 
-//MarshalTo marshals the pbResponse into buf and returns the bytes.
+// MarshalTo marshals into buf and returns the number of bytes.
 func (res *pbResponse) MarshalTo(buf []byte) (int, error) {
 	var size = uint64(res.Size())
 	if uint64(cap(buf)) >= size {
@@ -262,7 +262,7 @@ func (res *pbResponse) MarshalTo(buf []byte) (int, error) {
 	return int(offset), nil
 }
 
-//Unmarshal unmarshals the pbResponse from buf and returns the number of bytes read (> 0).
+// Unmarshal unmarshals from data.
 func (res *pbResponse) Unmarshal(data []byte) error {
 	var length = uint64(len(data))
 	var offset uint64
