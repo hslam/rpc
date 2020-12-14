@@ -23,20 +23,19 @@ var numCPU = runtime.NumCPU()
 
 // Server represents an RPC Server.
 type Server struct {
-	Registry      *funcs.Funcs
-	ctxPool       *sync.Pool
-	upgradePool   *sync.Pool
-	upgradeBuffer []byte
-	pipelining    bool
-	noBatch       bool
-	numWorkers    int
-	poll          bool
-	mut           sync.Mutex
-	listeners     []socket.Listener
-	mutex         sync.RWMutex
-	codecs        map[ServerCodec]io.Closer
-	watchs        map[string]map[ServerCodec]*Context
-	watchFunc     WatchFunc
+	Registry    *funcs.Funcs
+	ctxPool     *sync.Pool
+	upgradePool *sync.Pool
+	pipelining  bool
+	noBatch     bool
+	numWorkers  int
+	poll        bool
+	mut         sync.Mutex
+	listeners   []socket.Listener
+	mutex       sync.RWMutex
+	codecs      map[ServerCodec]io.Closer
+	watchs      map[string]map[ServerCodec]*Context
+	watchFunc   WatchFunc
 }
 
 // NewServerCodecFunc is the function making a new ServerCodec by socket.Messages.
@@ -48,13 +47,12 @@ type WatchFunc func(key string) (value []byte, ok bool)
 // NewServer returns a new Server.
 func NewServer() *Server {
 	return &Server{
-		Registry:      funcs.New(),
-		ctxPool:       &sync.Pool{New: func() interface{} { return &Context{} }},
-		upgradePool:   &sync.Pool{New: func() interface{} { return &upgrade{} }},
-		upgradeBuffer: make([]byte, 1024),
-		numWorkers:    numCPU,
-		codecs:        make(map[ServerCodec]io.Closer),
-		watchs:        make(map[string]map[ServerCodec]*Context),
+		Registry:    funcs.New(),
+		ctxPool:     &sync.Pool{New: func() interface{} { return &Context{} }},
+		upgradePool: &sync.Pool{New: func() interface{} { return &upgrade{} }},
+		numWorkers:  numCPU,
+		codecs:      make(map[ServerCodec]io.Closer),
+		watchs:      make(map[string]map[ServerCodec]*Context),
 	}
 }
 
