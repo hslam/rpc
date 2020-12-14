@@ -50,7 +50,7 @@ func NewServer() *Server {
 		Registry:    funcs.New(),
 		ctxPool:     &sync.Pool{New: func() interface{} { return &Context{} }},
 		upgradePool: &sync.Pool{New: func() interface{} { return &upgrade{} }},
-		numWorkers:  numCPU,
+		numWorkers:  numCPU * 32,
 		codecs:      make(map[ServerCodec]io.Closer),
 		watchs:      make(map[string]map[ServerCodec]*Context),
 	}
