@@ -351,7 +351,7 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 		closed  int32
 	}
 	if server.poll {
-		lis.ServeMessages(func(messages socket.Messages) (socket.Context, error) {
+		return lis.ServeMessages(func(messages socket.Messages) (socket.Context, error) {
 			codec := New(messages)
 			server.mutex.Lock()
 			server.codecs[codec] = messages
@@ -387,7 +387,6 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 			}
 			return err
 		})
-		return nil
 	}
 	for {
 		conn, err := lis.Accept()
