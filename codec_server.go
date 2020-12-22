@@ -44,7 +44,9 @@ func NewServerCodec(bodyCodec codec.Codec, headerEncoder *Encoder, messages sock
 	}
 	c.messages = messages
 	if !noBatch {
-		c.messages.SetConcurrency(c.Concurrency)
+		if batch, ok := c.messages.(socket.Batch); ok {
+			batch.SetConcurrency(c.Concurrency)
+		}
 	}
 	if headerEncoder == nil {
 		c.req = &request{}
