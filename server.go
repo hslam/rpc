@@ -7,7 +7,6 @@ package rpc
 import (
 	"crypto/tls"
 	"errors"
-	"github.com/hslam/codec"
 	"github.com/hslam/funcs"
 	"github.com/hslam/netpoll"
 	"github.com/hslam/socket"
@@ -445,7 +444,7 @@ func (server *Server) ListenWithOptions(address string, opts *Options) error {
 		sock = opts.NewSocket(opts.TLSConfig)
 	}
 	return server.listen(sock, address, func(messages socket.Messages) ServerCodec {
-		var bodyCodec codec.Codec
+		var bodyCodec Codec
 		if newCodec := NewCodec(opts.Codec); newCodec != nil {
 			bodyCodec = newCodec()
 		} else if opts.NewCodec != nil {

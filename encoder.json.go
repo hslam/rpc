@@ -3,18 +3,14 @@
 
 package rpc
 
-import (
-	"github.com/hslam/codec"
-)
-
 // NewJSONEncoder returns a header Encoder.
 func NewJSONEncoder() *Encoder {
 	return NewEncoder(NewJSONRequest(), NewJSONResponse(), NewJSONCodec())
 }
 
 // NewJSONCodec returns the instance of Codec.
-func NewJSONCodec() codec.Codec {
-	return &codec.JSONCodec{}
+func NewJSONCodec() Codec {
+	return &JSONCodec{}
 }
 
 // NewJSONRequest returns the instance of jsonRequest.

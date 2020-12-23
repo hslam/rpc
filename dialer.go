@@ -6,7 +6,6 @@ package rpc
 import (
 	"crypto/tls"
 	"errors"
-	"github.com/hslam/codec"
 	"github.com/hslam/socket"
 )
 
@@ -51,7 +50,7 @@ func DialWithOptions(address string, opts *Options) (*Client, error) {
 		sock = opts.NewSocket(opts.TLSConfig)
 	}
 	return NewClient().Dial(sock, address, func(messages socket.Messages) ClientCodec {
-		var bodyCodec codec.Codec
+		var bodyCodec Codec
 		if newCodec := NewCodec(opts.Codec); newCodec != nil {
 			bodyCodec = newCodec()
 		} else if opts.NewCodec != nil {
@@ -65,5 +64,17 @@ func DialWithOptions(address string, opts *Options) (*Client, error) {
 		}
 		return NewClientCodec(bodyCodec, headerEncoder, messages)
 	})
+}
 
+// Dials connects to multiple RPC servers with the specified options.
+func Dials(opts *Options, targets ...string) (*ReverseProxy, error) {
+	if opts.NewCodec == nil && opts.NewHeaderEncoder == nil && opts.Codec == "" {
+		return nil, errors.New("need opts.NewCodec, opts.NewEncoder or opts.Codec")
+	}
+	if opts.NewSocket == nil && opts.Network == "" {
+		return nil, errors.New("need opts.NewSocket, opts.NewMessages or opts.Network")
+	}
+	proxy := NewReverseProxy(targets...)
+	proxy.Transport = &Transport{Options: opts}
+	return proxy, nil
 }

@@ -4,7 +4,6 @@
 package rpc
 
 import (
-	"github.com/hslam/codec"
 	"sync"
 )
 
@@ -62,10 +61,10 @@ type Response interface {
 type Encoder struct {
 	Request  Request
 	Response Response
-	Codec    codec.Codec
+	Codec    Codec
 }
 
 //NewEncoder returns the instance of Encoder.
-func NewEncoder(req Request, res Response, codec codec.Codec) *Encoder {
+func NewEncoder(req Request, res Response, codec Codec) *Encoder {
 	return &Encoder{Request: req, Response: res, Codec: codec}
 }

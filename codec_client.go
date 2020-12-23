@@ -5,7 +5,6 @@ package rpc
 
 import (
 	"errors"
-	"github.com/hslam/codec"
 	"github.com/hslam/socket"
 	"io"
 	"sync/atomic"
@@ -13,7 +12,7 @@ import (
 
 type clientCodec struct {
 	headerEncoder *Encoder
-	bodyCodec     codec.Codec
+	bodyCodec     Codec
 	req           *request
 	res           *response
 	argsBuffer    []byte
@@ -24,7 +23,7 @@ type clientCodec struct {
 }
 
 // NewClientCodec returns a new ClientCodec.
-func NewClientCodec(bodyCodec codec.Codec, headerEncoder *Encoder, messages socket.Messages) ClientCodec {
+func NewClientCodec(bodyCodec Codec, headerEncoder *Encoder, messages socket.Messages) ClientCodec {
 	if messages == nil {
 		return nil
 	}

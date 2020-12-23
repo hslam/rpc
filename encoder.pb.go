@@ -3,18 +3,14 @@
 
 package rpc
 
-import (
-	"github.com/hslam/codec"
-)
-
 // NewPBEncoder returns a header Encoder.
 func NewPBEncoder() *Encoder {
 	return NewEncoder(NewPBRequest(), NewPBResponse(), NewPBCodec())
 }
 
 // NewPBCodec returns the instance of Codec.
-func NewPBCodec() codec.Codec {
-	return &codec.GOGOPBCodec{}
+func NewPBCodec() Codec {
+	return &GOGOPBCodec{}
 }
 
 // NewPBRequest returns the instance of pbRequest.

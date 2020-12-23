@@ -5,14 +5,13 @@ package rpc
 
 import (
 	"crypto/tls"
-	"github.com/hslam/codec"
 	"github.com/hslam/socket"
 )
 
 //Options defines the struct of options.
 type Options struct {
 	NewSocket        func(*tls.Config) socket.Socket
-	NewCodec         func() codec.Codec
+	NewCodec         func() Codec
 	NewHeaderEncoder func() *Encoder
 	Network          string
 	Codec            string
