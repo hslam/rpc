@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	conn, err := rpc.Dial("tcp", ":9999", "pb")
+	conn, err := rpc.Dial("tcp", ":9999", "json")
 	if err != nil {
 		panic(err)
 	}

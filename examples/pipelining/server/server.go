@@ -8,5 +8,5 @@ import (
 func main() {
 	rpc.Register(new(service.Seq))
 	rpc.SetPipelining(true)
-	rpc.Listen("tcp", ":9999", "pb")
+	rpc.Listen("tcp", ":9999", "json")
 }

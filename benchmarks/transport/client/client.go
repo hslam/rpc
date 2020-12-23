@@ -44,7 +44,6 @@ func main() {
 		wrkClients = append(wrkClients, &WrkClient{trans})
 	}
 	stats.StartPrint(parallel, total, wrkClients)
-	select {}
 }
 
 type WrkClient struct {
