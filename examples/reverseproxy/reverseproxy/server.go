@@ -12,14 +12,13 @@ type Arith struct {
 
 //Multiply operation
 func (a *Arith) Multiply(req *service.ArithRequest, res *service.ArithResponse) error {
-	a.ReverseProxy.Call("Arith.Multiply", req, res)
-	return nil
+	return a.ReverseProxy.Call("Arith.Multiply", req, res)
 }
 
 func main() {
 	opts := &rpc.Options{Network: "tcp", Codec: "pb"}
 	arith := new(Arith)
-	arith.ReverseProxy = rpc.NewSingleHostReverseProxy(":9999")
+	arith.ReverseProxy = rpc.NewReverseProxy(":9999")
 	arith.ReverseProxy.Transport = &rpc.Transport{Options: opts}
 	rpc.Register(arith)
 	rpc.ListenWithOptions(":8888", opts)

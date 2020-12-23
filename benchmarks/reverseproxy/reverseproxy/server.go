@@ -4,7 +4,6 @@ import (
 	"flag"
 	"github.com/hslam/rpc"
 	"github.com/hslam/rpc/benchmarks/reverseproxy/service"
-	"github.com/hslam/socket"
 )
 
 var addr string
@@ -23,14 +22,13 @@ type Arith struct {
 
 //Multiply operation
 func (a *Arith) Multiply(req *service.ArithRequest, res *service.ArithResponse) error {
-	a.ReverseProxy.Call("Arith.Multiply", req, res)
-	return nil
+	return a.ReverseProxy.Call("Arith.Multiply", req, res)
 }
 
 func main() {
-	opts := &rpc.Options{NewSocket: socket.NewTCPSocket, NewCodec: rpc.NewPBCodec, NewHeaderEncoder: rpc.NewPBEncoder}
+	opts := &rpc.Options{Network: "tcp", Codec: "pb"}
 	arith := new(Arith)
-	arith.ReverseProxy = rpc.NewSingleHostReverseProxy(target)
+	arith.ReverseProxy = rpc.NewReverseProxy(target)
 	arith.ReverseProxy.Transport = &rpc.Transport{Options: opts}
 	rpc.Register(arith)
 	rpc.ListenWithOptions(addr, opts)

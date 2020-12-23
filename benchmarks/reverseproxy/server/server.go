@@ -4,7 +4,6 @@ import (
 	"flag"
 	"github.com/hslam/rpc"
 	"github.com/hslam/rpc/benchmarks/reverseproxy/service"
-	"github.com/hslam/socket"
 )
 
 var addr string
@@ -16,5 +15,5 @@ func init() {
 
 func main() {
 	rpc.Register(new(service.Arith))
-	rpc.ListenWithOptions(addr, &rpc.Options{NewSocket: socket.NewTCPSocket, NewCodec: rpc.NewPBCodec, NewHeaderEncoder: rpc.NewPBEncoder})
+	rpc.ListenWithOptions(addr, &rpc.Options{Network: "tcp", Codec: "pb"})
 }
