@@ -11,17 +11,18 @@ import (
 )
 
 const (
-	reverseProxyAlpha   = 0.2
+	reverseProxyAlpha   = 0.8
 	reverseProxyTick    = time.Millisecond * 100
 	reverseProxyLatency = int64(time.Minute)
+	emptyString         = ""
 )
 
-// Select represents the selecting algorithms.
-type Select int
+// Scheduling represents the selecting algorithms.
+type Scheduling int
 
 const (
 	//RoundRobin uses the Round Robin algorithm to load balance traffic.
-	RoundRobin Select = iota
+	RoundRobin Scheduling = iota
 	//Random randomly selects the target server.
 	Random
 	//LeastTime selects the target server with the lowest latency.
@@ -32,13 +33,16 @@ const (
 // sends it to another server, proxying the response back to the
 // client.
 type ReverseProxy struct {
-	lock      sync.Mutex
-	targets   []*target
-	pos       int
-	lastTime  time.Time
-	Tick      time.Duration
-	Select    Select
-	Transport RoundTripper
+	lock       sync.Mutex
+	targets    map[string]*target
+	list       []*target
+	pos        int
+	lastTime   time.Time
+	Director   func() (target string)
+	Transport  RoundTripper
+	Scheduling Scheduling
+	Tick       time.Duration
+	Alpha      float64
 }
 
 // NewReverseProxy returns a new ReverseProxy that routes
@@ -47,29 +51,40 @@ func NewReverseProxy(targets ...string) *ReverseProxy {
 	if len(targets) == 0 {
 		panic("The targets is nil")
 	}
-	l := make([]*target, len(targets))
-	for i := 0; i < len(targets); i++ {
-		l[i] = &target{address: targets[i], latency: reverseProxyLatency}
+	m := make(map[string]*target)
+	l := make([]*target, 0, len(targets))
+	for _, address := range targets {
+		if len(address) > 0 {
+			if _, ok := m[address]; !ok {
+				t := &target{address: address, latency: reverseProxyLatency}
+				m[address] = t
+				l = append(l, t)
+			}
+		}
 	}
-	return &ReverseProxy{targets: l, Tick: reverseProxyTick}
+	return &ReverseProxy{targets: m, list: l, Tick: reverseProxyTick, Alpha: reverseProxyAlpha}
 }
 
 // RoundTrip executes a single RPC transaction, returning
 // a Response for the provided Request.
 func (c *ReverseProxy) RoundTrip(call *Call) *Call {
-	return c.transport().RoundTrip(c.target().address, call)
+	address, target := c.target()
+	if len(address) > 0 {
+		return c.transport().RoundTrip(address, call)
+	}
+	return c.transport().RoundTrip(target.address, call)
 }
 
 // Call invokes the named function, waits for it to complete, and returns its error status.
 func (c *ReverseProxy) Call(serviceMethod string, args interface{}, reply interface{}) error {
-	if c.Select == LeastTime && len(c.targets) > 1 {
-		start := time.Now()
-		t := c.target()
-		err := c.transport().Call(t.address, serviceMethod, args, reply)
-		t.update(int64(time.Now().Sub(start)))
-		return err
+	address, target := c.target()
+	if len(address) > 0 {
+		return c.transport().Call(address, serviceMethod, args, reply)
 	}
-	return c.transport().Call(c.target().address, serviceMethod, args, reply)
+	start := time.Now()
+	err := c.transport().Call(target.address, serviceMethod, args, reply)
+	c.update(target, int64(time.Now().Sub(start)))
+	return err
 }
 
 // Go invokes the function asynchronously. It returns the Call structure representing
@@ -77,19 +92,23 @@ func (c *ReverseProxy) Call(serviceMethod string, args interface{}, reply interf
 // the same Call object. If done is nil, Go will allocate a new channel.
 // If non-nil, done must be buffered or Go will deliberately crash.
 func (c *ReverseProxy) Go(serviceMethod string, args interface{}, reply interface{}, done chan *Call) *Call {
-	return c.transport().Go(c.target().address, serviceMethod, args, reply, done)
+	address, target := c.target()
+	if len(address) > 0 {
+		return c.transport().Go(address, serviceMethod, args, reply, done)
+	}
+	return c.transport().Go(target.address, serviceMethod, args, reply, done)
 }
 
 // Ping is NOT ICMP ping, this is just used to test whether a connection is still alive.
 func (c *ReverseProxy) Ping() error {
-	if c.Select == LeastTime && len(c.targets) > 1 {
-		start := time.Now()
-		t := c.target()
-		err := c.transport().Ping(t.address)
-		t.update(int64(time.Now().Sub(start)))
-		return err
+	address, target := c.target()
+	if len(address) > 0 {
+		return c.transport().Ping(address)
 	}
-	return c.transport().Ping(c.target().address)
+	start := time.Now()
+	err := c.transport().Ping(target.address)
+	c.update(target, int64(time.Now().Sub(start)))
+	return err
 }
 
 func (c *ReverseProxy) transport() RoundTripper {
@@ -99,51 +118,63 @@ func (c *ReverseProxy) transport() RoundTripper {
 	return c.Transport
 }
 
-func (c *ReverseProxy) target() *target {
-	if len(c.targets) == 1 {
-		return c.targets[0]
+func (c *ReverseProxy) target() (string, *target) {
+	if c.Director != nil {
+		address := c.Director()
+		if len(address) > 0 {
+			return address, nil
+		}
 	}
-	if len(c.targets) > 1 {
+	if len(c.list) == 1 {
+		return c.list[0].address, nil
+	}
+	if len(c.list) > 1 {
 		var t *target
-		switch c.Select {
+		switch c.Scheduling {
 		case RoundRobin:
 			c.lock.Lock()
-			t = c.targets[c.pos]
-			c.pos = (c.pos + 1) % len(c.targets)
+			t = c.list[c.pos]
+			c.pos = (c.pos + 1) % len(c.list)
 			c.lock.Unlock()
 		case Random:
-			pos := rand.Intn(len(c.targets))
-			t = c.targets[pos]
+			pos := rand.Intn(len(c.list))
+			t = c.list[pos]
 		case LeastTime:
 			now := time.Now()
 			c.lock.Lock()
 			if c.lastTime.Add(c.Tick).Before(now) {
 				c.lastTime = now
-				t = c.targets[c.pos]
-				c.pos = (c.pos + 1) % len(c.targets)
+				t = c.list[c.pos]
+				c.pos = (c.pos + 1) % len(c.list)
 			} else {
-				minHeap(c.targets)
-				t = c.targets[0]
+				minHeap(c.list)
+				t = c.list[0]
 			}
 			c.lock.Unlock()
+			return emptyString, t
+		default:
+			c.lock.Lock()
+			t = c.list[c.pos]
+			c.pos = (c.pos + 1) % len(c.list)
+			c.lock.Unlock()
 		}
-		return t
+		return t.address, nil
 	}
 	panic("The targets is nil")
+}
+
+func (c *ReverseProxy) update(t *target, new int64) {
+	old := atomic.LoadInt64(&t.latency)
+	if old >= reverseProxyLatency {
+		atomic.StoreInt64(&t.latency, new)
+	} else {
+		atomic.StoreInt64(&t.latency, int64(float64(old)*c.Alpha+float64(new)*(1-c.Alpha)))
+	}
 }
 
 type target struct {
 	address string
 	latency int64
-}
-
-func (t *target) update(new int64) {
-	old := atomic.LoadInt64(&t.latency)
-	if old >= reverseProxyLatency {
-		atomic.StoreInt64(&t.latency, new)
-	} else {
-		atomic.StoreInt64(&t.latency, int64(float64(new)*reverseProxyAlpha+float64(old)*(1-reverseProxyAlpha)))
-	}
 }
 
 type list []*target

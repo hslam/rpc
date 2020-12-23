@@ -78,8 +78,7 @@ func TestReverseProxy(t *testing.T) {
 
 func TestReverseProxyLeastTime(t *testing.T) {
 	network := "tcp"
-	addr := ":9999"
-	addr1 := ":9998"
+	addrs := []string{":9997", ":9998", ":9999"}
 	codec := "json"
 	opts := DefaultOptions()
 	opts.Network = network
@@ -90,16 +89,14 @@ func TestReverseProxyLeastTime(t *testing.T) {
 		t.Error(err)
 	}
 	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		server.ListenWithOptions(addr, opts)
-	}()
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		server.ListenWithOptions(addr1, opts)
-	}()
+	for i := 0; i < len(addrs); i++ {
+		wg.Add(1)
+		addr := addrs[i]
+		go func() {
+			defer wg.Done()
+			server.ListenWithOptions(addr, opts)
+		}()
+	}
 	time.Sleep(time.Millisecond * 10)
 	trans := &Transport{
 		MaxConnsPerHost:     1,
@@ -108,8 +105,8 @@ func TestReverseProxyLeastTime(t *testing.T) {
 		IdleConnTimeout:     time.Second * 60,
 		Options:             opts,
 	}
-	proxy := NewReverseProxy(addr, addr1)
-	proxy.Select = LeastTime
+	proxy := NewReverseProxy(addrs...)
+	proxy.Scheduling = LeastTime
 	proxy.Transport = trans
 	err = proxy.Ping()
 	if err != nil {
@@ -170,19 +167,26 @@ func TestReverseProxyTransport(t *testing.T) {
 
 func TestReverseProxyTarget(t *testing.T) {
 	proxy := NewReverseProxy(":9999", ":9998", ":9997")
-	proxy.Select = RoundRobin
-	if proxy.target() == nil {
+	proxy.Scheduling = RoundRobin
+	if address, target := proxy.target(); len(address) == 0 && target == nil {
 		t.Error()
 	}
-	proxy.Select = Random
-	if proxy.target() == nil {
+	proxy.Scheduling = Random
+	if address, target := proxy.target(); len(address) == 0 && target == nil {
 		t.Error()
 	}
-	proxy.Select = LeastTime
-	if proxy.target() == nil {
+	proxy.Scheduling = LeastTime
+	if address, target := proxy.target(); len(address) == 0 && target == nil {
 		t.Error()
 	}
-	if proxy.target() == nil {
+	proxy.Scheduling = 3
+	if address, target := proxy.target(); len(address) == 0 && target == nil {
+		t.Error()
+	}
+	proxy.Director = func() (target string) {
+		return ":9999"
+	}
+	if address, target := proxy.target(); len(address) == 0 && target == nil {
 		t.Error()
 	}
 	proxy = &ReverseProxy{}
