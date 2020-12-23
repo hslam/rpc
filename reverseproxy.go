@@ -121,7 +121,7 @@ func (c *ReverseProxy) target() *target {
 				t = c.targets[c.pos]
 				c.pos = (c.pos + 1) % len(c.targets)
 			} else {
-				initMinHeap(c.targets)
+				minHeap(c.targets)
 				t = c.targets[0]
 			}
 			c.lock.Unlock()
@@ -137,12 +137,12 @@ type target struct {
 	score   int64
 }
 
-func (t *target) update(score int64) {
+func (t *target) update(latency int64) {
 	s := atomic.LoadInt64(&t.score)
 	if s >= score {
-		atomic.StoreInt64(&t.score, score)
+		atomic.StoreInt64(&t.score, latency)
 	} else {
-		atomic.StoreInt64(&t.score, int64(float64(score)*alpha+float64(s)*(1-alpha)))
+		atomic.StoreInt64(&t.score, int64(float64(latency)*alpha+float64(s)*(1-alpha)))
 	}
 }
 
@@ -154,7 +154,7 @@ func (l list) Less(i, j int) bool {
 }
 func (l list) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
 
-func initMinHeap(h list) {
+func minHeap(h list) {
 	n := h.Len()
 	for i := n/2 - 1; i >= 0; i-- {
 		heapDown(h, i, n)
