@@ -146,12 +146,13 @@ func TestReverseProxyLeastTime(t *testing.T) {
 }
 
 func TestReverseProxyEmptyTargets(t *testing.T) {
-	defer func() {
-		if e := recover(); e == nil {
-			t.Error("should panic")
-		}
-	}()
-	NewReverseProxy()
+	proxy := NewReverseProxy()
+	proxy.Director = func() (target string) {
+		return ":9999"
+	}
+	if address, target := proxy.target(); len(address) == 0 && target == nil {
+		t.Error()
+	}
 }
 
 func TestReverseProxyTransport(t *testing.T) {

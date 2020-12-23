@@ -48,21 +48,23 @@ type ReverseProxy struct {
 // NewReverseProxy returns a new ReverseProxy that routes
 // requests to the targets.
 func NewReverseProxy(targets ...string) *ReverseProxy {
-	if len(targets) == 0 {
-		panic("The targets is nil")
-	}
-	m := make(map[string]*target)
-	l := make([]*target, 0, len(targets))
-	for _, address := range targets {
-		if len(address) > 0 {
-			if _, ok := m[address]; !ok {
-				t := &target{address: address, latency: reverseProxyLatency}
-				m[address] = t
-				l = append(l, t)
+	if len(targets) > 0 {
+		m := make(map[string]*target)
+		l := make([]*target, 0, len(targets))
+		for _, address := range targets {
+			if len(address) > 0 {
+				if _, ok := m[address]; !ok {
+					t := &target{address: address, latency: reverseProxyLatency}
+					m[address] = t
+					l = append(l, t)
+				}
 			}
 		}
+		if len(l) > 0 {
+			return &ReverseProxy{targets: m, list: l, Tick: reverseProxyTick, Alpha: reverseProxyAlpha}
+		}
 	}
-	return &ReverseProxy{targets: m, list: l, Tick: reverseProxyTick, Alpha: reverseProxyAlpha}
+	return &ReverseProxy{}
 }
 
 // RoundTrip executes a single RPC transaction, returning
