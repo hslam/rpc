@@ -106,7 +106,7 @@ func TestReverseProxyLeastTime(t *testing.T) {
 		Options:             opts,
 	}
 	proxy := NewReverseProxy(addrs...)
-	proxy.Scheduling = LeastTime
+	proxy.Scheduling = LeastTimeScheduling
 	proxy.Transport = trans
 	err = proxy.Ping()
 	if err != nil {
@@ -167,15 +167,15 @@ func TestReverseProxyTransport(t *testing.T) {
 
 func TestReverseProxyTarget(t *testing.T) {
 	proxy := NewReverseProxy(":9999", ":9998", ":9997")
-	proxy.Scheduling = RoundRobin
+	proxy.Scheduling = RoundRobinScheduling
 	if address, target := proxy.target(); len(address) == 0 && target == nil {
 		t.Error()
 	}
-	proxy.Scheduling = Random
+	proxy.Scheduling = RandomScheduling
 	if address, target := proxy.target(); len(address) == 0 && target == nil {
 		t.Error()
 	}
-	proxy.Scheduling = LeastTime
+	proxy.Scheduling = LeastTimeScheduling
 	if address, target := proxy.target(); len(address) == 0 && target == nil {
 		t.Error()
 	}

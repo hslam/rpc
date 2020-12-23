@@ -17,16 +17,16 @@ const (
 	emptyString         = ""
 )
 
-// Scheduling represents the selecting algorithms.
+// Scheduling represents the scheduling algorithms.
 type Scheduling int
 
 const (
-	//RoundRobin uses the Round Robin algorithm to load balance traffic.
-	RoundRobin Scheduling = iota
-	//Random randomly selects the target server.
-	Random
-	//LeastTime selects the target server with the lowest latency.
-	LeastTime
+	//RoundRobinScheduling uses the Round Robin algorithm to load balance traffic.
+	RoundRobinScheduling Scheduling = iota
+	//RandomScheduling randomly selects the target server.
+	RandomScheduling
+	//LeastTimeScheduling selects the target server with the lowest latency.
+	LeastTimeScheduling
 )
 
 // ReverseProxy is an RPC Handler that takes an incoming request and
@@ -131,15 +131,15 @@ func (c *ReverseProxy) target() (string, *target) {
 	if len(c.list) > 1 {
 		var t *target
 		switch c.Scheduling {
-		case RoundRobin:
+		case RoundRobinScheduling:
 			c.lock.Lock()
 			t = c.list[c.pos]
 			c.pos = (c.pos + 1) % len(c.list)
 			c.lock.Unlock()
-		case Random:
+		case RandomScheduling:
 			pos := rand.Intn(len(c.list))
 			t = c.list[pos]
-		case LeastTime:
+		case LeastTimeScheduling:
 			now := time.Now()
 			c.lock.Lock()
 			if c.lastTime.Add(c.Tick).Before(now) {
