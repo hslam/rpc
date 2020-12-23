@@ -10,14 +10,14 @@ import (
 	"time"
 )
 
+const (
+	reverseProxyAlpha   = 0.2
+	reverseProxyTick    = time.Millisecond * 100
+	reverseProxyLatency = int64(time.Minute)
+)
+
 // Select represents the selecting algorithms.
 type Select int
-
-const (
-	alpha = 0.2
-	check = time.Millisecond * 100
-	score = int64(time.Minute)
-)
 
 const (
 	//RoundRobin uses the Round Robin algorithm to load balance traffic.
@@ -36,7 +36,7 @@ type ReverseProxy struct {
 	targets   []*target
 	pos       int
 	lastTime  time.Time
-	Check     time.Duration
+	Tick      time.Duration
 	Select    Select
 	Transport RoundTripper
 }
@@ -49,9 +49,9 @@ func NewReverseProxy(targets ...string) *ReverseProxy {
 	}
 	l := make([]*target, len(targets))
 	for i := 0; i < len(targets); i++ {
-		l[i] = &target{address: targets[i], score: score}
+		l[i] = &target{address: targets[i], latency: reverseProxyLatency}
 	}
-	return &ReverseProxy{targets: l, Check: check}
+	return &ReverseProxy{targets: l, Tick: reverseProxyTick}
 }
 
 // RoundTrip executes a single RPC transaction, returning
@@ -62,7 +62,7 @@ func (c *ReverseProxy) RoundTrip(call *Call) *Call {
 
 // Call invokes the named function, waits for it to complete, and returns its error status.
 func (c *ReverseProxy) Call(serviceMethod string, args interface{}, reply interface{}) error {
-	if c.Select == LeastTime {
+	if c.Select == LeastTime && len(c.targets) > 1 {
 		start := time.Now()
 		t := c.target()
 		err := c.transport().Call(t.address, serviceMethod, args, reply)
@@ -82,7 +82,7 @@ func (c *ReverseProxy) Go(serviceMethod string, args interface{}, reply interfac
 
 // Ping is NOT ICMP ping, this is just used to test whether a connection is still alive.
 func (c *ReverseProxy) Ping() error {
-	if c.Select == LeastTime {
+	if c.Select == LeastTime && len(c.targets) > 1 {
 		start := time.Now()
 		t := c.target()
 		err := c.transport().Ping(t.address)
@@ -102,7 +102,8 @@ func (c *ReverseProxy) transport() RoundTripper {
 func (c *ReverseProxy) target() *target {
 	if len(c.targets) == 1 {
 		return c.targets[0]
-	} else if len(c.targets) > 1 {
+	}
+	if len(c.targets) > 1 {
 		var t *target
 		switch c.Select {
 		case RoundRobin:
@@ -116,7 +117,7 @@ func (c *ReverseProxy) target() *target {
 		case LeastTime:
 			now := time.Now()
 			c.lock.Lock()
-			if c.lastTime.Add(c.Check).Before(now) {
+			if c.lastTime.Add(c.Tick).Before(now) {
 				c.lastTime = now
 				t = c.targets[c.pos]
 				c.pos = (c.pos + 1) % len(c.targets)
@@ -127,22 +128,21 @@ func (c *ReverseProxy) target() *target {
 			c.lock.Unlock()
 		}
 		return t
-	} else {
-		panic("The targets is nil")
 	}
+	panic("The targets is nil")
 }
 
 type target struct {
 	address string
-	score   int64
+	latency int64
 }
 
-func (t *target) update(latency int64) {
-	s := atomic.LoadInt64(&t.score)
-	if s >= score {
-		atomic.StoreInt64(&t.score, latency)
+func (t *target) update(new int64) {
+	old := atomic.LoadInt64(&t.latency)
+	if old >= reverseProxyLatency {
+		atomic.StoreInt64(&t.latency, new)
 	} else {
-		atomic.StoreInt64(&t.score, int64(float64(latency)*alpha+float64(s)*(1-alpha)))
+		atomic.StoreInt64(&t.latency, int64(float64(new)*reverseProxyAlpha+float64(old)*(1-reverseProxyAlpha)))
 	}
 }
 
@@ -150,7 +150,7 @@ type list []*target
 
 func (l list) Len() int { return len(l) }
 func (l list) Less(i, j int) bool {
-	return atomic.LoadInt64(&l[i].score) < atomic.LoadInt64(&l[j].score)
+	return atomic.LoadInt64(&l[i].latency) < atomic.LoadInt64(&l[j].latency)
 }
 func (l list) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
 

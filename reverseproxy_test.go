@@ -79,6 +79,7 @@ func TestReverseProxy(t *testing.T) {
 func TestReverseProxyLeastTime(t *testing.T) {
 	network := "tcp"
 	addr := ":9999"
+	addr1 := ":9998"
 	codec := "json"
 	opts := DefaultOptions()
 	opts.Network = network
@@ -94,6 +95,11 @@ func TestReverseProxyLeastTime(t *testing.T) {
 		defer wg.Done()
 		server.ListenWithOptions(addr, opts)
 	}()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		server.ListenWithOptions(addr1, opts)
+	}()
 	time.Sleep(time.Millisecond * 10)
 	trans := &Transport{
 		MaxConnsPerHost:     1,
@@ -102,14 +108,13 @@ func TestReverseProxyLeastTime(t *testing.T) {
 		IdleConnTimeout:     time.Second * 60,
 		Options:             opts,
 	}
-	proxy := NewReverseProxy(addr)
+	proxy := NewReverseProxy(addr, addr1)
 	proxy.Select = LeastTime
 	proxy.Transport = trans
 	err = proxy.Ping()
 	if err != nil {
 		t.Error(err)
 	}
-
 	A := int32(4)
 	B := int32(8)
 	req := &service.ArithRequest{A: A, B: B}
@@ -190,7 +195,7 @@ func TestReverseProxyTarget(t *testing.T) {
 }
 
 func TestTopK(t *testing.T) {
-	l := list{&target{score: 10}, &target{score: 7}, &target{score: 2}, &target{score: 5}, &target{score: 1}, &target{score: 6}}
+	l := list{&target{latency: 10}, &target{latency: 7}, &target{latency: 2}, &target{latency: 5}, &target{latency: 1}, &target{latency: 6}}
 	minHeap(l)
 	n := l.Len()
 	for i := 1; i < n; i++ {
