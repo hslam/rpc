@@ -7,6 +7,7 @@ import (
 	"errors"
 	"github.com/hslam/socket"
 	"io"
+	"runtime"
 	"sync"
 )
 
@@ -308,6 +309,7 @@ func (client *Client) Call(serviceMethod string, args interface{}, reply interfa
 	call.upgrade = upgrade
 	call.Done = done
 	client.write(call)
+	runtime.Gosched()
 	<-call.Done
 	ResetDone(done)
 	client.donePool.Put(done)
@@ -345,6 +347,7 @@ func (client *Client) StopWatch(key string) error {
 	call.upgrade = upgrade
 	call.Done = done
 	client.write(call)
+	runtime.Gosched()
 	<-call.Done
 	ResetDone(done)
 	client.donePool.Put(done)
@@ -365,6 +368,7 @@ func (client *Client) Ping() error {
 	call.upgrade = upgrade
 	call.Done = done
 	client.write(call)
+	runtime.Gosched()
 	<-call.Done
 	ResetDone(done)
 	client.donePool.Put(done)
