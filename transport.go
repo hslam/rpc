@@ -351,6 +351,9 @@ func (t *Transport) Close() {
 	}
 	t.connsMu.Lock()
 	defer t.connsMu.Unlock()
+	if !t.running {
+		return
+	}
 	for _, cs := range t.conns {
 		length := len(cs.Conns)
 		for i := 0; i < length; i++ {
