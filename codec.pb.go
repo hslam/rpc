@@ -30,10 +30,7 @@ func (req *pbRequest) Marshal() ([]byte, error) {
 	size := req.Size()
 	buf := make([]byte, size)
 	n, err := req.MarshalTo(buf[:size])
-	if err != nil {
-		return nil, err
-	}
-	return buf[:n], nil
+	return buf[:n], err
 }
 
 // MarshalTo marshals into buf and returns the number of bytes.
@@ -189,10 +186,7 @@ func (res *pbResponse) Marshal() ([]byte, error) {
 	size := res.Size()
 	buf := make([]byte, size)
 	n, err := res.MarshalTo(buf[:size])
-	if err != nil {
-		return nil, err
-	}
-	return buf[:n], nil
+	return buf[:n], err
 }
 
 // MarshalTo marshals into buf and returns the number of bytes.
