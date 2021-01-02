@@ -237,16 +237,13 @@ func (client *Client) read() {
 	client.shutdown = true
 	closing := client.closing
 	if err == io.EOF {
-		if closing {
-			err = ErrShutdown
-		} else {
-			err = io.ErrUnexpectedEOF
-		}
+		err = ErrShutdown
 	}
 	for _, call := range client.pending {
 		call.Error = err
 		call.done()
 	}
+	client.pending = make(map[uint64]*Call)
 	client.mutex.Unlock()
 	client.reqMutex.Unlock()
 	if err != io.EOF && !closing {

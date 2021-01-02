@@ -145,19 +145,22 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 	}
 	wg.Wait()
 	server.mutex.Lock()
-	delete(server.codecs, codec)
-	for k, events := range server.watchs {
-		if _, ok := events[codec]; ok {
-			delete(events, codec)
-		}
-		if len(events) == 0 {
-			delete(server.watchs, k)
-		}
-	}
+	server.deleteCodec(codec)
 	server.mutex.Unlock()
 	codec.Close()
 	if done != nil {
 		close(done)
+	}
+}
+
+// deleteCodec closes the specified codec.
+func (server *Server) deleteCodec(codec ServerCodec) {
+	delete(server.codecs, codec)
+	for k, events := range server.watchs {
+		delete(events, codec)
+		if len(events) == 0 {
+			delete(server.watchs, k)
+		}
 	}
 }
 
@@ -334,6 +337,16 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 	if err != nil {
 		return err
 	}
+	codecs := make(map[ServerCodec]io.Closer)
+	defer func() {
+		server.mutex.Lock()
+		for codec, closer := range codecs {
+			delete(codecs, codec)
+			server.deleteCodec(codec)
+			closer.Close()
+		}
+		server.mutex.Unlock()
+	}()
 	server.mut.Lock()
 	server.listeners = append(server.listeners, lis)
 	server.mut.Unlock()
@@ -353,6 +366,7 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 		return lis.ServeMessages(func(messages socket.Messages) (socket.Context, error) {
 			codec := New(messages)
 			server.mutex.Lock()
+			codecs[codec] = messages
 			server.codecs[codec] = messages
 			server.mutex.Unlock()
 			return &ServerContext{
@@ -377,8 +391,12 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 					ctx.wg.Wait()
 					server.mutex.Lock()
 					delete(server.codecs, ctx.codec)
-					for _, events := range server.watchs {
+					delete(codecs, ctx.codec)
+					for k, events := range server.watchs {
 						delete(events, ctx.codec)
+						if len(events) == 0 {
+							delete(server.watchs, k)
+						}
 					}
 					server.mutex.Unlock()
 					ctx.codec.Close()
@@ -396,6 +414,7 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 			messages := conn.Messages()
 			codec := New(messages)
 			server.mutex.Lock()
+			codecs[codec] = messages
 			server.codecs[codec] = messages
 			server.mutex.Unlock()
 			server.ServeCodec(codec)
@@ -468,13 +487,6 @@ func (server *Server) Close() error {
 	}
 	server.listeners = []socket.Listener{}
 	server.mut.Unlock()
-
-	server.mutex.Lock()
-	for codec, closer := range server.codecs {
-		delete(server.codecs, codec)
-		closer.Close()
-	}
-	server.mutex.Unlock()
 	return nil
 }
 
