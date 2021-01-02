@@ -55,6 +55,14 @@ func TestReverseProxy(t *testing.T) {
 	}
 
 	res = service.ArithResponse{}
+	if err := proxy.CallTimeout("Arith.Multiply", req, &res, time.Minute); err != nil {
+		t.Error(err)
+	}
+	if res.Pro != A*B {
+		t.Error(res.Pro)
+	}
+
+	res = service.ArithResponse{}
 	call := proxy.Go("Arith.Multiply", req, &res, make(chan *Call, 1))
 	<-call.Done
 	if res.Pro != A*B {
@@ -117,6 +125,14 @@ func TestReverseProxyLeastTime(t *testing.T) {
 	req := &service.ArithRequest{A: A, B: B}
 	var res service.ArithResponse
 	if err := proxy.Call("Arith.Multiply", req, &res); err != nil {
+		t.Error(err)
+	}
+	if res.Pro != A*B {
+		t.Error(res.Pro)
+	}
+
+	res = service.ArithResponse{}
+	if err := proxy.CallTimeout("Arith.Multiply", req, &res, time.Minute); err != nil {
 		t.Error(err)
 	}
 	if res.Pro != A*B {

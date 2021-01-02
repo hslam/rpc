@@ -89,6 +89,18 @@ func (c *ReverseProxy) Call(serviceMethod string, args interface{}, reply interf
 	return err
 }
 
+// CallTimeout acts like Call but takes a timeout.
+func (c *ReverseProxy) CallTimeout(serviceMethod string, args interface{}, reply interface{}, timeout time.Duration) error {
+	address, target := c.target()
+	if len(address) > 0 {
+		return c.transport().CallTimeout(address, serviceMethod, args, reply, timeout)
+	}
+	start := time.Now()
+	err := c.transport().CallTimeout(target.address, serviceMethod, args, reply, timeout)
+	c.update(target, int64(time.Now().Sub(start)))
+	return err
+}
+
 // Go invokes the function asynchronously. It returns the Call structure representing
 // the invocation. The done channel will signal when the call is complete by returning
 // the same Call object. If done is nil, Go will allocate a new channel.

@@ -9,9 +9,13 @@ import (
 	"io"
 	"runtime"
 	"sync"
+	"time"
 )
 
-// ErrShutdown is returned when the connection is shut down
+// ErrTimeout is returned after the timeout,.
+var ErrTimeout = errors.New("timeout")
+
+// ErrShutdown is returned when the connection is shut down.
 var ErrShutdown = errors.New("The connection is shut down")
 
 // ErrWatch is returned when the watch is existed.
@@ -319,6 +323,37 @@ func (client *Client) Call(serviceMethod string, args interface{}, reply interfa
 	return err
 }
 
+// CallTimeout acts like Call but takes a timeout.
+func (client *Client) CallTimeout(serviceMethod string, args interface{}, reply interface{}, timeout time.Duration) error {
+	if timeout <= 0 {
+		return client.Call(serviceMethod, args, reply)
+	}
+	done := client.donePool.Get().(chan *Call)
+	upgrade := client.getUpgrade()
+	call := client.callPool.Get().(*Call)
+	call.ServiceMethod = serviceMethod
+	call.Args = args
+	call.Reply = reply
+	call.upgrade = upgrade
+	call.Done = done
+	client.write(call)
+	timer := time.NewTimer(timeout)
+	var err error
+	runtime.Gosched()
+	select {
+	case <-call.Done:
+		timer.Stop()
+		ResetDone(done)
+		client.donePool.Put(done)
+		err = call.Error
+		*call = Call{}
+		client.callPool.Put(call)
+	case <-timer.C:
+		err = ErrTimeout
+	}
+	return err
+}
+
 // Watch returns the Watcher.
 func (client *Client) Watch(key string) Watcher {
 	watcher := &watcher{client: client, C: make(chan *event, 10), key: key, done: make(chan struct{}, 1)}
@@ -326,10 +361,11 @@ func (client *Client) Watch(key string) Watcher {
 	upgrade.NoRequest = noRequest
 	upgrade.NoResponse = noResponse
 	upgrade.Watch = watch
+	done := client.donePool.Get().(chan *Call)
 	call := new(Call)
 	call.ServiceMethod = key
 	call.upgrade = upgrade
-	call.Done = make(chan *Call, 10)
+	call.Done = done
 	call.watcher = watcher
 	client.write(call)
 	return watcher

@@ -47,6 +47,20 @@ func TestClient(t *testing.T) {
 	if res.Pro != A*B {
 		t.Error(res.Pro)
 	}
+
+	res = service.ArithResponse{}
+	if err := conn.CallTimeout("Arith.Multiply", req, &res, 0); err != nil && err != ErrTimeout {
+		t.Error(err)
+	}
+	if res.Pro != A*B {
+		t.Error(res.Pro)
+	}
+
+	res = service.ArithResponse{}
+	if err := conn.CallTimeout("Arith.Multiply", req, &res, 1); err != nil && err != ErrTimeout {
+		t.Error(err)
+	}
+
 	res = service.ArithResponse{}
 	call := conn.Go("Arith.Multiply", req, &res, make(chan *Call, 1))
 	<-call.Done
@@ -209,6 +223,42 @@ func TestServerCodecReadRequestBody(t *testing.T) {
 		t.Error("The err should not be nil")
 	}
 	conn.Close()
+	server.Close()
+	wg.Wait()
+}
+
+func TestClientWriteWatch(t *testing.T) {
+	network := "tcp"
+	addr := ":9999"
+	codec := "code"
+	server := NewServer()
+	err := server.Register(new(service.Arith))
+	if err != nil {
+		t.Error(err)
+	}
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		server.Listen(network, addr, codec)
+	}()
+	time.Sleep(time.Millisecond * 10)
+	conn, err := Dial(network, addr, codec)
+	if err != nil {
+		t.Error(err)
+	}
+	err = conn.Ping()
+	if err != nil {
+		t.Error(err)
+	}
+	conn.Close()
+	conn.shutdown = false
+	conn.closing = false
+	watcher := conn.Watch("foo")
+	_, err = watcher.Wait()
+	if err == nil {
+		t.Error("The err should not be nil")
+	}
 	server.Close()
 	wg.Wait()
 }

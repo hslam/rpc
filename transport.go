@@ -43,8 +43,9 @@ var (
 // single RPC transaction, obtaining the Response for a given Request.
 type RoundTripper interface {
 	RoundTrip(addr string, call *Call) *Call
-	Call(addr, serviceMethod string, args interface{}, reply interface{}) error
 	Go(addr, serviceMethod string, args interface{}, reply interface{}, done chan *Call) *Call
+	Call(addr, serviceMethod string, args interface{}, reply interface{}) error
+	CallTimeout(addr, serviceMethod string, args interface{}, reply interface{}, timeout time.Duration) error
 	Ping(addr string) error
 }
 
@@ -100,18 +101,6 @@ func (t *Transport) RoundTrip(addr string, call *Call) *Call {
 	return call
 }
 
-// Call invokes the named function, waits for it to complete, and returns its error status.
-func (t *Transport) Call(addr, serviceMethod string, args interface{}, reply interface{}) error {
-	client, err := t.getConn(addr)
-	if err != nil {
-		return err
-	}
-	err = client.Call(serviceMethod, args, reply)
-	client.lastTime = t.now
-	checkPersistConnErr(err, client)
-	return err
-}
-
 // Go invokes the function asynchronously. It returns the Call structure representing
 // the invocation. The done channel will signal when the call is complete by returning
 // the same Call object. If done is nil, Go will allocate a new channel.
@@ -133,6 +122,30 @@ func (t *Transport) Go(addr, serviceMethod string, args interface{}, reply inter
 	client.lastTime = t.now
 	checkPersistConnErr(call.Error, client)
 	return call
+}
+
+// Call invokes the named function, waits for it to complete, and returns its error status.
+func (t *Transport) Call(addr, serviceMethod string, args interface{}, reply interface{}) error {
+	client, err := t.getConn(addr)
+	if err != nil {
+		return err
+	}
+	err = client.Call(serviceMethod, args, reply)
+	client.lastTime = t.now
+	checkPersistConnErr(err, client)
+	return err
+}
+
+// CallTimeout acts like Call but takes a timeout.
+func (t *Transport) CallTimeout(addr, serviceMethod string, args interface{}, reply interface{}, timeout time.Duration) error {
+	client, err := t.getConn(addr)
+	if err != nil {
+		return err
+	}
+	err = client.CallTimeout(serviceMethod, args, reply, timeout)
+	client.lastTime = t.now
+	checkPersistConnErr(err, client)
+	return err
 }
 
 // Ping is NOT ICMP ping, this is just used to test whether a connection is still alive.

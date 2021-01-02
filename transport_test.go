@@ -58,6 +58,14 @@ func TestTransport(t *testing.T) {
 			}
 
 			res = service.ArithResponse{}
+			if err := trans.CallTimeout(addr, "Arith.Multiply", req, &res, time.Minute); err != nil {
+				t.Error(err)
+			}
+			if res.Pro != A*B {
+				t.Error(res.Pro)
+			}
+
+			res = service.ArithResponse{}
 			call := trans.Go(addr, "Arith.Multiply", req, &res, make(chan *Call, 1))
 			<-call.Done
 			if res.Pro != A*B {
@@ -92,6 +100,9 @@ func TestTransport(t *testing.T) {
 		t.Error("should be error")
 	}
 	if err := trans.Call(addr, "Arith.Multiply", req, &res); err == nil {
+		t.Error("should be error")
+	}
+	if err := trans.CallTimeout(addr, "Arith.Multiply", req, &res, time.Minute); err == nil {
 		t.Error("should be error")
 	}
 	call = new(Call)
@@ -185,75 +196,6 @@ func TestNewPersistConn(t *testing.T) {
 	server.Close()
 	wg.Wait()
 }
-
-//func TestGetConn(t *testing.T) {
-//	network := "tcp"
-//	addr := ":9999"
-//	codec := "json"
-//	server := NewServer()
-//	err := server.Register(new(service.Arith))
-//	if err != nil {
-//		t.Error(err)
-//	}
-//	wg := sync.WaitGroup{}
-//	wg.Add(1)
-//	go func() {
-//		defer wg.Done()
-//		server.Listen(network, addr, codec)
-//	}()
-//	time.Sleep(time.Millisecond * 10)
-//	trans := &Transport{
-//		MaxConnsPerHost:     64,
-//		MaxIdleConnsPerHost: 32,
-//		KeepAlive:           time.Millisecond * 10,
-//		IdleConnTimeout:     time.Second * 60,
-//		Network:             network,
-//		Codec:               codec,
-//		ticker:              time.Millisecond * 10,
-//	}
-//	err = trans.Ping(addr)
-//	if err != nil {
-//		t.Error(err)
-//	}
-//	cwg := sync.WaitGroup{}
-//	for i := 0; i < 64; i++ {
-//		cwg.Add(1)
-//		go func() {
-//			defer cwg.Done()
-//			trans.Ping(addr)
-//		}()
-//	}
-//	time.Sleep(time.Millisecond * 300)
-//	for i := 0; i < 64; i++ {
-//		cwg.Add(1)
-//		go func() {
-//			defer cwg.Done()
-//			trans.Ping(addr)
-//		}()
-//	}
-//	trans.CloseIdleConnections()
-//	time.Sleep(time.Millisecond * 300)
-//	trans.CloseIdleConnections()
-//	for i := 0; i < 64; i++ {
-//		cwg.Add(1)
-//		go func() {
-//			defer cwg.Done()
-//			trans.Ping(addr)
-//		}()
-//	}
-//	cwg.Wait()
-//	server.Close()
-//	for i := 0; i < 512; i++ {
-//		cwg.Add(1)
-//		go func() {
-//			defer cwg.Done()
-//			trans.Ping(addr)
-//		}()
-//	}
-//	time.Sleep(time.Millisecond * 300)
-//	trans.Close()
-//	wg.Wait()
-//}
 
 func TestGetConn(t *testing.T) {
 	network := "tcp"
@@ -466,6 +408,22 @@ func TestTransportClose(t *testing.T) {
 	trans.Close()
 	server.Close()
 	wg.Wait()
+}
+
+func TestTransportNoRunningClose(t *testing.T) {
+	network := "tcp"
+	codec := "json"
+	trans := &Transport{
+		MaxConnsPerHost:     4,
+		MaxIdleConnsPerHost: 2,
+		KeepAlive:           time.Millisecond * 100,
+		IdleConnTimeout:     time.Second,
+		Network:             network,
+		Codec:               codec,
+		ticker:              time.Millisecond * 10,
+	}
+	trans.Close()
+	trans.Close()
 }
 
 func TestTransportRun(t *testing.T) {
