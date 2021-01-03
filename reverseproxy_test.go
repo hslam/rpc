@@ -182,6 +182,12 @@ func TestReverseProxyTransport(t *testing.T) {
 	proxy.transport()
 }
 
+func TestReverseProxyUpdate(t *testing.T) {
+	addr := ":9999"
+	proxy := NewReverseProxy(addr)
+	proxy.update(&target{address: addr}, 0, ErrDial)
+}
+
 func TestReverseProxyTarget(t *testing.T) {
 	proxy := NewReverseProxy(":9999", ":9998", ":9997")
 	proxy.Scheduling = RoundRobinScheduling

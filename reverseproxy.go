@@ -196,6 +196,9 @@ func (c *ReverseProxy) target() (string, *target) {
 }
 
 func (c *ReverseProxy) check(t *target) bool {
+	if c.Transport == nil {
+		return false
+	}
 	return c.alive(t, c.transport().Ping(t.address))
 }
 
