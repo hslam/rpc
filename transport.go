@@ -51,6 +51,7 @@ type RoundTripper interface {
 	Call(addr, serviceMethod string, args interface{}, reply interface{}) error
 	CallTimeout(addr, serviceMethod string, args interface{}, reply interface{}, timeout time.Duration) error
 	Ping(addr string) error
+	Close() error
 }
 
 //Transport defines the struct of transport
@@ -362,14 +363,14 @@ func (t *Transport) CloseIdleConnections() {
 }
 
 // Close closes the all connections.
-func (t *Transport) Close() {
+func (t *Transport) Close() error {
 	if !atomic.CompareAndSwapUint32(&t.closed, 0, 1) {
-		return
+		return nil
 	}
 	t.connsMu.Lock()
 	defer t.connsMu.Unlock()
 	if !t.running {
-		return
+		return nil
 	}
 	for _, cs := range t.conns {
 		length := len(cs.Conns)
@@ -391,6 +392,7 @@ func (t *Transport) Close() {
 	}
 	t.idleConns = make(map[string]*connQueue)
 	close(t.done)
+	return nil
 }
 
 type persistConn struct {
