@@ -4,6 +4,7 @@
 package rpc
 
 import (
+	"errors"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -37,6 +38,9 @@ var (
 	IdleConnTimeout = DefaultIdleConnTimeout
 
 	runTicker = defaultRunTicker
+
+	// ErrDial is returned when dial failed.
+	ErrDial = errors.New("dial failed")
 )
 
 // RoundTripper is an interface representing the ability to execute a
@@ -260,7 +264,7 @@ func (t *Transport) newPersistConn(addr string) (*persistConn, error) {
 		client, err = t.Dial(t.Network, addr, t.Codec)
 	}
 	if err != nil {
-		return nil, err
+		return nil, ErrDial
 	}
 	return &persistConn{
 		Client:   client,
