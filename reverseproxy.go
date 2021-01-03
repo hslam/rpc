@@ -36,6 +36,7 @@ type ReverseProxy struct {
 	lock       sync.Mutex
 	targets    map[string]*target
 	list       []*target
+	minHeap    []*target
 	pos        int
 	lastTime   time.Time
 	Director   func() (target string)
@@ -85,7 +86,7 @@ func (c *ReverseProxy) Call(serviceMethod string, args interface{}, reply interf
 	}
 	start := time.Now()
 	err := c.transport().Call(target.address, serviceMethod, args, reply)
-	c.update(target, int64(time.Now().Sub(start)))
+	c.update(target, int64(time.Now().Sub(start)), err)
 	return err
 }
 
@@ -97,7 +98,7 @@ func (c *ReverseProxy) CallTimeout(serviceMethod string, args interface{}, reply
 	}
 	start := time.Now()
 	err := c.transport().CallTimeout(target.address, serviceMethod, args, reply, timeout)
-	c.update(target, int64(time.Now().Sub(start)))
+	c.update(target, int64(time.Now().Sub(start)), err)
 	return err
 }
 
@@ -121,7 +122,7 @@ func (c *ReverseProxy) Ping() error {
 	}
 	start := time.Now()
 	err := c.transport().Ping(target.address)
-	c.update(target, int64(time.Now().Sub(start)))
+	c.update(target, int64(time.Now().Sub(start)), err)
 	return err
 }
 
@@ -144,14 +145,16 @@ func (c *ReverseProxy) target() (string, *target) {
 	}
 	if len(c.list) > 1 {
 		var t *target
+		var pos int
 		switch c.Scheduling {
 		case RoundRobinScheduling:
 			c.lock.Lock()
 			t = c.list[c.pos]
+			pos = c.pos
 			c.pos = (c.pos + 1) % len(c.list)
 			c.lock.Unlock()
 		case RandomScheduling:
-			pos := rand.Intn(len(c.list))
+			pos = rand.Intn(len(c.list))
 			t = c.list[pos]
 		case LeastTimeScheduling:
 			now := time.Now()
@@ -159,36 +162,67 @@ func (c *ReverseProxy) target() (string, *target) {
 			if c.lastTime.Add(c.Tick).Before(now) {
 				c.lastTime = now
 				t = c.list[c.pos]
+				pos = c.pos
 				c.pos = (c.pos + 1) % len(c.list)
 			} else {
-				minHeap(c.list)
-				t = c.list[0]
+				if len(c.minHeap) == 0 {
+					c.minHeap = make([]*target, len(c.list))
+					copy(c.minHeap, c.list)
+				}
+				minHeap(c.minHeap)
+				t = c.minHeap[0]
 			}
 			c.lock.Unlock()
-			return emptyString, t
 		default:
 			c.lock.Lock()
 			t = c.list[c.pos]
+			pos = c.pos
 			c.pos = (c.pos + 1) % len(c.list)
 			c.lock.Unlock()
 		}
-		return t.address, nil
+		cnt := len(c.list)
+	retry:
+		cnt--
+		if !t.alive && cnt > 0 {
+			if !c.check(t) {
+				pos = (pos + 1) % len(c.list)
+				t = c.list[pos]
+				goto retry
+			}
+		}
+		return emptyString, t
 	}
 	panic("The targets is nil")
 }
 
-func (c *ReverseProxy) update(t *target, new int64) {
+func (c *ReverseProxy) check(t *target) bool {
+	return c.alive(t, c.transport().Ping(t.address))
+}
+
+func (c *ReverseProxy) update(t *target, new int64, err error) {
 	old := atomic.LoadInt64(&t.latency)
-	if old >= reverseProxyLatency {
+	if !c.alive(t, err) {
+		atomic.StoreInt64(&t.latency, reverseProxyLatency)
+	} else if old >= reverseProxyLatency {
 		atomic.StoreInt64(&t.latency, new)
 	} else {
 		atomic.StoreInt64(&t.latency, int64(float64(old)*c.Alpha+float64(new)*(1-c.Alpha)))
 	}
 }
 
+func (c *ReverseProxy) alive(t *target, err error) bool {
+	if err == ErrDial {
+		t.alive = false
+	} else {
+		t.alive = true
+	}
+	return t.alive
+}
+
 type target struct {
 	address string
 	latency int64
+	alive   bool
 }
 
 type list []*target
