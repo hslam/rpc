@@ -368,8 +368,8 @@ func (client *Client) Watch(key string) Watcher {
 	return watcher
 }
 
-// StopWatch stops the key watcher .
-func (client *Client) StopWatch(key string) error {
+// stopWatch stops the key watcher .
+func (client *Client) stopWatch(key string) error {
 	upgrade := client.getUpgrade()
 	upgrade.NoRequest = noRequest
 	upgrade.NoResponse = noResponse

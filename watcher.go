@@ -115,5 +115,5 @@ func (w *watcher) Stop() error {
 		return nil
 	}
 	close(w.done)
-	return w.client.StopWatch(w.key)
+	return w.client.stopWatch(w.key)
 }
