@@ -68,10 +68,12 @@ message ArithResponse {
     int32 pro = 1;
 }
 ```
+
 **[GoGo Protobuf ](https://github.com/gogo/protobuf "gogoprotobuf")**
 ```
 protoc ./arith.proto --gogofaster_out=./
 ```
+
 arith.go
 ```go
 package service
@@ -83,6 +85,7 @@ func (a *Arith) Multiply(req *ArithRequest, res *ArithResponse) error {
 	return nil
 }
 ```
+
 server.go
 ```go
 package main
@@ -97,7 +100,6 @@ func main() {
 	rpc.Listen("tcp", ":9999", "pb")
 }
 ```
-
 
 client.go
 ```go
@@ -117,13 +119,13 @@ func main() {
 	defer conn.Close()
 	req := &service.ArithRequest{A: 9, B: 2}
 	var res service.ArithResponse
-	err = conn.Call("Arith.Multiply", req, &res)
-	if err != nil {
+	if err = conn.Call("Arith.Multiply", req, &res); err != nil {
 		panic(err)
 	}
 	fmt.Printf("%d * %d = %d\n", req.A, req.B, res.Pro)
 }
 ```
+
 transport.go
 ```go
 package main
@@ -143,14 +145,37 @@ func main() {
 	defer trans.Close()
 	req := &service.ArithRequest{A: 9, B: 2}
 	var res service.ArithResponse
-	var err error
-	err = trans.Call(":9999", "Arith.Multiply", req, &res)
-	if err != nil {
+	if err := trans.Call(":9999", "Arith.Multiply", req, &res); err != nil {
 		panic(err)
 	}
 	fmt.Printf("%d * %d = %d\n", req.A, req.B, res.Pro)
 }
 ```
+
+reverseproxy.go
+```go
+package main
+
+import (
+	"fmt"
+	"github.com/hslam/rpc"
+	"github.com/hslam/rpc/examples/codec/pb/service"
+)
+
+func main() {
+	proxy := rpc.NewReverseProxy(":9997", ":9998", ":9999")
+	proxy.Transport = &rpc.Transport{Options: &rpc.Options{Network: "tcp", Codec: "pb"}}
+	proxy.Scheduling = rpc.LeastTimeScheduling
+	defer proxy.Transport.Close()
+	req := &service.ArithRequest{A: 9, B: 2}
+	var res service.ArithResponse
+	if err := proxy.Call("Arith.Multiply", req, &res); err != nil {
+		panic(err)
+	}
+	fmt.Printf("%d * %d = %d\n", req.A, req.B, res.Pro)
+}
+```
+
 #### Output
 ```
 9 * 2 = 18
