@@ -16,7 +16,7 @@ Package rpc implements a remote procedure call over TCP, UNIX, HTTP and WS. The 
 * [Auto batching](https://github.com/hslam/writer "writer")
 * Call/Go/RoundTrip/Ping/Watch
 * Server push
-* Client/Transport/ReverseProxy
+* Conn/Transport/Client
 * TLS
 
 **Comparison to other packages**
