@@ -42,7 +42,7 @@ type Watcher interface {
 }
 
 type watcher struct {
-	client *Client
+	conn   *Conn
 	C      chan *event
 	key    string
 	mut    sync.Mutex
@@ -118,5 +118,5 @@ func (w *watcher) stop() {
 
 func (w *watcher) Stop() error {
 	w.stop()
-	return w.client.stopWatch(w.key)
+	return w.conn.stopWatch(w.key)
 }

@@ -1,0 +1,11 @@
+syntax = "proto3";
+package service;
+
+message ArithRequest {
+    int32 a = 1;
+    int32 b = 2;
+}
+
+message ArithResponse {
+    int32 pro = 1;
+}

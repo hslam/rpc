@@ -449,10 +449,10 @@ func (server *Server) ListenTLS(network, address string, codec string, config *t
 // ListenWithOptions announces on the local network address with Options.
 func (server *Server) ListenWithOptions(address string, opts *Options) error {
 	if opts.NewCodec == nil && opts.NewHeaderEncoder == nil && opts.Codec == "" {
-		return errors.New("need opts.NewCodec, opts.NewEncoder or opts.Codec")
+		return errors.New("need opts.NewCodec, opts.NewHeaderEncoder or opts.Codec")
 	}
 	if opts.NewSocket == nil && opts.Network == "" {
-		return errors.New("need opts.NewSocket, opts.NewMessages or opts.Network")
+		return errors.New("need opts.NewSocket or opts.Network")
 	}
 	var sock socket.Socket
 	if newSocket := NewSocket(opts.Network); newSocket != nil {

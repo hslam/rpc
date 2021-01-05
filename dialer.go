@@ -10,10 +10,10 @@ import (
 )
 
 // Dial connects to an RPC server at the specified network address.
-func Dial(network, address, codec string) (*Client, error) {
+func Dial(network, address, codec string) (*Conn, error) {
 	if newSocket := NewSocket(network); newSocket != nil {
 		if newCodec := NewCodec(codec); newCodec != nil {
-			return NewClient().Dial(newSocket(nil), address, func(messages socket.Messages) ClientCodec {
+			return NewConn().Dial(newSocket(nil), address, func(messages socket.Messages) ClientCodec {
 				return NewClientCodec(newCodec(), nil, messages)
 			})
 		}
@@ -23,10 +23,10 @@ func Dial(network, address, codec string) (*Client, error) {
 }
 
 // DialTLS connects to an RPC server at the specified network address with tls.Config.
-func DialTLS(network, address, codec string, config *tls.Config) (*Client, error) {
+func DialTLS(network, address, codec string, config *tls.Config) (*Conn, error) {
 	if newSocket := NewSocket(network); newSocket != nil {
 		if newCodec := NewCodec(codec); newCodec != nil {
-			return NewClient().Dial(newSocket(config), address, func(messages socket.Messages) ClientCodec {
+			return NewConn().Dial(newSocket(config), address, func(messages socket.Messages) ClientCodec {
 				return NewClientCodec(newCodec(), nil, messages)
 			})
 		}
@@ -36,12 +36,12 @@ func DialTLS(network, address, codec string, config *tls.Config) (*Client, error
 }
 
 // DialWithOptions connects to an RPC server at the specified network address with Options.
-func DialWithOptions(address string, opts *Options) (*Client, error) {
+func DialWithOptions(address string, opts *Options) (*Conn, error) {
 	if opts.NewCodec == nil && opts.NewHeaderEncoder == nil && opts.Codec == "" {
-		return nil, errors.New("need opts.NewCodec, opts.NewEncoder or opts.Codec")
+		return nil, errors.New("need opts.NewCodec, opts.NewHeaderEncoder or opts.Codec")
 	}
 	if opts.NewSocket == nil && opts.Network == "" {
-		return nil, errors.New("need opts.NewSocket, opts.NewMessages or opts.Network")
+		return nil, errors.New("need opts.NewSocket or opts.Network")
 	}
 	var sock socket.Socket
 	if newSocket := NewSocket(opts.Network); newSocket != nil {
@@ -49,7 +49,7 @@ func DialWithOptions(address string, opts *Options) (*Client, error) {
 	} else if opts.NewSocket != nil {
 		sock = opts.NewSocket(opts.TLSConfig)
 	}
-	return NewClient().Dial(sock, address, func(messages socket.Messages) ClientCodec {
+	return NewConn().Dial(sock, address, func(messages socket.Messages) ClientCodec {
 		var bodyCodec Codec
 		if newCodec := NewCodec(opts.Codec); newCodec != nil {
 			bodyCodec = newCodec()
@@ -64,17 +64,4 @@ func DialWithOptions(address string, opts *Options) (*Client, error) {
 		}
 		return NewClientCodec(bodyCodec, headerEncoder, messages)
 	})
-}
-
-// Dials connects to multiple RPC servers with the specified options.
-func Dials(opts *Options, targets ...string) (*ReverseProxy, error) {
-	if opts.NewCodec == nil && opts.NewHeaderEncoder == nil && opts.Codec == "" {
-		return nil, errors.New("need opts.NewCodec, opts.NewEncoder or opts.Codec")
-	}
-	if opts.NewSocket == nil && opts.Network == "" {
-		return nil, errors.New("need opts.NewSocket, opts.NewMessages or opts.Network")
-	}
-	proxy := NewReverseProxy(targets...)
-	proxy.Transport = &Transport{Options: opts}
-	return proxy, nil
 }

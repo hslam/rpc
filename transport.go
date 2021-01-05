@@ -68,9 +68,9 @@ type Transport struct {
 	now                 time.Time
 	Network             string
 	Codec               string
-	Dial                func(network, address, codec string) (*Client, error)
+	Dial                func(network, address, codec string) (*Conn, error)
 	Options             *Options
-	DialWithOptions     func(address string, opts *Options) (*Client, error)
+	DialWithOptions     func(address string, opts *Options) (*Conn, error)
 	running             bool
 	done                chan bool
 	closed              uint32
@@ -95,15 +95,15 @@ func (t *Transport) RoundTrip(addr string, call *Call) *Call {
 	done := call.Done
 	done = checkDone(done)
 	call.Done = done
-	client, err := t.getConn(addr)
+	conn, err := t.getConn(addr)
 	if err != nil {
 		call.Error = err
 		call.done()
 		return call
 	}
-	client.RoundTrip(call)
-	client.lastTime = t.now
-	checkPersistConnErr(call.Error, client)
+	conn.RoundTrip(call)
+	conn.lastTime = t.now
+	checkPersistConnErr(call.Error, conn)
 	return call
 }
 
@@ -112,7 +112,7 @@ func (t *Transport) RoundTrip(addr string, call *Call) *Call {
 // the same Call object. If done is nil, Go will allocate a new channel.
 // If non-nil, done must be buffered or Go will deliberately crash.
 func (t *Transport) Go(addr, serviceMethod string, args interface{}, reply interface{}, done chan *Call) *Call {
-	client, err := t.getConn(addr)
+	conn, err := t.getConn(addr)
 	if err != nil {
 		call := new(Call)
 		call.ServiceMethod = serviceMethod
@@ -124,57 +124,57 @@ func (t *Transport) Go(addr, serviceMethod string, args interface{}, reply inter
 		call.done()
 		return call
 	}
-	call := client.Go(serviceMethod, args, reply, done)
-	client.lastTime = t.now
-	checkPersistConnErr(call.Error, client)
+	call := conn.Go(serviceMethod, args, reply, done)
+	conn.lastTime = t.now
+	checkPersistConnErr(call.Error, conn)
 	return call
 }
 
 // Call invokes the named function, waits for it to complete, and returns its error status.
 func (t *Transport) Call(addr, serviceMethod string, args interface{}, reply interface{}) error {
-	client, err := t.getConn(addr)
+	conn, err := t.getConn(addr)
 	if err != nil {
 		return err
 	}
-	err = client.Call(serviceMethod, args, reply)
-	client.lastTime = t.now
-	checkPersistConnErr(err, client)
+	err = conn.Call(serviceMethod, args, reply)
+	conn.lastTime = t.now
+	checkPersistConnErr(err, conn)
 	return err
 }
 
 // CallTimeout acts like Call but takes a timeout.
 func (t *Transport) CallTimeout(addr, serviceMethod string, args interface{}, reply interface{}, timeout time.Duration) error {
-	client, err := t.getConn(addr)
+	conn, err := t.getConn(addr)
 	if err != nil {
 		return err
 	}
-	err = client.CallTimeout(serviceMethod, args, reply, timeout)
-	client.lastTime = t.now
-	checkPersistConnErr(err, client)
+	err = conn.CallTimeout(serviceMethod, args, reply, timeout)
+	conn.lastTime = t.now
+	checkPersistConnErr(err, conn)
 	return err
 }
 
 // Watch returns the Watcher.
 func (t *Transport) Watch(addr, key string) (Watcher, error) {
-	client, err := t.getConn(addr)
+	conn, err := t.getConn(addr)
 	if err != nil {
 		return nil, err
 	}
-	watcher, err := client.Watch(key)
-	client.lastTime = t.now
-	checkPersistConnErr(err, client)
+	watcher, err := conn.Watch(key)
+	conn.lastTime = t.now
+	checkPersistConnErr(err, conn)
 	return watcher, err
 }
 
 // Ping is NOT ICMP ping, this is just used to test whether a connection is still alive.
 func (t *Transport) Ping(addr string) error {
-	client, err := t.getConn(addr)
+	conn, err := t.getConn(addr)
 	if err != nil {
 		return err
 	}
-	err = client.Ping()
-	client.lastTime = t.now
-	checkPersistConnErr(err, client)
+	err = conn.Ping()
+	conn.lastTime = t.now
+	checkPersistConnErr(err, conn)
 	return err
 }
 
@@ -270,18 +270,18 @@ func (t *Transport) getConn(addr string) (pc *persistConn, err error) {
 }
 
 func (t *Transport) newPersistConn(addr string) (*persistConn, error) {
-	var client *Client
+	var conn *Conn
 	var err error
 	if t.Options != nil {
-		client, err = t.DialWithOptions(addr, t.Options)
+		conn, err = t.DialWithOptions(addr, t.Options)
 	} else {
-		client, err = t.Dial(t.Network, addr, t.Codec)
+		conn, err = t.Dial(t.Network, addr, t.Codec)
 	}
 	if err != nil {
 		return nil, ErrDial
 	}
 	return &persistConn{
-		Client:   client,
+		Conn:     conn,
 		alive:    true,
 		lastTime: time.Now(),
 	}, nil
@@ -409,7 +409,7 @@ func (t *Transport) Close() error {
 }
 
 type persistConn struct {
-	*Client
+	*Conn
 	mu       sync.Mutex
 	alive    bool
 	lastTime time.Time

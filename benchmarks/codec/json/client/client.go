@@ -47,7 +47,7 @@ func main() {
 }
 
 type WrkClient struct {
-	*rpc.Client
+	*rpc.Conn
 }
 
 func (c *WrkClient) Call() (int64, int64, bool) {
@@ -55,7 +55,7 @@ func (c *WrkClient) Call() (int64, int64, bool) {
 	B := rand.Int31n(100)
 	req := &service.ArithRequest{A: A, B: B}
 	var res service.ArithResponse
-	if err := c.Client.Call("Arith.Multiply", req, &res); err != nil {
+	if err := c.Conn.Call("Arith.Multiply", req, &res); err != nil {
 		fmt.Println(err)
 		return 0, 0, false
 	}

@@ -45,11 +45,11 @@ func main() {
 }
 
 type WrkClient struct {
-	*rpc.Client
+	*rpc.Conn
 }
 
 func (c *WrkClient) Call() (int64, int64, bool) {
-	if err := c.Client.Ping(); err != nil {
+	if err := c.Conn.Ping(); err != nil {
 		fmt.Println(err)
 		return 0, 0, false
 	}

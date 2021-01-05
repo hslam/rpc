@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/hslam/rpc"
-	"github.com/hslam/rpc/benchmarks/poll/service"
+	"github.com/hslam/rpc/benchmarks/client/conn/service"
 	"github.com/hslam/stats"
 	"log"
 	"math/rand"

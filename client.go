@@ -4,464 +4,300 @@
 package rpc
 
 import (
-	"errors"
-	"github.com/hslam/socket"
-	"io"
-	"runtime"
+	"math/rand"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
-// ErrTimeout is returned after the timeout,.
-var ErrTimeout = errors.New("timeout")
+const (
+	clientAlpha   = 0.8
+	clientTick    = time.Millisecond * 100
+	clientLatency = int64(time.Minute)
+	emptyString   = ""
+)
 
-// ErrShutdown is returned when the connection is shut down.
-var ErrShutdown = errors.New("The connection is shut down")
+// Scheduling represents the scheduling algorithms.
+type Scheduling int
 
-// ErrWatch is returned when the watch is existed.
-var ErrWatch = errors.New("The watch is existed")
+const (
+	//RoundRobinScheduling uses the Round Robin algorithm to load balance traffic.
+	RoundRobinScheduling Scheduling = iota
+	//RandomScheduling randomly selects the target server.
+	RandomScheduling
+	//LeastTimeScheduling selects the target server with the lowest latency.
+	LeastTimeScheduling
+)
 
-// Call represents an active RPC.
-type Call struct {
-	upgrade       *upgrade
-	Value         []byte
-	ServiceMethod string
-	Args          interface{}
-	Reply         interface{}
-	CallError     bool
-	Error         error
-	Done          chan *Call
-	watcher       *watcher
-}
-
-func (call *Call) done() {
-	select {
-	case call.Done <- call:
-	default:
-	}
-	call.watch()
-}
-
-func (call *Call) watch() {
-	if call.watcher != nil {
-		if len(call.Value) > 0 || call.Error != nil {
-			e := getEvent()
-			e.Value = call.Value
-			e.Error = call.Error
-			call.watcher.trigger(e)
-		}
-	}
-}
-
-// Client represents an RPC Client.
-// There may be multiple outstanding Calls associated
-// with a single Client, and a Client may be used by
-// multiple goroutines simultaneously.
-type Client struct {
-	codec         ClientCodec
-	reqMutex      sync.Mutex
-	ctx           Context
-	mutex         sync.Mutex
-	seq           uint64
-	pending       map[uint64]*Call
-	watchs        map[string]*Call
-	callPool      *sync.Pool
-	donePool      *sync.Pool
-	upgradePool   *sync.Pool
-	upgradeBuffer []byte
-	closing       bool
-	shutdown      bool
-}
-
-// NewClientCodecFunc is the function to make a new ClientCodec by socket.Messages.
-type NewClientCodecFunc func(messages socket.Messages) ClientCodec
-
-// NewClient returns a new Client to handle requests to the
-// set of services at the other end of the connection.
-// It adds a buffer to the write side of the connection so
-// the header and payload are sent as a unit.
+// Client is an RPC client.
 //
-// The read and write halves of the connection are serialized independently,
-// so no interlocking is required. However each half may be accessed
-// concurrently so the implementation of conn should protect against
-// concurrent reads or concurrent writes.
-func NewClient() *Client {
-	return &Client{
-		pending:       make(map[uint64]*Call),
-		watchs:        make(map[string]*Call),
-		callPool:      &sync.Pool{New: func() interface{} { return &Call{} }},
-		donePool:      &sync.Pool{New: func() interface{} { return make(chan *Call, 10) }},
-		upgradePool:   &sync.Pool{New: func() interface{} { return &upgrade{} }},
-		upgradeBuffer: make([]byte, 1024),
-	}
+// The Client's Transport typically has internal state (cached connections),
+// so Clients should be reused instead of created as
+// needed. Clients are safe for concurrent use by multiple goroutines.
+//
+// A Client is higher-level than a RoundTripper such as Transport.
+type Client struct {
+	lock       sync.Mutex
+	targets    map[string]*target
+	list       []*target
+	minHeap    []*target
+	pos        int
+	lastTime   time.Time
+	Director   func() (target string)
+	Transport  RoundTripper
+	Scheduling Scheduling
+	Tick       time.Duration
+	Alpha      float64
 }
 
-// Dial connects to an RPC server at the specified network address.
-func (client *Client) Dial(s socket.Socket, address string, New NewClientCodecFunc) (*Client, error) {
-	conn, err := s.Dial(address)
-	if err != nil {
-		return nil, err
-	}
-	client.codec = New(conn.Messages())
-	go client.read()
-	return client, nil
-}
-
-// NewClientWithCodec is like NewClient but uses the specified
-// codec to encode requests and decode responses.
-func NewClientWithCodec(codec ClientCodec) *Client {
-	if codec == nil {
-		return nil
-	}
-	c := NewClient()
-	c.codec = codec
-	go c.read()
-	return c
-}
-
-func (client *Client) getUpgrade() *upgrade {
-	return client.upgradePool.Get().(*upgrade)
-}
-
-func (client *Client) putUpgrade(u *upgrade) {
-	u.Reset()
-	client.upgradePool.Put(u)
-}
-
-func (client *Client) write(call *Call) {
-	client.reqMutex.Lock()
-	defer client.reqMutex.Unlock()
-	client.mutex.Lock()
-	if client.shutdown || client.closing {
-		client.mutex.Unlock()
-		call.Error = ErrShutdown
-		call.done()
-		return
-	}
-	seq := client.seq
-	if call.upgrade.Watch == watch {
-		if _, ok := client.watchs[call.ServiceMethod]; ok {
-			client.mutex.Unlock()
-			call.Error = ErrWatch
-			call.done()
-			return
+// NewClient returns a new RPC Client.
+func NewClient(opts *Options, targets ...string) *Client {
+	client := &Client{Tick: clientTick, Alpha: clientAlpha}
+	if opts != nil {
+		if opts.NewCodec == nil && opts.NewHeaderEncoder == nil && opts.Codec == "" {
+			panic("need opts.NewCodec, opts.NewHeaderEncoder or opts.Codec")
 		}
-		client.watchs[call.ServiceMethod] = call
-	}
-	client.seq++
-	client.pending[seq] = call
-	client.mutex.Unlock()
-	client.ctx = Context{}
-	client.ctx.Seq = seq
-	client.ctx.upgrade = call.upgrade
-	if call.upgrade.Heartbeat == heartbeat ||
-		call.upgrade.Watch == watch ||
-		call.upgrade.Watch == stopWatch ||
-		call.upgrade.NoRequest == noRequest ||
-		call.upgrade.NoResponse == noResponse {
-		client.ctx.Upgrade, _ = call.upgrade.Marshal(client.upgradeBuffer)
-	}
-	client.ctx.ServiceMethod = call.ServiceMethod
-	err := client.codec.WriteRequest(&client.ctx, call.Args)
-	if err != nil {
-		client.mutex.Lock()
-		delete(client.pending, seq)
-		if call.upgrade.Watch == watch {
-			delete(client.watchs, call.ServiceMethod)
+		if opts.NewSocket == nil && opts.Network == "" {
+			panic("need opts.NewSocket or opts.Network")
 		}
-		client.mutex.Unlock()
-		if call != nil {
-			call.Error = err
-			call.done()
-		}
+		client.Transport = &Transport{Options: opts}
 	}
+	if len(targets) > 0 {
+		client.Update(targets...)
+	}
+	return client
 }
 
-func (client *Client) read() {
-	var err error
-	var ctx Context
-	for err == nil {
-		ctx = Context{}
-		err = client.codec.ReadResponseHeader(&ctx)
-		if err != nil {
-			break
-		}
-		seq := ctx.Seq
-		client.mutex.Lock()
-		call := client.pending[seq]
-		delete(client.pending, seq)
-		client.mutex.Unlock()
-		switch {
-		case call == nil:
-			err = client.codec.ReadResponseBody(nil)
-			if err != nil {
-				err = errors.New("reading error body: " + err.Error())
+// Update updates targets.
+func (c *Client) Update(targets ...string) {
+	m := make(map[string]*target)
+	l := make([]*target, 0, len(targets))
+	for _, address := range targets {
+		if len(address) > 0 {
+			if _, ok := m[address]; !ok {
+				t := &target{address: address, latency: clientLatency}
+				m[address] = t
+				l = append(l, t)
 			}
-		case ctx.Error != "":
-			call.Error = errors.New(ctx.Error)
-			err = client.codec.ReadResponseBody(nil)
-			if err != nil {
-				err = errors.New("reading error body: " + err.Error())
-			}
-			call.done()
-		default:
-			if len(ctx.value) > 0 {
-				call.Value = ctx.value
-			}
-			u := call.upgrade
-			if u.NoResponse == noResponse {
-				if u.Heartbeat == heartbeat {
-					call.done()
-					client.putUpgrade(u)
-				} else if u.Watch == stopWatch {
-					client.mutex.Lock()
-					if _, ok := client.watchs[call.ServiceMethod]; ok {
-						delete(client.pending, seq)
-					}
-					delete(client.watchs, call.ServiceMethod)
-					client.mutex.Unlock()
-					call.done()
-					client.putUpgrade(u)
-				} else if u.Watch == watch {
-					call.Value = ctx.value
-					client.mutex.Lock()
-					if _, ok := client.watchs[call.ServiceMethod]; ok {
-						client.pending[seq] = call
-					}
-					client.mutex.Unlock()
-					if len(call.Value) == 0 {
-						call.done()
-					} else {
-						call.watch()
-					}
-				}
-				continue
-			}
-			client.putUpgrade(u)
-			err = client.codec.ReadResponseBody(call.Reply)
-			if err != nil {
-				call.Error = errors.New("reading body " + err.Error())
-			}
-			call.done()
 		}
 	}
-	client.reqMutex.Lock()
-	client.mutex.Lock()
-	client.shutdown = true
-	closing := client.closing
-	if err == io.EOF {
-		err = ErrShutdown
-	}
-	for _, call := range client.pending {
-		call.Error = err
-		call.done()
-	}
-	for _, call := range client.watchs {
-		if call.watcher != nil {
-			call.watcher.stop()
-		}
-	}
-	client.pending = make(map[uint64]*Call)
-	client.watchs = make(map[string]*Call)
-	client.mutex.Unlock()
-	client.reqMutex.Unlock()
-	if err != io.EOF && !closing {
-		logger.Allln("rpc: client protocol error:", err)
-	}
-}
-
-// NumCalls returns the number of calls.
-func (client *Client) NumCalls() (n uint64) {
-	client.mutex.Lock()
-	n = uint64(len(client.pending))
-	w := uint64(len(client.watchs))
-	if w > n {
-		n = w
-	}
-	client.mutex.Unlock()
-	return
-}
-
-// Close calls the underlying codec's Close method. If the connection is already
-// shutting down, ErrShutdown is returned.
-func (client *Client) Close() error {
-	client.mutex.Lock()
-	if client.closing {
-		client.mutex.Unlock()
-		return nil
-	}
-	client.closing = true
-	client.mutex.Unlock()
-	return client.codec.Close()
+	c.lock.Lock()
+	c.targets = m
+	c.list = l
+	c.lock.Unlock()
 }
 
 // RoundTrip executes a single RPC transaction, returning
 // a Response for the provided Request.
-func (client *Client) RoundTrip(call *Call) *Call {
-	done := call.Done
-	done = checkDone(done)
-	call.upgrade = client.getUpgrade()
-	call.Done = done
-	client.write(call)
-	return call
+func (c *Client) RoundTrip(call *Call) *Call {
+	address, target := c.target()
+	if len(address) > 0 {
+		return c.transport().RoundTrip(address, call)
+	}
+	return c.transport().RoundTrip(target.address, call)
+}
+
+// Call invokes the named function, waits for it to complete, and returns its error status.
+func (c *Client) Call(serviceMethod string, args interface{}, reply interface{}) error {
+	address, target := c.target()
+	if len(address) > 0 {
+		return c.transport().Call(address, serviceMethod, args, reply)
+	}
+	start := time.Now()
+	err := c.transport().Call(target.address, serviceMethod, args, reply)
+	c.update(target, int64(time.Now().Sub(start)), err)
+	return err
+}
+
+// CallTimeout acts like Call but takes a timeout.
+func (c *Client) CallTimeout(serviceMethod string, args interface{}, reply interface{}, timeout time.Duration) error {
+	address, target := c.target()
+	if len(address) > 0 {
+		return c.transport().CallTimeout(address, serviceMethod, args, reply, timeout)
+	}
+	start := time.Now()
+	err := c.transport().CallTimeout(target.address, serviceMethod, args, reply, timeout)
+	c.update(target, int64(time.Now().Sub(start)), err)
+	return err
+}
+
+// Watch returns the Watcher.
+func (c *Client) Watch(key string) (Watcher, error) {
+	address, target := c.target()
+	if len(address) > 0 {
+		return c.transport().Watch(address, key)
+	}
+	start := time.Now()
+	watcher, err := c.transport().Watch(target.address, key)
+	c.update(target, int64(time.Now().Sub(start)), err)
+	return watcher, err
 }
 
 // Go invokes the function asynchronously. It returns the Call structure representing
 // the invocation. The done channel will signal when the call is complete by returning
 // the same Call object. If done is nil, Go will allocate a new channel.
 // If non-nil, done must be buffered or Go will deliberately crash.
-func (client *Client) Go(serviceMethod string, args interface{}, reply interface{}, done chan *Call) *Call {
-	call := new(Call)
-	call.ServiceMethod = serviceMethod
-	call.Args = args
-	call.Reply = reply
-	call.upgrade = client.getUpgrade()
-	done = checkDone(done)
-	call.Done = done
-	client.write(call)
-	return call
-}
-
-// Call invokes the named function, waits for it to complete, and returns its error status.
-func (client *Client) Call(serviceMethod string, args interface{}, reply interface{}) error {
-	done := client.donePool.Get().(chan *Call)
-	upgrade := client.getUpgrade()
-	call := client.callPool.Get().(*Call)
-	call.ServiceMethod = serviceMethod
-	call.Args = args
-	call.Reply = reply
-	call.upgrade = upgrade
-	call.Done = done
-	client.write(call)
-	runtime.Gosched()
-	<-call.Done
-	ResetDone(done)
-	client.donePool.Put(done)
-	err := call.Error
-	*call = Call{}
-	client.callPool.Put(call)
-	return err
-}
-
-// CallTimeout acts like Call but takes a timeout.
-func (client *Client) CallTimeout(serviceMethod string, args interface{}, reply interface{}, timeout time.Duration) error {
-	if timeout <= 0 {
-		return client.Call(serviceMethod, args, reply)
+func (c *Client) Go(serviceMethod string, args interface{}, reply interface{}, done chan *Call) *Call {
+	address, target := c.target()
+	if len(address) > 0 {
+		return c.transport().Go(address, serviceMethod, args, reply, done)
 	}
-	done := client.donePool.Get().(chan *Call)
-	upgrade := client.getUpgrade()
-	call := client.callPool.Get().(*Call)
-	call.ServiceMethod = serviceMethod
-	call.Args = args
-	call.Reply = reply
-	call.upgrade = upgrade
-	call.Done = done
-	client.write(call)
-	timer := time.NewTimer(timeout)
-	var err error
-	runtime.Gosched()
-	select {
-	case <-call.Done:
-		timer.Stop()
-		ResetDone(done)
-		client.donePool.Put(done)
-		err = call.Error
-		*call = Call{}
-		client.callPool.Put(call)
-	case <-timer.C:
-		err = ErrTimeout
-	}
-	return err
-}
-
-// Watch returns the Watcher.
-func (client *Client) Watch(key string) (Watcher, error) {
-	watcher := &watcher{client: client, C: make(chan *event, 10), key: key, done: make(chan struct{}, 1)}
-	upgrade := client.getUpgrade()
-	upgrade.NoRequest = noRequest
-	upgrade.NoResponse = noResponse
-	upgrade.Watch = watch
-	done := client.donePool.Get().(chan *Call)
-	call := new(Call)
-	call.ServiceMethod = key
-	call.upgrade = upgrade
-	call.Done = done
-	call.watcher = watcher
-	client.write(call)
-	var err error
-	runtime.Gosched()
-	<-call.Done
-	err = call.Error
-	if err != nil {
-		watcher.stop()
-		return nil, err
-	}
-	return watcher, err
-}
-
-// stopWatch stops the key watcher .
-func (client *Client) stopWatch(key string) error {
-	upgrade := client.getUpgrade()
-	upgrade.NoRequest = noRequest
-	upgrade.NoResponse = noResponse
-	upgrade.Watch = stopWatch
-	done := client.donePool.Get().(chan *Call)
-	call := client.callPool.Get().(*Call)
-	call.ServiceMethod = key
-	call.upgrade = upgrade
-	call.Done = done
-	client.write(call)
-	runtime.Gosched()
-	<-call.Done
-	ResetDone(done)
-	client.donePool.Put(done)
-	err := call.Error
-	*call = Call{}
-	client.callPool.Put(call)
-	return err
+	return c.transport().Go(target.address, serviceMethod, args, reply, done)
 }
 
 // Ping is NOT ICMP ping, this is just used to test whether a connection is still alive.
-func (client *Client) Ping() error {
-	upgrade := client.getUpgrade()
-	upgrade.NoRequest = noRequest
-	upgrade.NoResponse = noResponse
-	upgrade.Heartbeat = heartbeat
-	done := client.donePool.Get().(chan *Call)
-	call := client.callPool.Get().(*Call)
-	call.upgrade = upgrade
-	call.Done = done
-	client.write(call)
-	runtime.Gosched()
-	<-call.Done
-	ResetDone(done)
-	client.donePool.Put(done)
-	err := call.Error
-	*call = Call{}
-	client.callPool.Put(call)
+func (c *Client) Ping() error {
+	address, target := c.target()
+	if len(address) > 0 {
+		return c.transport().Ping(address)
+	}
+	start := time.Now()
+	err := c.transport().Ping(target.address)
+	c.update(target, int64(time.Now().Sub(start)), err)
 	return err
 }
 
-// ResetDone resets the done.
-func ResetDone(done chan *Call) {
-	for len(done) > 0 {
-		onceDone(done)
+// Close closes the all connections.
+func (c *Client) Close() (err error) {
+	if c.Transport != nil {
+		err = c.Transport.Close()
+	}
+	return
+}
+
+func (c *Client) transport() RoundTripper {
+	if c.Transport == nil {
+		panic("The transport is nil")
+	}
+	return c.Transport
+}
+
+func (c *Client) target() (string, *target) {
+	if c.Director != nil {
+		address := c.Director()
+		if len(address) > 0 {
+			return address, nil
+		}
+	}
+	if len(c.list) == 1 {
+		return c.list[0].address, nil
+	}
+	if len(c.list) > 1 {
+		var t *target
+		var pos int
+		switch c.Scheduling {
+		case RoundRobinScheduling:
+			c.lock.Lock()
+			t = c.list[c.pos]
+			pos = c.pos
+			c.pos = (c.pos + 1) % len(c.list)
+			c.lock.Unlock()
+		case RandomScheduling:
+			pos = rand.Intn(len(c.list))
+			t = c.list[pos]
+		case LeastTimeScheduling:
+			now := time.Now()
+			c.lock.Lock()
+			if c.lastTime.Add(c.Tick).Before(now) {
+				c.lastTime = now
+				t = c.list[c.pos]
+				pos = c.pos
+				c.pos = (c.pos + 1) % len(c.list)
+			} else {
+				if len(c.minHeap) == 0 {
+					c.minHeap = make([]*target, len(c.list))
+					copy(c.minHeap, c.list)
+				}
+				minHeap(c.minHeap)
+				t = c.minHeap[0]
+			}
+			c.lock.Unlock()
+		default:
+			c.lock.Lock()
+			t = c.list[c.pos]
+			pos = c.pos
+			c.pos = (c.pos + 1) % len(c.list)
+			c.lock.Unlock()
+		}
+		cnt := len(c.list)
+	retry:
+		cnt--
+		if !t.alive && cnt > 0 {
+			if !c.check(t) {
+				pos = (pos + 1) % len(c.list)
+				t = c.list[pos]
+				goto retry
+			}
+		}
+		return emptyString, t
+	}
+	panic("The targets is nil")
+}
+
+func (c *Client) check(t *target) bool {
+	if c.Transport == nil {
+		return false
+	}
+	return c.alive(t, c.transport().Ping(t.address))
+}
+
+func (c *Client) update(t *target, new int64, err error) {
+	old := atomic.LoadInt64(&t.latency)
+	if !c.alive(t, err) {
+		atomic.StoreInt64(&t.latency, clientLatency)
+	} else if old >= clientLatency {
+		atomic.StoreInt64(&t.latency, new)
+	} else {
+		atomic.StoreInt64(&t.latency, int64(float64(old)*c.Alpha+float64(new)*(1-c.Alpha)))
 	}
 }
 
-func onceDone(done chan *Call) {
-	select {
-	case <-done:
-	default:
+func (c *Client) alive(t *target, err error) bool {
+	if err == ErrDial {
+		t.alive = false
+	} else {
+		t.alive = true
+	}
+	return t.alive
+}
+
+type target struct {
+	address string
+	latency int64
+	alive   bool
+}
+
+type list []*target
+
+func (l list) Len() int { return len(l) }
+func (l list) Less(i, j int) bool {
+	return atomic.LoadInt64(&l[i].latency) < atomic.LoadInt64(&l[j].latency)
+}
+func (l list) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
+
+func minHeap(h list) {
+	n := h.Len()
+	for i := n/2 - 1; i >= 0; i-- {
+		heapDown(h, i, n)
 	}
 }
 
-func checkDone(done chan *Call) chan *Call {
-	if done == nil {
-		return make(chan *Call, 10)
+func heapDown(h list, i, n int) bool {
+	parent := i
+	for {
+		leftChild := 2*parent + 1
+		if leftChild >= n || leftChild < 0 { // leftChild < 0 after int overflow
+			break
+		}
+		lessChild := leftChild
+		if rightChild := leftChild + 1; rightChild < n && h.Less(rightChild, leftChild) {
+			lessChild = rightChild
+		}
+		if !h.Less(lessChild, parent) {
+			break
+		}
+		h.Swap(parent, lessChild)
+		parent = lessChild
 	}
-	if cap(done) == 0 {
-		panic("rpc: done channel is unbuffered")
-	}
-	return done
+	return parent > i
 }

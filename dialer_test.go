@@ -65,63 +65,21 @@ func TestDialWithOptions(t *testing.T) {
 	opts.Codec = ""
 	opts.NewCodec = NewCodec("json")
 	opts.NewSocket = NewSocket("tcp")
-	if client, err := DialWithOptions(addr, opts); err != nil {
+	if conn, err := DialWithOptions(addr, opts); err != nil {
 		t.Error(err)
 	} else {
-		client.Close()
+		conn.Close()
 	}
-	if client, err := DialWithOptions(addr, opts); err != nil {
+	if conn, err := DialWithOptions(addr, opts); err != nil {
 		t.Error(err)
 	} else {
-		client.Close()
+		conn.Close()
 	}
 	opts.NewHeaderEncoder = NewHeaderEncoder("json")
-	if client, err := DialWithOptions(addr, opts); err != nil {
+	if conn, err := DialWithOptions(addr, opts); err != nil {
 		t.Error(err)
 	} else {
-		client.Close()
-	}
-	DefaultServer.Close()
-	wg.Wait()
-}
-
-func TestDials(t *testing.T) {
-	addrs := []string{":9997", ":9998", ":9999"}
-	opts := &Options{}
-	opts.Network = "tcp"
-	opts.Codec = "json"
-	err := Register(new(service.Arith))
-	if err != nil {
-		t.Error(err)
-	}
-	wg := sync.WaitGroup{}
-	for i := 0; i < len(addrs); i++ {
-		wg.Add(1)
-		addr := addrs[i]
-		go func() {
-			defer wg.Done()
-			ListenWithOptions(addr, opts)
-		}()
-	}
-	time.Sleep(time.Millisecond * 10)
-	opts.Network = ""
-	opts.Codec = ""
-	if _, err := Dials(opts, addrs...); err == nil {
-		t.Error("The err should not be nil")
-	}
-	opts.Codec = "json"
-	if _, err := Dials(opts, addrs...); err == nil {
-		t.Error("The err should not be nil")
-	}
-	opts.Codec = ""
-	opts.NewCodec = NewCodec("json")
-	opts.NewSocket = NewSocket("tcp")
-	if _, err := Dials(opts, addrs...); err != nil {
-		t.Error(err)
-	}
-	opts.NewHeaderEncoder = NewHeaderEncoder("json")
-	if _, err := Dials(opts, addrs...); err != nil {
-		t.Error(err)
+		conn.Close()
 	}
 	DefaultServer.Close()
 	wg.Wait()

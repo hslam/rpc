@@ -101,7 +101,7 @@ func main() {
 }
 ```
 
-client.go
+conn.go
 ```go
 package main
 
@@ -152,7 +152,7 @@ func main() {
 }
 ```
 
-reverseproxy.go
+client.go
 ```go
 package main
 
@@ -163,13 +163,13 @@ import (
 )
 
 func main() {
-	proxy := rpc.NewReverseProxy(":9997", ":9998", ":9999")
-	proxy.Transport = &rpc.Transport{Options: &rpc.Options{Network: "tcp", Codec: "pb"}}
-	proxy.Scheduling = rpc.LeastTimeScheduling
-	defer proxy.Transport.Close()
+	opts := &rpc.Options{Network: "tcp", Codec: "pb"}
+	client := rpc.NewClient(opts, ":9997", ":9998", ":9999")
+	client.Scheduling = rpc.LeastTimeScheduling
+	defer client.Close()
 	req := &service.ArithRequest{A: 9, B: 2}
 	var res service.ArithResponse
-	if err := proxy.Call("Arith.Multiply", req, &res); err != nil {
+	if err := client.Call("Arith.Multiply", req, &res); err != nil {
 		panic(err)
 	}
 	fmt.Printf("%d * %d = %d\n", req.A, req.B, res.Pro)
