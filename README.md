@@ -27,7 +27,6 @@ Package rpc implements a remote procedure call over TCP, UNIX, HTTP and WS. The 
 |Multiplexing|Yes|Yes|Yes|Yes|Yes|
 |Pipelining|No|No|Yes|No|No|
 |Auto Batching|No|No|Yes|No|No|
-|Client|Yes|Yes|Yes|Yes|Yes|
 |Transport|No|No|Yes|No|No|
 |Server Push|No|No|Yes|Yes|Yes|
 
