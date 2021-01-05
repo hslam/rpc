@@ -58,7 +58,7 @@ type Client struct {
 	mutex         sync.Mutex
 	seq           uint64
 	pending       map[uint64]*Call
-	watchs        map[string]uint64
+	watchs        map[string]*Call
 	callPool      *sync.Pool
 	donePool      *sync.Pool
 	upgradePool   *sync.Pool
@@ -82,7 +82,7 @@ type NewClientCodecFunc func(messages socket.Messages) ClientCodec
 func NewClient() *Client {
 	return &Client{
 		pending:       make(map[uint64]*Call),
-		watchs:        make(map[string]uint64),
+		watchs:        make(map[string]*Call),
 		callPool:      &sync.Pool{New: func() interface{} { return &Call{} }},
 		donePool:      &sync.Pool{New: func() interface{} { return make(chan *Call, 10) }},
 		upgradePool:   &sync.Pool{New: func() interface{} { return &upgrade{} }},
@@ -140,7 +140,7 @@ func (client *Client) write(call *Call) {
 			call.done()
 			return
 		}
-		client.watchs[call.ServiceMethod] = seq
+		client.watchs[call.ServiceMethod] = call
 	}
 	client.seq++
 	client.pending[seq] = call
@@ -214,8 +214,8 @@ func (client *Client) read() {
 				} else {
 					if u.Watch == stopWatch {
 						client.mutex.Lock()
-						if wseq, ok := client.watchs[call.ServiceMethod]; ok {
-							delete(client.pending, wseq)
+						if _, ok := client.watchs[call.ServiceMethod]; ok {
+							delete(client.pending, seq)
 						}
 						delete(client.watchs, call.ServiceMethod)
 						client.mutex.Unlock()
@@ -243,7 +243,13 @@ func (client *Client) read() {
 		call.Error = err
 		call.done()
 	}
+	for _, call := range client.watchs {
+		if call.watcher != nil {
+			call.watcher.stop()
+		}
+	}
 	client.pending = make(map[uint64]*Call)
+	client.watchs = make(map[string]*Call)
 	client.mutex.Unlock()
 	client.reqMutex.Unlock()
 	if err != io.EOF && !closing {

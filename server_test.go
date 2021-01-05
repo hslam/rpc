@@ -207,7 +207,7 @@ func TestServerPollPipeliningNoBatch(t *testing.T) {
 				t.Error(err)
 			}
 			cwg := sync.WaitGroup{}
-			for i := 0; i < 4; i++ {
+			for i := 0; i < 64; i++ {
 				cwg.Add(1)
 				go func() {
 					defer cwg.Done()

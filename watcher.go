@@ -110,10 +110,13 @@ func (w *watcher) WaitTimeout(timeout time.Duration) (value []byte, err error) {
 	return
 }
 
-func (w *watcher) Stop() error {
-	if !atomic.CompareAndSwapUint32(&w.closed, 0, 1) {
-		return nil
+func (w *watcher) stop() {
+	if atomic.CompareAndSwapUint32(&w.closed, 0, 1) {
+		close(w.done)
 	}
-	close(w.done)
+}
+
+func (w *watcher) Stop() error {
+	w.stop()
 	return w.client.stopWatch(w.key)
 }
