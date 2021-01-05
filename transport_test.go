@@ -14,6 +14,8 @@ func TestTransport(t *testing.T) {
 	network := "tcp"
 	addr := ":9999"
 	codec := "json"
+	var k = "foo"
+	var str = "bar"
 	opts := DefaultOptions()
 	opts.Network = network
 	opts.Codec = codec
@@ -37,9 +39,29 @@ func TestTransport(t *testing.T) {
 		Options:             opts,
 		ticker:              time.Millisecond * 10,
 	}
+	server.PushFunc(func(key string) (value []byte, ok bool) {
+		if key == k {
+			return []byte(str), true
+		}
+		return nil, false
+	})
 	err = trans.Ping(addr)
 	if err != nil {
 		t.Error(err)
+	}
+	watch, err := trans.Watch(addr, k)
+	if err != nil {
+		t.Error(err)
+	}
+	v, err := watch.Wait()
+	if err != nil {
+		t.Error(err)
+	} else if string(v) != str {
+		t.Error(string(v))
+	}
+	watch.Stop()
+	if _, err := watch.Wait(); err == nil {
+		t.Error()
 	}
 	A := int32(4)
 	B := int32(8)
@@ -64,14 +86,12 @@ func TestTransport(t *testing.T) {
 			if res.Pro != A*B {
 				t.Error(res.Pro)
 			}
-
 			res = service.ArithResponse{}
 			call := trans.Go(addr, "Arith.Multiply", req, &res, make(chan *Call, 1))
 			<-call.Done
 			if res.Pro != A*B {
 				t.Error(res.Pro)
 			}
-
 			call = new(Call)
 			call.ServiceMethod = "Arith.Multiply"
 			call.Args = req
@@ -103,6 +123,9 @@ func TestTransport(t *testing.T) {
 		t.Error("should be error")
 	}
 	if err := trans.CallTimeout(addr, "Arith.Multiply", req, &res, time.Minute); err == nil {
+		t.Error("should be error")
+	}
+	if _, err := trans.Watch(addr, "foo"); err == nil {
 		t.Error("should be error")
 	}
 	call = new(Call)

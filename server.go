@@ -210,9 +210,6 @@ func (server *Server) ServeRequest(codec ServerCodec, recving *sync.Mutex, sendi
 		events[codec] = ctx
 		server.watchs[ctx.ServiceMethod] = events
 		server.mutex.Unlock()
-		if server.watchFunc == nil {
-			return nil
-		}
 	}
 	if server.pipelining {
 		server.callService(nil, ctx)
@@ -293,6 +290,7 @@ func (server *Server) callService(wg *sync.WaitGroup, ctx *Context) {
 		defer wg.Done()
 	}
 	if ctx.upgrade.Watch == watch {
+		server.push(ctx, nil)
 		if server.watchFunc != nil {
 			if value, ok := server.watchFunc(ctx.ServiceMethod); ok {
 				server.push(ctx, value)

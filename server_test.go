@@ -416,19 +416,21 @@ func TestServerPush(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	watch := conn.Watch(k)
+	watch, err := conn.Watch(k)
+	if err != nil {
+		t.Error(err)
+	}
 	for i := 0; i < 3; i++ {
 		value, err := watch.Wait()
 		if err != nil {
-			panic(err)
+			t.Error(err)
 		}
 		if string(value) != str {
 			t.Errorf("Watch foo:%s\n", string(value))
 		}
 	}
 	func() {
-		watch := conn.Watch(k)
-		_, err := watch.Wait()
+		_, err := conn.Watch(k)
 		if err == nil {
 			t.Error("The err should not be nil")
 		}
@@ -436,11 +438,14 @@ func TestServerPush(t *testing.T) {
 	watch.Stop()
 	watch.Stop()
 	PushFunc(nil)
-	watch = conn.Watch(k)
+	watch, err = conn.Watch(k)
+	if err != nil {
+		t.Error(err)
+	}
 	for i := 0; i < 3; i++ {
 		value, err := watch.Wait()
 		if err != nil {
-			panic(err)
+			t.Error(err)
 		}
 		if string(value) != str {
 			t.Errorf("Watch foo:%s\n", string(value))

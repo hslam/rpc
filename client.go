@@ -37,13 +37,19 @@ type Call struct {
 func (call *Call) done() {
 	select {
 	case call.Done <- call:
-		if call.watcher != nil {
+	default:
+	}
+	call.watch()
+}
+
+func (call *Call) watch() {
+	if call.watcher != nil {
+		if len(call.Value) > 0 || call.Error != nil {
 			e := getEvent()
 			e.Value = call.Value
 			e.Error = call.Error
 			call.watcher.trigger(e)
 		}
-	default:
 	}
 }
 
@@ -203,24 +209,31 @@ func (client *Client) read() {
 				call.Value = ctx.value
 			}
 			u := call.upgrade
-			if u.Heartbeat == heartbeat || u.Watch == watch || u.Watch == stopWatch || u.NoResponse == noResponse {
-				call.done()
-				if u.Watch == watch {
+			if u.NoResponse == noResponse {
+				if u.Heartbeat == heartbeat {
+					call.done()
+					client.putUpgrade(u)
+				} else if u.Watch == stopWatch {
+					client.mutex.Lock()
+					if _, ok := client.watchs[call.ServiceMethod]; ok {
+						delete(client.pending, seq)
+					}
+					delete(client.watchs, call.ServiceMethod)
+					client.mutex.Unlock()
+					call.done()
+					client.putUpgrade(u)
+				} else if u.Watch == watch {
+					call.Value = ctx.value
 					client.mutex.Lock()
 					if _, ok := client.watchs[call.ServiceMethod]; ok {
 						client.pending[seq] = call
 					}
 					client.mutex.Unlock()
-				} else {
-					if u.Watch == stopWatch {
-						client.mutex.Lock()
-						if _, ok := client.watchs[call.ServiceMethod]; ok {
-							delete(client.pending, seq)
-						}
-						delete(client.watchs, call.ServiceMethod)
-						client.mutex.Unlock()
+					if len(call.Value) == 0 {
+						call.done()
+					} else {
+						call.watch()
 					}
-					client.putUpgrade(u)
 				}
 				continue
 			}
@@ -358,7 +371,7 @@ func (client *Client) CallTimeout(serviceMethod string, args interface{}, reply 
 }
 
 // Watch returns the Watcher.
-func (client *Client) Watch(key string) Watcher {
+func (client *Client) Watch(key string) (Watcher, error) {
 	watcher := &watcher{client: client, C: make(chan *event, 10), key: key, done: make(chan struct{}, 1)}
 	upgrade := client.getUpgrade()
 	upgrade.NoRequest = noRequest
@@ -371,7 +384,15 @@ func (client *Client) Watch(key string) Watcher {
 	call.Done = done
 	call.watcher = watcher
 	client.write(call)
-	return watcher
+	var err error
+	runtime.Gosched()
+	<-call.Done
+	err = call.Error
+	if err != nil {
+		watcher.stop()
+		return nil, err
+	}
+	return watcher, err
 }
 
 // stopWatch stops the key watcher .

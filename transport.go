@@ -50,6 +50,7 @@ type RoundTripper interface {
 	Go(addr, serviceMethod string, args interface{}, reply interface{}, done chan *Call) *Call
 	Call(addr, serviceMethod string, args interface{}, reply interface{}) error
 	CallTimeout(addr, serviceMethod string, args interface{}, reply interface{}, timeout time.Duration) error
+	Watch(addr, key string) (Watcher, error)
 	Ping(addr string) error
 	Close() error
 }
@@ -151,6 +152,18 @@ func (t *Transport) CallTimeout(addr, serviceMethod string, args interface{}, re
 	client.lastTime = t.now
 	checkPersistConnErr(err, client)
 	return err
+}
+
+// Watch returns the Watcher.
+func (t *Transport) Watch(addr, key string) (Watcher, error) {
+	client, err := t.getConn(addr)
+	if err != nil {
+		return nil, err
+	}
+	watcher, err := client.Watch(key)
+	client.lastTime = t.now
+	checkPersistConnErr(err, client)
+	return watcher, err
 }
 
 // Ping is NOT ICMP ping, this is just used to test whether a connection is still alive.

@@ -254,8 +254,7 @@ func TestClientWriteWatch(t *testing.T) {
 	conn.Close()
 	conn.shutdown = false
 	conn.closing = false
-	watcher := conn.Watch("foo")
-	_, err = watcher.Wait()
+	_, err = conn.Watch("foo")
 	if err == nil {
 		t.Error("The err should not be nil")
 	}

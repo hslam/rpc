@@ -10,7 +10,10 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	watch := conn.Watch("foo")
+	watch, err := conn.Watch("foo")
+	if err != nil {
+		panic(err)
+	}
 	defer watch.Stop()
 	for i := 0; i < 3; i++ {
 		value, err := watch.Wait()

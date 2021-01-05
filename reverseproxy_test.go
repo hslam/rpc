@@ -14,6 +14,8 @@ func TestReverseProxy(t *testing.T) {
 	network := "tcp"
 	addr := ":9999"
 	codec := "json"
+	var k = "foo"
+	var str = "bar"
 	opts := DefaultOptions()
 	opts.Network = network
 	opts.Codec = codec
@@ -29,6 +31,12 @@ func TestReverseProxy(t *testing.T) {
 		server.ListenWithOptions(addr, opts)
 	}()
 	time.Sleep(time.Millisecond * 10)
+	server.PushFunc(func(key string) (value []byte, ok bool) {
+		if key == k {
+			return []byte(str), true
+		}
+		return nil, false
+	})
 	trans := &Transport{
 		MaxConnsPerHost:     1,
 		MaxIdleConnsPerHost: 1,
@@ -42,7 +50,20 @@ func TestReverseProxy(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
+	watch, err := proxy.Watch(k)
+	if err != nil {
+		t.Error(err)
+	}
+	v, err := watch.Wait()
+	if err != nil {
+		t.Error(err)
+	} else if string(v) != str {
+		t.Error(string(v))
+	}
+	watch.Stop()
+	if _, err := watch.Wait(); err == nil {
+		t.Error()
+	}
 	A := int32(4)
 	B := int32(8)
 	req := &service.ArithRequest{A: A, B: B}
@@ -88,6 +109,8 @@ func TestReverseProxyLeastTime(t *testing.T) {
 	network := "tcp"
 	addrs := []string{":9997", ":9998", ":9999"}
 	codec := "json"
+	var k = "foo"
+	var str = "bar"
 	opts := DefaultOptions()
 	opts.Network = network
 	opts.Codec = codec
@@ -106,6 +129,12 @@ func TestReverseProxyLeastTime(t *testing.T) {
 		}()
 	}
 	time.Sleep(time.Millisecond * 10)
+	server.PushFunc(func(key string) (value []byte, ok bool) {
+		if key == k {
+			return []byte(str), true
+		}
+		return nil, false
+	})
 	trans := &Transport{
 		MaxConnsPerHost:     1,
 		MaxIdleConnsPerHost: 1,
@@ -119,6 +148,20 @@ func TestReverseProxyLeastTime(t *testing.T) {
 	err = proxy.Ping()
 	if err != nil {
 		t.Error(err)
+	}
+	watch, err := proxy.Watch(k)
+	if err != nil {
+		t.Error(err)
+	}
+	v, err := watch.Wait()
+	if err != nil {
+		t.Error(err)
+	} else if string(v) != str {
+		t.Error(string(v))
+	}
+	watch.Stop()
+	if _, err := watch.Wait(); err == nil {
+		t.Error()
 	}
 	A := int32(4)
 	B := int32(8)

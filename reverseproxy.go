@@ -102,6 +102,18 @@ func (c *ReverseProxy) CallTimeout(serviceMethod string, args interface{}, reply
 	return err
 }
 
+// Watch returns the Watcher.
+func (c *ReverseProxy) Watch(key string) (Watcher, error) {
+	address, target := c.target()
+	if len(address) > 0 {
+		return c.transport().Watch(address, key)
+	}
+	start := time.Now()
+	watcher, err := c.transport().Watch(target.address, key)
+	c.update(target, int64(time.Now().Sub(start)), err)
+	return watcher, err
+}
+
 // Go invokes the function asynchronously. It returns the Call structure representing
 // the invocation. The done channel will signal when the call is complete by returning
 // the same Call object. If done is nil, Go will allocate a new channel.
