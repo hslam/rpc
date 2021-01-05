@@ -274,6 +274,10 @@ func (client *Client) read() {
 func (client *Client) NumCalls() (n uint64) {
 	client.mutex.Lock()
 	n = uint64(len(client.pending))
+	w := uint64(len(client.watchs))
+	if w > n {
+		n = w
+	}
 	client.mutex.Unlock()
 	return
 }
