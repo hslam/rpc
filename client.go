@@ -81,9 +81,12 @@ func (c *Client) Update(targets ...string) {
 			}
 		}
 	}
+	minHeap := make([]*target, len(l))
+	copy(minHeap, l)
 	c.lock.Lock()
 	c.targets = m
 	c.list = l
+	c.minHeap = minHeap
 	c.lock.Unlock()
 }
 
@@ -204,10 +207,6 @@ func (c *Client) target() (string, *target) {
 				pos = c.pos
 				c.pos = (c.pos + 1) % len(c.list)
 			} else {
-				if len(c.minHeap) == 0 {
-					c.minHeap = make([]*target, len(c.list))
-					copy(c.minHeap, c.list)
-				}
 				minHeap(c.minHeap)
 				t = c.minHeap[0]
 			}

@@ -175,6 +175,59 @@ func TestServerPipelining(t *testing.T) {
 	wg.Wait()
 }
 
+func TestServerPollPipelining(t *testing.T) {
+	network := "tcp"
+	addr := ":9999"
+	codec := "json"
+	SetPoll(true)
+	SetPipelining(true)
+	err := RegisterName("Arith", new(service.Arith))
+	if err != nil {
+		t.Error(err)
+	}
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		Listen(network, addr, codec)
+	}()
+	time.Sleep(time.Millisecond * 10)
+	connwg := sync.WaitGroup{}
+	for i := 0; i < 4; i++ {
+		connwg.Add(1)
+		go func() {
+			defer connwg.Done()
+			conn, err := Dial(network, addr, codec)
+			if err != nil {
+				t.Error(err)
+			}
+			err = conn.Ping()
+			if err != nil {
+				t.Error(err)
+			}
+			cwg := sync.WaitGroup{}
+			for i := 0; i < 64; i++ {
+				cwg.Add(1)
+				go func() {
+					defer cwg.Done()
+					A := int32(4)
+					B := int32(8)
+					req := &service.ArithRequest{A: A, B: B}
+					var res service.ArithResponse
+					if err := conn.Call("Arith.Multiply", req, &res); err != nil {
+						t.Error(err)
+					}
+				}()
+			}
+			cwg.Wait()
+			conn.Close()
+		}()
+	}
+	connwg.Wait()
+	DefaultServer.Close()
+	wg.Wait()
+}
+
 func TestServerPollPipeliningNoBatch(t *testing.T) {
 	network := "tcp"
 	addr := ":9999"

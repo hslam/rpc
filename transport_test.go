@@ -109,10 +109,12 @@ func TestTransport(t *testing.T) {
 	time.Sleep(time.Millisecond * 100)
 	trans.Close()
 	server.Close()
+	time.Sleep(time.Millisecond * 100)
 	err = trans.Ping(addr)
 	if err == nil {
 		t.Error("should be error")
 	}
+	time.Sleep(time.Millisecond * 100)
 	res := service.ArithResponse{}
 	call := trans.Go(addr, "Arith.Multiply", req, &res, make(chan *Call, 1))
 	<-call.Done
