@@ -86,13 +86,16 @@ func (c *clientCodec) WriteRequest(ctx *Context, param interface{}) error {
 		}
 	}
 	atomic.AddInt64(&c.count, 1)
-	if atomic.LoadUint32(&c.closed) == 1 {
+	if atomic.LoadUint32(&c.closed) > 0 {
 		return io.EOF
 	}
 	return c.messages.WriteMessage(data)
 }
 
 func (c *clientCodec) ReadResponseHeader(ctx *Context) error {
+	if atomic.LoadUint32(&c.closed) > 0 {
+		return io.EOF
+	}
 	var data []byte
 	var err error
 	data, err = c.messages.ReadMessage()

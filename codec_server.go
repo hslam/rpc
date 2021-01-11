@@ -59,6 +59,9 @@ func (c *serverCodec) Concurrency() int {
 }
 
 func (c *serverCodec) ReadRequestHeader(ctx *Context) error {
+	if atomic.LoadUint32(&c.closed) > 0 {
+		return io.EOF
+	}
 	var data []byte
 	var err error
 	data, err = c.messages.ReadMessage()
@@ -132,7 +135,7 @@ func (c *serverCodec) WriteResponse(ctx *Context, x interface{}) error {
 			return err
 		}
 	}
-	if atomic.LoadUint32(&c.closed) == 1 {
+	if atomic.LoadUint32(&c.closed) > 0 {
 		return io.EOF
 	}
 	return c.messages.WriteMessage(data)
