@@ -41,6 +41,7 @@ func TestNewServerCodec(t *testing.T) {
 		}()
 		message.Close()
 		lis.Close()
+		codec.ReadRequestHeader(nil)
 	}()
 	sock.Dial(addr)
 	wg.Wait()
