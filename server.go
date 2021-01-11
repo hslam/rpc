@@ -299,7 +299,14 @@ func (server *Server) callService(wg *sync.WaitGroup, ctx *Context) {
 		return
 	}
 	if err := ctx.f.ValueCall(ctx.args, ctx.reply); err != nil {
-		ctx.Error = err.Error()
+		errMsg := err.Error()
+		ctx.Error = errMsg
+		if errMsg == ErrShutdown.Error() {
+			codec := ctx.codec
+			server.sendResponse(ctx)
+			codec.Close()
+			return
+		}
 	}
 	server.sendResponse(ctx)
 }
