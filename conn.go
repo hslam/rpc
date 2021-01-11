@@ -15,8 +15,10 @@ import (
 // ErrTimeout is returned after the timeout,.
 var ErrTimeout = errors.New("timeout")
 
+const shutdownMsg = "The connection is shut down"
+
 // ErrShutdown is returned when the connection is shut down.
-var ErrShutdown = errors.New("The connection is shut down")
+var ErrShutdown = errors.New(shutdownMsg)
 
 // ErrWatch is returned when the watch is existed.
 var ErrWatch = errors.New("The watch is existed")
@@ -197,8 +199,12 @@ func (conn *Conn) read() {
 			if err != nil {
 				err = errors.New("reading error body: " + err.Error())
 			}
-		case ctx.Error != "":
-			call.Error = errors.New(ctx.Error)
+		case len(ctx.Error) > 0:
+			if ctx.Error == shutdownMsg {
+				call.Error = ErrShutdown
+			} else {
+				call.Error = errors.New(ctx.Error)
+			}
 			err = conn.codec.ReadResponseBody(nil)
 			if err != nil {
 				err = errors.New("reading error body: " + err.Error())

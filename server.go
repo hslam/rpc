@@ -301,7 +301,7 @@ func (server *Server) callService(wg *sync.WaitGroup, ctx *Context) {
 	if err := ctx.f.ValueCall(ctx.args, ctx.reply); err != nil {
 		errMsg := err.Error()
 		ctx.Error = errMsg
-		if errMsg == ErrShutdown.Error() {
+		if errMsg == shutdownMsg {
 			codec := ctx.codec
 			server.sendResponse(ctx)
 			codec.Close()
