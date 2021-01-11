@@ -8,6 +8,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"github.com/hslam/funcs"
+	"github.com/hslam/log"
 	"github.com/hslam/netpoll"
 	"github.com/hslam/socket"
 	"io"
@@ -23,6 +24,7 @@ var numCPU = runtime.NumCPU()
 // Server represents an RPC Server.
 type Server struct {
 	Registry    *funcs.Funcs
+	logger      *log.Logger
 	ctxPool     *sync.Pool
 	upgradePool *sync.Pool
 	pipelining  bool
@@ -45,8 +47,12 @@ type WatchFunc func(key string) (value []byte, ok bool)
 
 // NewServer returns a new Server.
 func NewServer() *Server {
+	var logger = log.New()
+	logger.SetPrefix(logPrefix)
+	logger.SetLevel(log.Level(InfoLogLevel))
 	return &Server{
 		Registry:    funcs.New(),
+		logger:      logger,
 		ctxPool:     &sync.Pool{New: func() interface{} { return &Context{} }},
 		upgradePool: &sync.Pool{New: func() interface{} { return &upgrade{} }},
 		numWorkers:  numCPU * 32,
@@ -76,6 +82,16 @@ func (server *Server) Register(obj interface{}) error {
 // instead of the receiver's concrete type.
 func (server *Server) RegisterName(name string, obj interface{}) error {
 	return server.Registry.RegisterName(name, obj)
+}
+
+//SetLogLevel sets log's level
+func (server *Server) SetLogLevel(level LogLevel) {
+	server.logger.SetLevel(log.Level(level))
+}
+
+//GetLogLevel returns log's level
+func (server *Server) GetLogLevel() LogLevel {
+	return LogLevel(server.logger.GetLevel())
 }
 
 // SetPipelining enables the Server to use pipelining.
@@ -178,7 +194,7 @@ func (server *Server) ServeRequest(codec ServerCodec, recving *sync.Mutex, sendi
 	ctx.codec = codec
 	if err != nil {
 		if err != io.EOF && err != io.ErrUnexpectedEOF && err != netpoll.EAGAIN {
-			logger.Errorln(err)
+			server.logger.Errorln(err)
 		}
 		if !ctx.keepReading {
 			ctx.Reset()
@@ -319,7 +335,7 @@ func (server *Server) sendResponse(ctx *Context) {
 	}
 	err := ctx.codec.WriteResponse(ctx, reply)
 	if err != nil {
-		logger.Errorln("writing response:", err)
+		server.logger.Errorln("writing response:", err)
 	}
 	ctx.sending.Unlock()
 	if ctx.upgrade.Watch != watch {
@@ -330,14 +346,14 @@ func (server *Server) sendResponse(ctx *Context) {
 }
 
 func (server *Server) listen(sock socket.Socket, address string, New NewServerCodecFunc) error {
-	logger.Noticef("pid - %d", os.Getpid())
+	server.logger.Noticef("pid - %d", os.Getpid())
 	if server.poll {
-		logger.Noticef("poll - %s", netpoll.Tag)
+		server.logger.Noticef("poll - %s", netpoll.Tag)
 	} else {
-		logger.Noticef("poll - %s", "disabled")
+		server.logger.Noticef("poll - %s", "disabled")
 	}
-	logger.Noticef("network - %s", sock.Scheme())
-	logger.Noticef("listening on %s", address)
+	server.logger.Noticef("network - %s", sock.Scheme())
+	server.logger.Noticef("listening on %s", address)
 	lis, err := sock.Listen(address)
 	if err != nil {
 		return err
@@ -532,4 +548,14 @@ func PushFunc(watchFunc WatchFunc) {
 // ServeCodec uses the specified codec to decode requests and encode responses.
 func ServeCodec(codec ServerCodec) {
 	DefaultServer.ServeCodec(codec)
+}
+
+//SetLogLevel sets log's level
+func SetLogLevel(level LogLevel) {
+	DefaultServer.SetLogLevel(level)
+}
+
+//GetLogLevel returns log's level
+func GetLogLevel() LogLevel {
+	return DefaultServer.GetLogLevel()
 }

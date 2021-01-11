@@ -284,7 +284,6 @@ func (conn *Conn) close(err error) {
 	conn.reqMutex.Lock()
 	conn.mutex.Lock()
 	conn.shutdown = true
-	closing := conn.closing
 	if err == io.EOF {
 		err = ErrShutdown
 	}
@@ -299,9 +298,6 @@ func (conn *Conn) close(err error) {
 	}
 	conn.mutex.Unlock()
 	conn.reqMutex.Unlock()
-	if err != io.EOF && !closing {
-		logger.Allln("rpc: Conn protocol error:", err)
-	}
 }
 
 // RoundTrip executes a single RPC transaction, returning

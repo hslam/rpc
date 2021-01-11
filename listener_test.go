@@ -19,6 +19,7 @@ func TestListen(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	SetLogLevel(GetLogLevel())
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	go func() {
