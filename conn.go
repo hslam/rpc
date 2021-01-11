@@ -245,29 +245,7 @@ func (conn *Conn) read() {
 			call.done()
 		}
 	}
-	conn.reqMutex.Lock()
-	conn.mutex.Lock()
-	conn.shutdown = true
-	closing := conn.closing
-	if err == io.EOF {
-		err = ErrShutdown
-	}
-	for _, call := range conn.pending {
-		call.Error = err
-		call.done()
-	}
-	for _, call := range conn.watchs {
-		if call.watcher != nil {
-			call.watcher.stop()
-		}
-	}
-	conn.pending = make(map[uint64]*Call)
-	conn.watchs = make(map[string]*Call)
-	conn.mutex.Unlock()
-	conn.reqMutex.Unlock()
-	if err != io.EOF && !closing {
-		logger.Allln("rpc: Conn protocol error:", err)
-	}
+	conn.close(err)
 }
 
 // NumCalls returns the number of calls.
@@ -285,6 +263,7 @@ func (conn *Conn) NumCalls() (n uint64) {
 // Close calls the underlying codec's Close method. If the connection is already
 // shutting down, ErrShutdown is returned.
 func (conn *Conn) Close() error {
+	defer conn.close(ErrShutdown)
 	conn.mutex.Lock()
 	if conn.closing {
 		conn.mutex.Unlock()
@@ -293,6 +272,30 @@ func (conn *Conn) Close() error {
 	conn.closing = true
 	conn.mutex.Unlock()
 	return conn.codec.Close()
+}
+
+func (conn *Conn) close(err error) {
+	conn.reqMutex.Lock()
+	conn.mutex.Lock()
+	conn.shutdown = true
+	closing := conn.closing
+	if err == io.EOF {
+		err = ErrShutdown
+	}
+	for _, call := range conn.pending {
+		call.Error = err
+		call.done()
+	}
+	for _, call := range conn.watchs {
+		if call.watcher != nil {
+			call.watcher.stop()
+		}
+	}
+	conn.mutex.Unlock()
+	conn.reqMutex.Unlock()
+	if err != io.EOF && !closing {
+		logger.Allln("rpc: Conn protocol error:", err)
+	}
 }
 
 // RoundTrip executes a single RPC transaction, returning
