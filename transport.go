@@ -179,7 +179,7 @@ func (t *Transport) Ping(addr string) error {
 }
 
 func checkPersistConnErr(err error, pc *persistConn) {
-	if err == ErrShutdown {
+	if err == ErrShutdown || (err != nil && err.Error() == ErrShutdown.Error()) {
 		pc.mu.Lock()
 		pc.alive = false
 		pc.mu.Unlock()
