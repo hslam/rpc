@@ -314,6 +314,10 @@ func (a *arith) Sleep(req *arithRequest, res *arithResponse) error {
 	return nil
 }
 
+func (a *arith) Stop(req *arithRequest, res *arithResponse) error {
+	return ErrShutdown
+}
+
 func TestFunc(t *testing.T) {
 	network := "tcp"
 	addr := ":9999"
@@ -414,6 +418,40 @@ func TestServerClose(t *testing.T) {
 		t.Error(err)
 	}
 	call := conn.Go("Arith.Sleep", req, &res, nil)
+	time.Sleep(time.Millisecond * 10)
+	conn.Close()
+	<-call.Done
+	time.Sleep(time.Millisecond * 500)
+	server.Close()
+	wg.Wait()
+}
+
+func TestServerStopClient(t *testing.T) {
+	network := "tcp"
+	addr := ":9999"
+	codec := "json"
+	server := NewServer()
+	err := server.RegisterName("Arith", new(arith))
+	if err != nil {
+		t.Error(err)
+	}
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		server.Listen(network, addr, codec)
+	}()
+	time.Sleep(time.Millisecond * 10)
+	A := int32(4)
+	B := int32(8)
+	req := &arithRequest{A: A, B: B}
+	var res arithResponse
+	req.A = 100
+	conn, err := Dial(network, addr, codec)
+	if err != nil {
+		t.Error(err)
+	}
+	call := conn.Go("Arith.Stop", req, &res, nil)
 	time.Sleep(time.Millisecond * 10)
 	conn.Close()
 	<-call.Done
