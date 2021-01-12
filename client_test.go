@@ -333,8 +333,9 @@ func TestClientTarget(t *testing.T) {
 	}
 	time.Sleep(time.Millisecond * 10)
 	client := NewClient(opts, addrs...)
-	client.Ping()
-	client.Ping()
+	for i := 0; i < 64; i++ {
+		client.Ping()
+	}
 	time.Sleep(time.Millisecond * 100)
 	client.Scheduling = RoundRobinScheduling
 	if address, target, err := client.director(); len(address) == 0 && target == nil && err == nil {
