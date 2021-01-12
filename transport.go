@@ -188,6 +188,9 @@ func checkPersistConnErr(err error, pc *persistConn) {
 }
 
 func (t *Transport) getConn(addr string) (pc *persistConn, err error) {
+	if len(addr) == 0 {
+		return nil, ErrDial
+	}
 	t.connsMu.Lock()
 	defer t.connsMu.Unlock()
 	if !t.running {
