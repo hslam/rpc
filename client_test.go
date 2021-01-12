@@ -91,9 +91,85 @@ func TestClient(t *testing.T) {
 	if res.Pro != A*B {
 		t.Error(res.Pro)
 	}
+	client.DialTimeout = time.Minute
+	cwg := sync.WaitGroup{}
+	cwg.Add(1)
+	go func() {
+		defer cwg.Done()
+		client.Ping()
+	}()
+	time.Sleep(time.Millisecond * 100)
 	client.Close()
+	cwg.Wait()
 	server.Close()
 	wg.Wait()
+	{
+		client := NewClient(opts, addr)
+		client.DialTimeout = time.Millisecond * 100
+		err = client.Ping()
+		if err == nil {
+			t.Error()
+		}
+		_, err := client.Watch(k)
+		if err == nil {
+			t.Error()
+		}
+		A := int32(4)
+		B := int32(8)
+		req := &service.ArithRequest{A: A, B: B}
+		var res service.ArithResponse
+		if err := client.Call("Arith.Multiply", req, &res); err == nil {
+			t.Error()
+		}
+
+		res = service.ArithResponse{}
+		if err := client.CallTimeout("Arith.Multiply", req, &res, time.Minute); err == nil {
+			t.Error()
+		}
+
+		res = service.ArithResponse{}
+		call := client.Go("Arith.Multiply", req, &res, make(chan *Call, 1))
+		<-call.Done
+		if call.Error == nil {
+			t.Error()
+		}
+
+		call = new(Call)
+		call.ServiceMethod = "Arith.Multiply"
+		call.Args = req
+		call.Reply = &service.ArithResponse{}
+		client.RoundTrip(call)
+		<-call.Done
+		if call.Error == nil {
+			t.Error()
+		}
+	}
+}
+
+func TestClientClose(t *testing.T) {
+	network := "tcp"
+	addr := ":9999"
+	codec := "json"
+	opts := DefaultOptions()
+	opts.Network = network
+	opts.Codec = codec
+	client := NewClient(opts, addr)
+	cwg := sync.WaitGroup{}
+	cwg.Add(1)
+	go func() {
+		defer cwg.Done()
+		client.Ping()
+	}()
+	time.Sleep(time.Millisecond * 10)
+	client.Close()
+	cwg.Wait()
+	cwg.Add(1)
+	go func() {
+		defer cwg.Done()
+		client.Ping()
+	}()
+	time.Sleep(time.Millisecond * 10)
+	cwg.Wait()
 }
 
 func TestClientLeastTime(t *testing.T) {
@@ -211,7 +287,7 @@ func TestClientEmptyTargets(t *testing.T) {
 	client.Director = func() (target string) {
 		return ":9999"
 	}
-	if address, target := client.target(); len(address) == 0 && target == nil {
+	if address, target, err := client.director(); len(address) == 0 && target == nil && err == nil {
 		t.Error()
 	}
 }
@@ -230,49 +306,91 @@ func TestClientTransport(t *testing.T) {
 func TestClientUpdate(t *testing.T) {
 	addr := ":9999"
 	client := NewClient(nil, addr)
-	client.update(&target{address: addr}, 0, ErrDial)
+	tr := &target{address: addr}
+	tr.Update(client.Alpha, 0, ErrDial)
 }
 
 func TestClientTarget(t *testing.T) {
-	client := NewClient(nil, ":9999", ":9998", ":9997")
+	network := "tcp"
+	addrs := []string{":9997", ":9998", ":9999"}
+	codec := "json"
+	opts := DefaultOptions()
+	opts.Network = network
+	opts.Codec = codec
+	server := NewServer()
+	err := server.Register(new(service.Arith))
+	if err != nil {
+		t.Error(err)
+	}
+	wg := sync.WaitGroup{}
+	for i := 0; i < len(addrs); i++ {
+		wg.Add(1)
+		addr := addrs[i]
+		go func() {
+			defer wg.Done()
+			server.ListenWithOptions(addr, opts)
+		}()
+	}
+	time.Sleep(time.Millisecond * 10)
+	client := NewClient(opts, addrs...)
+	client.Ping()
+	client.Ping()
+	time.Sleep(time.Millisecond * 100)
 	client.Scheduling = RoundRobinScheduling
-	if address, target := client.target(); len(address) == 0 && target == nil {
+	if address, target, err := client.director(); len(address) == 0 && target == nil && err == nil {
 		t.Error()
 	}
 	client.Scheduling = RandomScheduling
-	if address, target := client.target(); len(address) == 0 && target == nil {
+	if address, target, err := client.director(); len(address) == 0 && target == nil && err == nil {
 		t.Error()
 	}
 	client.Scheduling = LeastTimeScheduling
-	if address, target := client.target(); len(address) == 0 && target == nil {
+	if address, target, err := client.director(); len(address) == 0 && target == nil && err == nil {
 		t.Error()
 	}
 	client.Scheduling = 3
-	if address, target := client.target(); len(address) == 0 && target == nil {
+	if address, target, err := client.director(); len(address) == 0 && target == nil && err == nil {
 		t.Error()
 	}
 	client.Director = func() (target string) {
-		return ":9999"
+		return addrs[0]
 	}
-	if address, target := client.target(); len(address) == 0 && target == nil {
+	if address, target, err := client.director(); len(address) == 0 && target == nil && err == nil {
 		t.Error()
 	}
 	client = &Client{}
-	defer func() {
-		if e := recover(); e == nil {
-			t.Error("should panic")
-		}
-	}()
-	client.target()
+	if _, _, err := client.schedule(); err == nil {
+		t.Error()
+	}
+	server.Close()
+	wg.Wait()
 }
 
 func TestTopK(t *testing.T) {
-	l := list{&target{latency: 10}, &target{latency: 7}, &target{latency: 2}, &target{latency: 5}, &target{latency: 1}, &target{latency: 6}}
-	minHeap(l)
-	n := l.Len()
+	h := list{&target{latency: 10}, &target{latency: 7}, &target{latency: 2}, &target{latency: 5}, &target{latency: 1}, &target{latency: 6}}
+	minHeap(h)
+	n := h.Len()
 	for i := 1; i < n; i++ {
-		if l.Less(i, 0) {
+		if h.Less(i, 0) {
 			t.Error("heap error")
 		}
 	}
+}
+
+func TestWaiterDone(t *testing.T) {
+	w := &waiter{Done: make(chan *waiter, 1)}
+	w.done()
+	w.done()
+}
+
+func TestResetWaiterDone(t *testing.T) {
+	done := make(chan *waiter, 10)
+	w := &waiter{Done: done}
+	w.done()
+	w.done()
+	resetWaiterDone(done)
+	if len(done) != 0 {
+		t.Error(len(done))
+	}
+	onceWaiterDone(done)
 }
