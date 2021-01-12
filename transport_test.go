@@ -49,6 +49,10 @@ func TestTransport(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	err = trans.Ping("")
+	if err == nil {
+		t.Error()
+	}
 	watch, err := trans.Watch(addr, k)
 	if err != nil {
 		t.Error(err)
