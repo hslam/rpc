@@ -64,7 +64,6 @@ type Client struct {
 	last        []string
 	seq         uint64
 	pending     map[uint64]*waiter
-	alives      uint32
 	pos         int
 	lastTime    time.Time
 	Director    func() (target string)
