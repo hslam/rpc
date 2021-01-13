@@ -292,15 +292,15 @@ func (c *Client) director() (address string, t *target, err error) {
 			c.lock.Unlock()
 		}
 	case <-timer.C:
-		resetWaiterDone(done)
-		c.donePool.Put(done)
 		seq := w.seq
-		*w = waiter{}
-		c.waiterPool.Put(w)
-		err = ErrTimeout
 		c.lock.Lock()
 		delete(c.pending, seq)
 		c.lock.Unlock()
+		resetWaiterDone(done)
+		c.donePool.Put(done)
+		*w = waiter{}
+		c.waiterPool.Put(w)
+		err = ErrTimeout
 	}
 	return
 }
