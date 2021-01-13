@@ -76,6 +76,7 @@ type Client struct {
 	donePool    *sync.Pool
 	done        chan struct{}
 	closed      uint32
+	fallback    uint32
 }
 
 // NewClient returns a new RPC Client.
@@ -211,8 +212,24 @@ func (c *Client) Ping() error {
 	return err
 }
 
+// Fallback pauses the client within the duration.
+func (c *Client) Fallback(d time.Duration) {
+	atomic.StoreUint32(&c.fallback, 1)
+	timer := time.NewTimer(d)
+	go func() {
+		select {
+		case <-timer.C:
+		case <-c.done:
+			timer.Stop()
+		}
+		atomic.StoreUint32(&c.fallback, 0)
+	}()
+}
+
 // Close closes the all connections.
 func (c *Client) Close() (err error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	if c.Transport != nil {
 		err = c.Transport.Close()
 	}
@@ -220,13 +237,11 @@ func (c *Client) Close() (err error) {
 		if c.done != nil {
 			close(c.done)
 		}
-		c.lock.Lock()
 		for seq, w := range c.pending {
 			delete(c.pending, seq)
 			w.err = ErrShutdown
 			w.done()
 		}
-		c.lock.Unlock()
 	}
 	return
 }
@@ -239,19 +254,24 @@ func (c *Client) transport() RoundTripper {
 }
 
 func (c *Client) director() (address string, t *target, err error) {
-	if c.Director != nil {
-		address = c.Director()
-		if len(address) > 0 {
-			return address, nil, nil
+	if atomic.LoadUint32(&c.closed) > 0 {
+		return "", nil, ErrShutdown
+	}
+	if atomic.LoadUint32(&c.fallback) == 0 {
+		if c.Director != nil {
+			address = c.Director()
+			if len(address) > 0 {
+				return address, nil, nil
+			}
 		}
-	}
-	c.lock.Lock()
-	if len(c.list) > 0 {
-		address, t, err = c.schedule()
+		c.lock.Lock()
+		if len(c.list) > 0 {
+			address, t, err = c.schedule()
+			c.lock.Unlock()
+			return
+		}
 		c.lock.Unlock()
-		return
 	}
-	c.lock.Unlock()
 	done := c.donePool.Get().(chan *waiter)
 	w := c.waiterPool.Get().(*waiter)
 	w.Done = done
@@ -285,17 +305,23 @@ func (c *Client) director() (address string, t *target, err error) {
 	return
 }
 
-func (c *Client) wait(s *waiter) {
+func (c *Client) wait(w *waiter) {
+	c.lock.Lock()
+	if !c.checkClosed(w) {
+		w.seq = c.seq
+		c.seq++
+		c.pending[w.seq] = w
+	}
+	c.lock.Unlock()
+}
+
+func (c *Client) checkClosed(s *waiter) bool {
 	if atomic.LoadUint32(&c.closed) == 1 {
 		s.err = ErrShutdown
 		s.done()
-		return
+		return true
 	}
-	c.lock.Lock()
-	s.seq = c.seq
-	c.seq++
-	c.pending[s.seq] = s
-	c.lock.Unlock()
+	return false
 }
 
 func (c *Client) schedule() (string, *target, error) {
@@ -350,6 +376,7 @@ func (c *Client) detect() {
 			go c.check(t)
 		}
 	}
+	c.checkPending()
 	c.lock.Unlock()
 }
 
@@ -380,10 +407,7 @@ func (c *Client) check(t *target) (alive bool) {
 			c.minHeap = minHeap
 			c.pos = 0
 		}
-		for seq, w := range c.pending {
-			delete(c.pending, seq)
-			w.done()
-		}
+		c.checkPending()
 	} else {
 		c.list = list{}
 		c.minHeap = list{}
@@ -391,6 +415,15 @@ func (c *Client) check(t *target) (alive bool) {
 	}
 	c.lock.Unlock()
 	return
+}
+
+func (c *Client) checkPending() {
+	if atomic.LoadUint32(&c.fallback) == 0 && len(c.list) > 0 {
+		for seq, w := range c.pending {
+			delete(c.pending, seq)
+			w.done()
+		}
+	}
 }
 
 type target struct {
