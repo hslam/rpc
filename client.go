@@ -296,11 +296,6 @@ func (c *Client) director() (address string, t *target, err error) {
 		c.lock.Lock()
 		delete(c.pending, seq)
 		c.lock.Unlock()
-		resetWaiterDone(done)
-		c.donePool.Put(done)
-		*w = waiter{}
-		c.waiterPool.Put(w)
-		err = ErrTimeout
 	}
 	return
 }
