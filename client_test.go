@@ -146,6 +146,27 @@ func TestClient(t *testing.T) {
 	}
 }
 
+func TestClientFallback(t *testing.T) {
+	network := "tcp"
+	addr := ":9999"
+	codec := "json"
+	opts := DefaultOptions()
+	opts.Network = network
+	opts.Codec = codec
+	{
+		client := NewClient(opts, addr)
+		client.Fallback(time.Millisecond * 10)
+		time.Sleep(time.Millisecond * 100)
+		client.Close()
+	}
+	{
+		client := NewClient(opts, addr)
+		client.Fallback(time.Millisecond * 10)
+		client.Close()
+		time.Sleep(time.Millisecond * 100)
+	}
+}
+
 func TestClientClose(t *testing.T) {
 	network := "tcp"
 	addr := ":9999"
@@ -170,6 +191,14 @@ func TestClientClose(t *testing.T) {
 	}()
 	time.Sleep(time.Millisecond * 10)
 	cwg.Wait()
+	{
+		c := NewClient(opts, addr)
+		c.Close()
+		done := c.donePool.Get().(chan *waiter)
+		w := c.waiterPool.Get().(*waiter)
+		w.Done = done
+		c.wait(w)
+	}
 }
 
 func TestClientLeastTime(t *testing.T) {
@@ -204,60 +233,61 @@ func TestClientLeastTime(t *testing.T) {
 	})
 	client := NewClient(opts, addrs...)
 	client.Scheduling = LeastTimeScheduling
-	err = client.Ping()
-	if err != nil {
-		t.Error(err)
-	}
-	watch, err := client.Watch(k)
-	if err != nil {
-		t.Error(err)
-	}
-	v, err := watch.Wait()
-	if err != nil {
-		t.Error(err)
-	} else if string(v) != str {
-		t.Error(string(v))
-	}
-	watch.Stop()
-	if _, err := watch.Wait(); err == nil {
-		t.Error()
-	}
-	A := int32(4)
-	B := int32(8)
-	req := &service.ArithRequest{A: A, B: B}
-	var res service.ArithResponse
-	if err := client.Call("Arith.Multiply", req, &res); err != nil {
-		t.Error(err)
-	}
-	if res.Pro != A*B {
-		t.Error(res.Pro)
-	}
+	for i := 0; i < 64; i++ {
+		err = client.Ping()
+		if err != nil {
+			t.Error(err)
+		}
+		watch, err := client.Watch(k)
+		if err != nil {
+			t.Error(err)
+		}
+		v, err := watch.Wait()
+		if err != nil {
+			t.Error(err)
+		} else if string(v) != str {
+			t.Error(string(v))
+		}
+		watch.Stop()
+		if _, err := watch.Wait(); err == nil {
+			t.Error()
+		}
+		A := int32(4)
+		B := int32(8)
+		req := &service.ArithRequest{A: A, B: B}
+		var res service.ArithResponse
+		if err := client.Call("Arith.Multiply", req, &res); err != nil {
+			t.Error(err)
+		}
+		if res.Pro != A*B {
+			t.Error(res.Pro)
+		}
 
-	res = service.ArithResponse{}
-	if err := client.CallTimeout("Arith.Multiply", req, &res, time.Minute); err != nil {
-		t.Error(err)
-	}
-	if res.Pro != A*B {
-		t.Error(res.Pro)
-	}
+		res = service.ArithResponse{}
+		if err := client.CallTimeout("Arith.Multiply", req, &res, time.Minute); err != nil {
+			t.Error(err)
+		}
+		if res.Pro != A*B {
+			t.Error(res.Pro)
+		}
 
-	res = service.ArithResponse{}
-	call := client.Go("Arith.Multiply", req, &res, make(chan *Call, 1))
-	<-call.Done
-	if res.Pro != A*B {
-		t.Error(res.Pro)
-	}
+		res = service.ArithResponse{}
+		call := client.Go("Arith.Multiply", req, &res, make(chan *Call, 1))
+		<-call.Done
+		if res.Pro != A*B {
+			t.Error(res.Pro)
+		}
 
-	call = new(Call)
-	call.ServiceMethod = "Arith.Multiply"
-	call.Args = req
-	call.Reply = &service.ArithResponse{}
-	client.RoundTrip(call)
-	<-call.Done
-	if res.Pro != A*B {
-		t.Error(res.Pro)
+		call = new(Call)
+		call.ServiceMethod = "Arith.Multiply"
+		call.Args = req
+		call.Reply = &service.ArithResponse{}
+		client.RoundTrip(call)
+		<-call.Done
+		if res.Pro != A*B {
+			t.Error(res.Pro)
+		}
 	}
-
 	client.Close()
 	server.Close()
 	wg.Wait()
