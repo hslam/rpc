@@ -76,7 +76,7 @@ type Client struct {
 	donePool    *sync.Pool
 	done        chan struct{}
 	closed      uint32
-	fallback    uint32
+	fallback    int32
 }
 
 // NewClient returns a new RPC Client.
@@ -214,7 +214,7 @@ func (c *Client) Ping() error {
 
 // Fallback pauses the client within the duration.
 func (c *Client) Fallback(d time.Duration) {
-	atomic.StoreUint32(&c.fallback, 1)
+	atomic.AddInt32(&c.fallback, 1)
 	timer := time.NewTimer(d)
 	go func() {
 		select {
@@ -222,7 +222,7 @@ func (c *Client) Fallback(d time.Duration) {
 		case <-c.done:
 			timer.Stop()
 		}
-		atomic.StoreUint32(&c.fallback, 0)
+		atomic.AddInt32(&c.fallback, -1)
 	}()
 }
 
@@ -257,7 +257,7 @@ func (c *Client) director() (address string, t *target, err error) {
 	if atomic.LoadUint32(&c.closed) > 0 {
 		return "", nil, ErrShutdown
 	}
-	if atomic.LoadUint32(&c.fallback) == 0 {
+	if atomic.LoadInt32(&c.fallback) == 0 {
 		if c.Director != nil {
 			address = c.Director()
 			if len(address) > 0 {
@@ -414,7 +414,7 @@ func (c *Client) check(t *target) (alive bool) {
 }
 
 func (c *Client) checkPending() {
-	if atomic.LoadUint32(&c.fallback) == 0 && len(c.list) > 0 {
+	if atomic.LoadInt32(&c.fallback) == 0 && len(c.list) > 0 {
 		for seq, w := range c.pending {
 			delete(c.pending, seq)
 			w.done()
