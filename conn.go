@@ -251,36 +251,6 @@ func (conn *Conn) read() {
 			call.done()
 		}
 	}
-	conn.close(err)
-}
-
-// NumCalls returns the number of calls.
-func (conn *Conn) NumCalls() (n uint64) {
-	conn.mutex.Lock()
-	p := uint64(len(conn.pending))
-	n = uint64(len(conn.watchs))
-	if p > n {
-		n = p
-	}
-	conn.mutex.Unlock()
-	return
-}
-
-// Close calls the underlying codec's Close method. If the connection is already
-// shutting down, ErrShutdown is returned.
-func (conn *Conn) Close() error {
-	defer conn.close(ErrShutdown)
-	conn.mutex.Lock()
-	if conn.closing {
-		conn.mutex.Unlock()
-		return nil
-	}
-	conn.closing = true
-	conn.mutex.Unlock()
-	return conn.codec.Close()
-}
-
-func (conn *Conn) close(err error) {
 	conn.reqMutex.Lock()
 	conn.mutex.Lock()
 	conn.shutdown = true
@@ -298,6 +268,31 @@ func (conn *Conn) close(err error) {
 	}
 	conn.mutex.Unlock()
 	conn.reqMutex.Unlock()
+}
+
+// NumCalls returns the number of calls.
+func (conn *Conn) NumCalls() (n uint64) {
+	conn.mutex.Lock()
+	p := uint64(len(conn.pending))
+	n = uint64(len(conn.watchs))
+	if p > n {
+		n = p
+	}
+	conn.mutex.Unlock()
+	return
+}
+
+// Close calls the underlying codec's Close method. If the connection is already
+// shutting down, ErrShutdown is returned.
+func (conn *Conn) Close() (err error) {
+	conn.mutex.Lock()
+	if conn.closing {
+		conn.mutex.Unlock()
+		return ErrShutdown
+	}
+	conn.closing = true
+	conn.mutex.Unlock()
+	return conn.codec.Close()
 }
 
 // RoundTrip executes a single RPC transaction, returning
