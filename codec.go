@@ -32,12 +32,15 @@ func NewCodec(name string) func() Codec {
 	return nil
 }
 
+const bufferSize = 65536
+
 // Context is an RPC context for codec.
 type Context struct {
 	Seq           uint64
 	Upgrade       []byte
 	ServiceMethod string
 	Error         string
+	buffer        []byte
 	upgrade       *upgrade
 	keepReading   bool
 	f             *funcs.Func

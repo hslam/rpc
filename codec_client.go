@@ -98,7 +98,7 @@ func (c *clientCodec) ReadResponseHeader(ctx *Context) error {
 	}
 	var data []byte
 	var err error
-	data, err = c.messages.ReadMessage()
+	data, err = c.messages.ReadMessage(nil)
 	if err != nil {
 		if err == io.EOF {
 			atomic.StoreUint32(&c.closed, 1)

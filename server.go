@@ -27,6 +27,7 @@ type Server struct {
 	logger      *log.Logger
 	ctxPool     *sync.Pool
 	upgradePool *sync.Pool
+	bufferPool  *sync.Pool
 	pipelining  bool
 	noBatch     bool
 	numWorkers  int
@@ -55,6 +56,7 @@ func NewServer() *Server {
 		logger:      logger,
 		ctxPool:     &sync.Pool{New: func() interface{} { return &Context{} }},
 		upgradePool: &sync.Pool{New: func() interface{} { return &upgrade{} }},
+		bufferPool:  &sync.Pool{New: func() interface{} { return make([]byte, bufferSize) }},
 		numWorkers:  numCPU * 32,
 		codecs:      make(map[ServerCodec]io.Closer),
 		watchs:      make(map[string]map[ServerCodec]*Context),
@@ -84,12 +86,21 @@ func (server *Server) RegisterName(name string, obj interface{}) error {
 	return server.Registry.RegisterName(name, obj)
 }
 
-//SetLogLevel sets log's level
+//SetBufferSize sets buffer size.
+func (server *Server) SetBufferSize(size int) {
+	if size > 0 {
+		server.bufferPool = &sync.Pool{New: func() interface{} { return make([]byte, size) }}
+	} else {
+		server.bufferPool = nil
+	}
+}
+
+//SetLogLevel sets log's level.
 func (server *Server) SetLogLevel(level LogLevel) {
 	server.logger.SetLevel(log.Level(level))
 }
 
-//GetLogLevel returns log's level
+//GetLogLevel returns log's level.
 func (server *Server) GetLogLevel() LogLevel {
 	return LogLevel(server.logger.GetLevel())
 }
@@ -183,10 +194,15 @@ func (server *Server) deleteCodec(codec ServerCodec) {
 // ServeRequest is like ServeCodec but synchronously serves a single request.
 // It does not close the codec upon completion.
 func (server *Server) ServeRequest(codec ServerCodec, recving *sync.Mutex, sending *sync.Mutex, wg *sync.WaitGroup, worker bool, ch chan *Context, done chan struct{}, workers chan struct{}) error {
+	ctx := server.ctxPool.Get().(*Context)
+	ctx.upgrade = server.getUpgrade()
+	if server.bufferPool != nil {
+		ctx.buffer = server.bufferPool.Get().([]byte)
+	}
 	if recving != nil {
 		recving.Lock()
 	}
-	ctx, err := server.readRequest(codec)
+	err := server.readRequest(codec, ctx)
 	if recving != nil {
 		recving.Unlock()
 	}
@@ -263,9 +279,7 @@ func (server *Server) ServeRequest(codec ServerCodec, recving *sync.Mutex, sendi
 	return nil
 }
 
-func (server *Server) readRequest(codec ServerCodec) (ctx *Context, err error) {
-	ctx = server.ctxPool.Get().(*Context)
-	ctx.upgrade = server.getUpgrade()
+func (server *Server) readRequest(codec ServerCodec, ctx *Context) (err error) {
 	err = codec.ReadRequestHeader(ctx)
 	if err != nil {
 		return
@@ -333,6 +347,9 @@ func (server *Server) sendResponse(ctx *Context) {
 	ctx.sending.Unlock()
 	if ctx.upgrade.Watch != watch {
 		server.putUpgrade(ctx.upgrade)
+		if server.bufferPool != nil && cap(ctx.buffer) > 0 {
+			server.bufferPool.Put(ctx.buffer)
+		}
 		ctx.Reset()
 		server.ctxPool.Put(ctx)
 	}
@@ -551,4 +568,9 @@ func SetLogLevel(level LogLevel) {
 //GetLogLevel returns log's level
 func GetLogLevel() LogLevel {
 	return DefaultServer.GetLogLevel()
+}
+
+//SetBufferSize sets buffer size.
+func SetBufferSize(size int) {
+	DefaultServer.SetBufferSize(size)
 }

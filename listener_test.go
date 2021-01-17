@@ -15,6 +15,7 @@ func TestListen(t *testing.T) {
 	network := "tcp"
 	addr := ":8880"
 	codec := "json"
+	SetBufferSize(0)
 	err := Register(new(service.Arith))
 	if err != nil {
 		t.Error(err)

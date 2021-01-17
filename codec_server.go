@@ -64,7 +64,11 @@ func (c *serverCodec) ReadRequestHeader(ctx *Context) error {
 	}
 	var data []byte
 	var err error
-	data, err = c.messages.ReadMessage()
+	var buffer []byte
+	if ctx != nil && len(ctx.buffer) > 0 {
+		buffer = ctx.buffer
+	}
+	data, err = c.messages.ReadMessage(buffer)
 	if err != nil {
 		if err == io.EOF {
 			atomic.StoreUint32(&c.closed, 1)
