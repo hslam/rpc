@@ -4,6 +4,7 @@
 package rpc
 
 import (
+	"context"
 	"errors"
 	"math/rand"
 	"reflect"
@@ -152,17 +153,17 @@ func (c *Client) Call(serviceMethod string, args interface{}, reply interface{})
 	return err
 }
 
-// CallTimeout acts like Call but takes a timeout.
-func (c *Client) CallTimeout(serviceMethod string, args interface{}, reply interface{}, timeout time.Duration) error {
+// CallWithContext acts like Call but takes a context.
+func (c *Client) CallWithContext(ctx context.Context, serviceMethod string, args interface{}, reply interface{}) error {
 	address, target, err := c.director()
 	if err != nil {
 		return err
 	}
 	if len(address) > 0 {
-		return c.transport().CallTimeout(address, serviceMethod, args, reply, timeout)
+		return c.transport().CallWithContext(address, ctx, serviceMethod, args, reply)
 	}
 	start := time.Now()
-	err = c.transport().CallTimeout(target.address, serviceMethod, args, reply, timeout)
+	err = c.transport().CallWithContext(target.address, ctx, serviceMethod, args, reply)
 	target.Update(c.Alpha, int64(time.Now().Sub(start)), err)
 	return err
 }
@@ -367,7 +368,8 @@ func (c *Client) run() {
 
 func (c *Client) detect() {
 	c.lock.Lock()
-	for _, t := range c.targets {
+	for address := range c.targets {
+		t := c.targets[address]
 		if t.alive == false {
 			go c.check(t)
 		}
@@ -390,7 +392,7 @@ func (c *Client) check(t *target) (alive bool) {
 			l = append(l, t)
 			addrs = append(addrs, t.address)
 		} else {
-			t.Update(c.Alpha, clientLatency, errTarget)
+			t.Update(c.Alpha, clientLatency, ErrDial)
 		}
 	}
 	if len(l) > 0 {

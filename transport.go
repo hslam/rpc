@@ -4,6 +4,7 @@
 package rpc
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"sync/atomic"
@@ -49,7 +50,7 @@ type RoundTripper interface {
 	RoundTrip(addr string, call *Call) *Call
 	Go(addr, serviceMethod string, args interface{}, reply interface{}, done chan *Call) *Call
 	Call(addr, serviceMethod string, args interface{}, reply interface{}) error
-	CallTimeout(addr, serviceMethod string, args interface{}, reply interface{}, timeout time.Duration) error
+	CallWithContext(addr string, ctx context.Context, serviceMethod string, args interface{}, reply interface{}) error
 	Watch(addr, key string) (Watcher, error)
 	Ping(addr string) error
 	Close() error
@@ -142,13 +143,13 @@ func (t *Transport) Call(addr, serviceMethod string, args interface{}, reply int
 	return err
 }
 
-// CallTimeout acts like Call but takes a timeout.
-func (t *Transport) CallTimeout(addr, serviceMethod string, args interface{}, reply interface{}, timeout time.Duration) error {
+// CallWithContext acts like Call but takes a context.
+func (t *Transport) CallWithContext(addr string, ctx context.Context, serviceMethod string, args interface{}, reply interface{}) error {
 	conn, err := t.getConn(addr)
 	if err != nil {
 		return err
 	}
-	err = conn.CallTimeout(serviceMethod, args, reply, timeout)
+	err = conn.CallWithContext(ctx, serviceMethod, args, reply)
 	conn.lastTime = t.now
 	checkPersistConnErr(err, conn)
 	return err

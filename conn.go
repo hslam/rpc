@@ -4,12 +4,12 @@
 package rpc
 
 import (
+	"context"
 	"errors"
 	"github.com/hslam/socket"
 	"io"
 	"runtime"
 	"sync"
-	"time"
 )
 
 // ErrTimeout is returned after the timeout,.
@@ -343,11 +343,8 @@ func (conn *Conn) Call(serviceMethod string, args interface{}, reply interface{}
 	return err
 }
 
-// CallTimeout acts like Call but takes a timeout.
-func (conn *Conn) CallTimeout(serviceMethod string, args interface{}, reply interface{}, timeout time.Duration) error {
-	if timeout <= 0 {
-		return conn.Call(serviceMethod, args, reply)
-	}
+// CallWithContext acts like Call but takes a context.
+func (conn *Conn) CallWithContext(ctx context.Context, serviceMethod string, args interface{}, reply interface{}) error {
 	done := conn.donePool.Get().(chan *Call)
 	upgrade := conn.getUpgrade()
 	call := conn.callPool.Get().(*Call)
@@ -357,19 +354,17 @@ func (conn *Conn) CallTimeout(serviceMethod string, args interface{}, reply inte
 	call.upgrade = upgrade
 	call.Done = done
 	conn.write(call)
-	timer := time.NewTimer(timeout)
 	var err error
 	runtime.Gosched()
 	select {
 	case <-call.Done:
-		timer.Stop()
 		ResetDone(done)
 		conn.donePool.Put(done)
 		err = call.Error
 		*call = Call{}
 		conn.callPool.Put(call)
-	case <-timer.C:
-		err = ErrTimeout
+	case <-ctx.Done():
+		err = ctx.Err()
 	}
 	return err
 }

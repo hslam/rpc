@@ -4,6 +4,7 @@
 package rpc
 
 import (
+	"context"
 	"github.com/hslam/rpc/examples/codec/json/service"
 	"sync"
 	"testing"
@@ -67,13 +68,15 @@ func TestClient(t *testing.T) {
 		t.Error(res.Pro)
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	res = service.ArithResponse{}
-	if err := client.CallTimeout("Arith.Multiply", req, &res, time.Minute); err != nil {
+	if err := client.CallWithContext(ctx, "Arith.Multiply", req, &res); err != nil {
 		t.Error(err)
 	}
 	if res.Pro != A*B {
 		t.Error(res.Pro)
 	}
+	cancel()
 
 	res = service.ArithResponse{}
 	call := client.Go("Arith.Multiply", req, &res, make(chan *Call, 1))
@@ -122,10 +125,12 @@ func TestClient(t *testing.T) {
 			t.Error()
 		}
 
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		res = service.ArithResponse{}
-		if err := client.CallTimeout("Arith.Multiply", req, &res, time.Minute); err == nil {
+		if err := client.CallWithContext(ctx, "Arith.Multiply", req, &res); err == nil {
 			t.Error()
 		}
+		cancel()
 
 		res = service.ArithResponse{}
 		call := client.Go("Arith.Multiply", req, &res, make(chan *Call, 1))
@@ -263,13 +268,15 @@ func TestClientLeastTime(t *testing.T) {
 			t.Error(res.Pro)
 		}
 
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		res = service.ArithResponse{}
-		if err := client.CallTimeout("Arith.Multiply", req, &res, time.Minute); err != nil {
+		if err := client.CallWithContext(ctx, "Arith.Multiply", req, &res); err != nil {
 			t.Error(err)
 		}
 		if res.Pro != A*B {
 			t.Error(res.Pro)
 		}
+		cancel()
 
 		res = service.ArithResponse{}
 		call := client.Go("Arith.Multiply", req, &res, make(chan *Call, 1))

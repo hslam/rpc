@@ -4,6 +4,7 @@
 package rpc
 
 import (
+	"context"
 	"github.com/hslam/rpc/examples/codec/json/service"
 	"sync"
 	"testing"
@@ -83,13 +84,15 @@ func TestTransport(t *testing.T) {
 				t.Error(res.Pro)
 			}
 
+			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 			res = service.ArithResponse{}
-			if err := trans.CallTimeout(addr, "Arith.Multiply", req, &res, time.Minute); err != nil {
+			if err := trans.CallWithContext(addr, ctx, "Arith.Multiply", req, &res); err != nil {
 				t.Error(err)
 			}
 			if res.Pro != A*B {
 				t.Error(res.Pro)
 			}
+			cancel()
 			res = service.ArithResponse{}
 			call := trans.Go(addr, "Arith.Multiply", req, &res, make(chan *Call, 1))
 			<-call.Done
@@ -128,9 +131,11 @@ func TestTransport(t *testing.T) {
 	if err := trans.Call(addr, "Arith.Multiply", req, &res); err == nil {
 		t.Error("should be error")
 	}
-	if err := trans.CallTimeout(addr, "Arith.Multiply", req, &res, time.Minute); err == nil {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	if err := trans.CallWithContext(addr, ctx, "Arith.Multiply", req, &res); err == nil {
 		t.Error("should be error")
 	}
+	cancel()
 	if _, err := trans.Watch(addr, "foo"); err == nil {
 		t.Error("should be error")
 	}

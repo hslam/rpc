@@ -4,6 +4,7 @@
 package rpc
 
 import (
+	"context"
 	codeservice "github.com/hslam/rpc/examples/codec/code/service"
 	"github.com/hslam/rpc/examples/codec/json/service"
 	"github.com/hslam/socket"
@@ -48,18 +49,22 @@ func TestConn(t *testing.T) {
 		t.Error(res.Pro)
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	res = service.ArithResponse{}
-	if err := conn.CallTimeout("Arith.Multiply", req, &res, 0); err != nil && err != ErrTimeout {
+	if err := conn.CallWithContext(ctx, "Arith.Multiply", req, &res); err != nil {
 		t.Error(err)
 	}
 	if res.Pro != A*B {
 		t.Error(res.Pro)
 	}
+	cancel()
 
+	ctx, cancel = context.WithTimeout(context.Background(), 0)
 	res = service.ArithResponse{}
-	if err := conn.CallTimeout("Arith.Multiply", req, &res, 1); err != nil && err != ErrTimeout {
+	if err := conn.CallWithContext(ctx, "Arith.Multiply", req, &res); err == nil {
 		t.Error(err)
 	}
+	cancel()
 
 	res = service.ArithResponse{}
 	call := conn.Go("Arith.Multiply", req, &res, make(chan *Call, 1))
