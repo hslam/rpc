@@ -14,7 +14,7 @@ Package rpc implements a remote procedure call over TCP, UNIX, HTTP and WS. The 
 * **[Codec](https://github.com/hslam/codec "codec")** json/[code](https://github.com/hslam/code "code")/pb
 * Multiplexing/Pipelining
 * [Auto batching](https://github.com/hslam/writer "writer")
-* Call/Go/RoundTrip/Ping/Watch
+* Call/Go/RoundTrip/Ping/Watch/CallWithContext
 * Server push
 * Conn/Transport/Client
 * TLS
@@ -169,6 +169,37 @@ func main() {
 	req := &service.ArithRequest{A: 9, B: 2}
 	var res service.ArithResponse
 	if err := client.Call("Arith.Multiply", req, &res); err != nil {
+		panic(err)
+	}
+	fmt.Printf("%d * %d = %d\n", req.A, req.B, res.Pro)
+}
+```
+
+context.go
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"github.com/hslam/rpc"
+	"github.com/hslam/rpc/examples/codec/pb/service"
+	"time"
+)
+
+func main() {
+	conn, err := rpc.Dial("tcp", ":9999", "pb")
+	if err != nil {
+		panic(err)
+	}
+	defer conn.Close()
+	req := &service.ArithRequest{A: 9, B: 2}
+	var res service.ArithResponse
+	valueCtx := context.WithValue(context.Background(), rpc.ContextKeyBuffer, make([]byte, 64))
+	ctx, cancel := context.WithTimeout(valueCtx, time.Minute)
+	defer cancel()
+	err = conn.CallWithContext(ctx, "Arith.Multiply", req, &res)
+	if err != nil {
 		panic(err)
 	}
 	fmt.Printf("%d * %d = %d\n", req.A, req.B, res.Pro)
