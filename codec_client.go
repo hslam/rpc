@@ -15,6 +15,7 @@ type clientCodec struct {
 	bodyCodec     Codec
 	req           *request
 	res           *response
+	buffer        []byte
 	argsBuffer    []byte
 	requestBuffer []byte
 	messages      socket.Messages
@@ -38,6 +39,7 @@ func NewClientCodec(bodyCodec Codec, headerEncoder *Encoder, messages socket.Mes
 	c := &clientCodec{
 		headerEncoder: headerEncoder,
 		bodyCodec:     bodyCodec,
+		buffer:        make([]byte, bufferSize),
 		argsBuffer:    make([]byte, bufferSize),
 		requestBuffer: make([]byte, bufferSize),
 	}
@@ -98,7 +100,7 @@ func (c *clientCodec) ReadResponseHeader(ctx *Context) error {
 	}
 	var data []byte
 	var err error
-	data, err = c.messages.ReadMessage(nil)
+	data, err = c.messages.ReadMessage(c.buffer)
 	if err != nil {
 		if err == io.EOF {
 			atomic.StoreUint32(&c.closed, 1)
@@ -112,38 +114,30 @@ func (c *clientCodec) ReadResponseHeader(ctx *Context) error {
 		if err != nil {
 			return err
 		}
-		ctx.Error = ""
 		ctx.Seq = c.headerEncoder.Response.GetSeq()
-		if c.headerEncoder.Response.GetError() != "" || len(c.headerEncoder.Response.GetReply()) == 0 {
-			ctx.Error = c.headerEncoder.Response.GetError()
-		} else if len(c.headerEncoder.Response.GetReply()) > 0 {
-			ctx.value = c.headerEncoder.Response.GetReply()
-		}
+		ctx.Error = c.headerEncoder.Response.GetError()
+		ctx.value = c.headerEncoder.Response.GetReply()
 	} else {
 		c.res.Reset()
 		_, err = c.res.Unmarshal(data)
 		if err != nil {
 			return err
 		}
-		ctx.Error = ""
 		ctx.Seq = c.res.GetSeq()
-		if c.res.GetError() != "" || len(c.res.GetReply()) == 0 {
-			ctx.Error = c.res.GetError()
-		} else if len(c.res.GetReply()) > 0 {
-			ctx.value = c.res.GetReply()
-		}
+		ctx.Error = c.res.GetError()
+		ctx.value = c.res.GetReply()
 	}
 	return nil
 }
 
-func (c *clientCodec) ReadResponseBody(x interface{}) error {
+func (c *clientCodec) ReadResponseBody(reply []byte, x interface{}) error {
 	if x == nil {
 		return errors.New("x is nil")
 	}
 	if c.headerEncoder != nil {
-		return c.bodyCodec.Unmarshal(c.headerEncoder.Response.GetReply(), x)
+		return c.bodyCodec.Unmarshal(reply, x)
 	}
-	return c.bodyCodec.Unmarshal(c.res.GetReply(), x)
+	return c.bodyCodec.Unmarshal(reply, x)
 }
 
 func (c *clientCodec) Close() error {

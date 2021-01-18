@@ -292,16 +292,16 @@ func (server *Server) readRequest(codec ServerCodec, ctx *Context) (err error) {
 		ctx.f = server.Registry.GetFunc(ctx.ServiceMethod)
 		if ctx.f == nil {
 			err = errors.New("can't find service " + ctx.ServiceMethod)
-			codec.ReadRequestBody(nil)
+			codec.ReadRequestBody(nil, nil)
 			return
 		}
 		ctx.args = ctx.f.GetValueIn(0)
 		if ctx.args == funcs.ZeroValue {
 			err = errors.New("can't find args")
-			codec.ReadRequestBody(nil)
+			codec.ReadRequestBody(nil, nil)
 			return
 		}
-		if err = codec.ReadRequestBody(ctx.args.Interface()); err != nil {
+		if err = codec.ReadRequestBody(ctx.value, ctx.args.Interface()); err != nil {
 			return
 		}
 	}

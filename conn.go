@@ -17,6 +17,12 @@ var ErrTimeout = errors.New("timeout")
 
 const shutdownMsg = "The connection is shut down"
 
+// ContextKey represents the context key.
+type ContextKey string
+
+// ContextKeyBuffer is the key of context value buffer.
+const ContextKeyBuffer = ContextKey("rpc:context:buffer")
+
 // ErrShutdown is returned when the connection is shut down.
 var ErrShutdown = errors.New(shutdownMsg)
 
@@ -58,6 +64,7 @@ func PutCall(call *Call) {
 
 // Call represents an active RPC.
 type Call struct {
+	Buffer        []byte
 	upgrade       *upgrade
 	Value         []byte
 	ServiceMethod string
@@ -121,7 +128,7 @@ func NewConn() *Conn {
 	return &Conn{
 		pending:       make(map[uint64]*Call),
 		watchs:        make(map[string]*Call),
-		upgradeBuffer: make([]byte, 1024),
+		upgradeBuffer: make([]byte, 1),
 	}
 }
 
@@ -213,7 +220,7 @@ func (conn *Conn) read() {
 		conn.mutex.Unlock()
 		switch {
 		case call == nil:
-			err = conn.codec.ReadResponseBody(nil)
+			err = conn.codec.ReadResponseBody(nil, nil)
 			if err != nil {
 				err = errors.New("reading error body: " + err.Error())
 			}
@@ -223,14 +230,20 @@ func (conn *Conn) read() {
 			} else {
 				call.Error = errors.New(ctx.Error)
 			}
-			err = conn.codec.ReadResponseBody(nil)
+			err = conn.codec.ReadResponseBody(nil, nil)
 			if err != nil {
 				err = errors.New("reading error body: " + err.Error())
 			}
 			call.done()
 		default:
 			if len(ctx.value) > 0 {
-				call.Value = ctx.value
+				if cap(call.Buffer) >= len(ctx.value) {
+					call.Value = call.Buffer[:len(ctx.value)]
+				} else {
+					call.Value = make([]byte, len(ctx.value))
+				}
+				copy(call.Value, ctx.value)
+
 			}
 			u := call.upgrade
 			if u.NoResponse == noResponse {
@@ -262,7 +275,7 @@ func (conn *Conn) read() {
 				continue
 			}
 			putUpgrade(u)
-			err = conn.codec.ReadResponseBody(call.Reply)
+			err = conn.codec.ReadResponseBody(call.Value, call.Reply)
 			if err != nil {
 				call.Error = errors.New("reading body " + err.Error())
 			}
@@ -357,6 +370,12 @@ func (conn *Conn) Call(serviceMethod string, args interface{}, reply interface{}
 // CallWithContext acts like Call but takes a context.
 func (conn *Conn) CallWithContext(ctx context.Context, serviceMethod string, args interface{}, reply interface{}) error {
 	call := GetCall()
+	value := ctx.Value(ContextKeyBuffer)
+	if value != nil {
+		if buffer, ok := value.([]byte); ok {
+			call.Buffer = buffer
+		}
+	}
 	call.ServiceMethod = serviceMethod
 	call.Args = args
 	call.Reply = reply

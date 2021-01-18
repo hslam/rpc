@@ -49,7 +49,8 @@ func TestConn(t *testing.T) {
 		t.Error(res.Pro)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	valueCtx := context.WithValue(context.Background(), ContextKeyBuffer, make([]byte, 64))
+	ctx, cancel := context.WithTimeout(valueCtx, time.Minute)
 	res = service.ArithResponse{}
 	if err := conn.CallWithContext(ctx, "Arith.Multiply", req, &res); err != nil {
 		t.Error(err)

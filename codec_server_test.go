@@ -31,7 +31,7 @@ func TestNewServerCodec(t *testing.T) {
 		if codec == nil {
 			t.Error("should not be nil")
 		}
-		if codec.ReadRequestBody(nil) == nil {
+		if codec.ReadRequestBody(nil, nil) == nil {
 			t.Error("The err should not be nil")
 		}
 		wg.Add(1)
@@ -69,7 +69,7 @@ func TestNewServerCodecNoBatch(t *testing.T) {
 		if codec == nil {
 			t.Error("should not be nil")
 		}
-		if codec.ReadRequestBody(nil) == nil {
+		if codec.ReadRequestBody(nil, nil) == nil {
 			t.Error("The err should not be nil")
 		}
 		wg.Add(1)

@@ -65,7 +65,7 @@ func (ctx *Context) Reset() {
 // argument to force the body of the request to be read and discarded.
 type ServerCodec interface {
 	ReadRequestHeader(*Context) error
-	ReadRequestBody(interface{}) error
+	ReadRequestBody([]byte, interface{}) error
 	WriteResponse(*Context, interface{}) error
 	Close() error
 }
@@ -81,7 +81,7 @@ type ServerCodec interface {
 type ClientCodec interface {
 	WriteRequest(*Context, interface{}) error
 	ReadResponseHeader(*Context) error
-	ReadResponseBody(interface{}) error
+	ReadResponseBody([]byte, interface{}) error
 	Close() error
 }
 

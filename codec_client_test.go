@@ -38,7 +38,7 @@ func TestNewClientCodec(t *testing.T) {
 	if codec == nil {
 		t.Error("should not be nil")
 	}
-	if codec.ReadResponseBody(nil) == nil {
+	if codec.ReadResponseBody(nil, nil) == nil {
 		t.Error("The err should not be nil")
 	}
 	message.Close()

@@ -84,6 +84,7 @@ func (c *serverCodec) ReadRequestHeader(ctx *Context) error {
 		ctx.ServiceMethod = c.headerEncoder.Request.GetServiceMethod()
 		ctx.Upgrade = c.headerEncoder.Request.GetUpgrade()
 		ctx.Seq = c.headerEncoder.Request.GetSeq()
+		ctx.value = c.headerEncoder.Request.GetArgs()
 	} else {
 		c.req.Reset()
 		_, err = c.req.Unmarshal(data)
@@ -93,19 +94,20 @@ func (c *serverCodec) ReadRequestHeader(ctx *Context) error {
 		ctx.ServiceMethod = c.req.GetServiceMethod()
 		ctx.Upgrade = c.req.GetUpgrade()
 		ctx.Seq = c.req.GetSeq()
+		ctx.value = c.req.GetArgs()
 	}
 	atomic.AddInt64(&c.count, 1)
 	return nil
 }
 
-func (c *serverCodec) ReadRequestBody(x interface{}) error {
+func (c *serverCodec) ReadRequestBody(args []byte, x interface{}) error {
 	if x == nil {
 		return errors.New("x is nil")
 	}
 	if c.headerEncoder != nil {
-		return c.bodyCodec.Unmarshal(c.headerEncoder.Request.GetArgs(), x)
+		return c.bodyCodec.Unmarshal(args, x)
 	}
-	return c.bodyCodec.Unmarshal(c.req.GetArgs(), x)
+	return c.bodyCodec.Unmarshal(args, x)
 }
 
 func (c *serverCodec) WriteResponse(ctx *Context, x interface{}) error {
