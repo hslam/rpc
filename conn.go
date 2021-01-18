@@ -38,6 +38,24 @@ func putUpgrade(u *upgrade) {
 	upgradePool.Put(u)
 }
 
+// GetCall gets a call from the callPool.
+func GetCall() *Call {
+	call := callPool.Get().(*Call)
+	call.Done = donePool.Get().(chan *Call)
+	return call
+}
+
+// PutCall puts a call to the callPool.
+func PutCall(call *Call) {
+	if call.Done != nil {
+		done := call.Done
+		ResetDone(done)
+		donePool.Put(done)
+	}
+	*call = Call{}
+	callPool.Put(call)
+}
+
 // Call represents an active RPC.
 type Call struct {
 	upgrade       *upgrade
@@ -311,7 +329,7 @@ func (conn *Conn) RoundTrip(call *Call) *Call {
 // the same Call object. If done is nil, Go will allocate a new channel.
 // If non-nil, done must be buffered or Go will deliberately crash.
 func (conn *Conn) Go(serviceMethod string, args interface{}, reply interface{}, done chan *Call) *Call {
-	call := new(Call)
+	call := callPool.Get().(*Call)
 	call.ServiceMethod = serviceMethod
 	call.Args = args
 	call.Reply = reply
@@ -324,45 +342,31 @@ func (conn *Conn) Go(serviceMethod string, args interface{}, reply interface{}, 
 
 // Call invokes the named function, waits for it to complete, and returns its error status.
 func (conn *Conn) Call(serviceMethod string, args interface{}, reply interface{}) error {
-	done := donePool.Get().(chan *Call)
-	upgrade := getUpgrade()
-	call := callPool.Get().(*Call)
+	call := GetCall()
 	call.ServiceMethod = serviceMethod
 	call.Args = args
 	call.Reply = reply
-	call.upgrade = upgrade
-	call.Done = done
+	call.upgrade = getUpgrade()
 	conn.write(call)
-	runtime.Gosched()
 	<-call.Done
-	ResetDone(done)
-	donePool.Put(done)
 	err := call.Error
-	*call = Call{}
-	callPool.Put(call)
+	PutCall(call)
 	return err
 }
 
 // CallWithContext acts like Call but takes a context.
 func (conn *Conn) CallWithContext(ctx context.Context, serviceMethod string, args interface{}, reply interface{}) error {
-	done := donePool.Get().(chan *Call)
-	upgrade := getUpgrade()
-	call := callPool.Get().(*Call)
+	call := GetCall()
 	call.ServiceMethod = serviceMethod
 	call.Args = args
 	call.Reply = reply
-	call.upgrade = upgrade
-	call.Done = done
+	call.upgrade = getUpgrade()
 	conn.write(call)
 	var err error
-	runtime.Gosched()
 	select {
 	case <-call.Done:
-		ResetDone(done)
-		donePool.Put(done)
 		err = call.Error
-		*call = Call{}
-		callPool.Put(call)
+		PutCall(call)
 	case <-ctx.Done():
 		err = ctx.Err()
 	}
@@ -376,15 +380,13 @@ func (conn *Conn) Watch(key string) (Watcher, error) {
 	upgrade.NoRequest = noRequest
 	upgrade.NoResponse = noResponse
 	upgrade.Watch = watch
-	done := donePool.Get().(chan *Call)
 	call := new(Call)
 	call.ServiceMethod = key
 	call.upgrade = upgrade
-	call.Done = done
+	call.Done = make(chan *Call, 1)
 	call.watcher = watcher
 	conn.write(call)
 	var err error
-	runtime.Gosched()
 	<-call.Done
 	err = call.Error
 	if err != nil {
@@ -400,19 +402,13 @@ func (conn *Conn) stopWatch(key string) error {
 	upgrade.NoRequest = noRequest
 	upgrade.NoResponse = noResponse
 	upgrade.Watch = stopWatch
-	done := donePool.Get().(chan *Call)
-	call := callPool.Get().(*Call)
+	call := GetCall()
 	call.ServiceMethod = key
 	call.upgrade = upgrade
-	call.Done = done
 	conn.write(call)
-	runtime.Gosched()
 	<-call.Done
-	ResetDone(done)
-	donePool.Put(done)
 	err := call.Error
-	*call = Call{}
-	callPool.Put(call)
+	PutCall(call)
 	return err
 }
 
@@ -422,18 +418,13 @@ func (conn *Conn) Ping() error {
 	upgrade.NoRequest = noRequest
 	upgrade.NoResponse = noResponse
 	upgrade.Heartbeat = heartbeat
-	done := donePool.Get().(chan *Call)
-	call := callPool.Get().(*Call)
+	call := GetCall()
 	call.upgrade = upgrade
-	call.Done = done
 	conn.write(call)
 	runtime.Gosched()
 	<-call.Done
-	ResetDone(done)
-	donePool.Put(done)
 	err := call.Error
-	*call = Call{}
-	callPool.Put(call)
+	PutCall(call)
 	return err
 }
 

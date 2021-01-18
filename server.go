@@ -259,7 +259,6 @@ func (server *Server) ServeRequest(codec ServerCodec, recving *sync.Mutex, sendi
 				for {
 					server.callService(wg, ctx)
 					t := time.NewTimer(time.Second)
-					runtime.Gosched()
 					select {
 					case ctx = <-ch:
 						t.Stop()
