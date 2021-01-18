@@ -78,26 +78,24 @@ func (c *serverCodec) ReadRequestHeader(ctx *Context) error {
 	if c.headerEncoder != nil {
 		c.headerEncoder.Request.Reset()
 		err = c.headerEncoder.Codec.Unmarshal(data, c.headerEncoder.Request)
-		if err != nil {
-			return err
+		if err == nil {
+			ctx.ServiceMethod = c.headerEncoder.Request.GetServiceMethod()
+			ctx.Upgrade = c.headerEncoder.Request.GetUpgrade()
+			ctx.Seq = c.headerEncoder.Request.GetSeq()
+			ctx.value = c.headerEncoder.Request.GetArgs()
 		}
-		ctx.ServiceMethod = c.headerEncoder.Request.GetServiceMethod()
-		ctx.Upgrade = c.headerEncoder.Request.GetUpgrade()
-		ctx.Seq = c.headerEncoder.Request.GetSeq()
-		ctx.value = c.headerEncoder.Request.GetArgs()
 	} else {
 		c.req.Reset()
 		_, err = c.req.Unmarshal(data)
-		if err != nil {
-			return err
+		if err == nil {
+			ctx.ServiceMethod = c.req.GetServiceMethod()
+			ctx.Upgrade = c.req.GetUpgrade()
+			ctx.Seq = c.req.GetSeq()
+			ctx.value = c.req.GetArgs()
 		}
-		ctx.ServiceMethod = c.req.GetServiceMethod()
-		ctx.Upgrade = c.req.GetUpgrade()
-		ctx.Seq = c.req.GetSeq()
-		ctx.value = c.req.GetArgs()
 	}
 	atomic.AddInt64(&c.count, 1)
-	return nil
+	return err
 }
 
 func (c *serverCodec) ReadRequestBody(args []byte, x interface{}) error {
@@ -129,22 +127,20 @@ func (c *serverCodec) WriteResponse(ctx *Context, x interface{}) error {
 		c.headerEncoder.Response.SetError(ctx.Error)
 		c.headerEncoder.Response.SetReply(reply)
 		data, err = c.headerEncoder.Codec.Marshal(c.responseBuffer, c.headerEncoder.Response)
-		if err != nil {
-			return err
-		}
 	} else {
 		c.res.SetSeq(reqSeq)
 		c.res.SetError(ctx.Error)
 		c.res.SetReply(reply)
 		data, err = c.res.Marshal(c.responseBuffer)
-		if err != nil {
-			return err
+	}
+	if err == nil {
+		if atomic.LoadUint32(&c.closed) > 0 {
+			return io.EOF
 		}
+		err = c.messages.WriteMessage(data)
 	}
-	if atomic.LoadUint32(&c.closed) > 0 {
-		return io.EOF
-	}
-	return c.messages.WriteMessage(data)
+	return err
+
 }
 
 func (c *serverCodec) Close() error {

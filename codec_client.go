@@ -74,24 +74,21 @@ func (c *clientCodec) WriteRequest(ctx *Context, param interface{}) error {
 		c.headerEncoder.Request.SetServiceMethod(ctx.ServiceMethod)
 		c.headerEncoder.Request.SetArgs(args)
 		data, err = c.headerEncoder.Codec.Marshal(c.requestBuffer, c.headerEncoder.Request)
-		if err != nil {
-			return err
-		}
 	} else {
 		c.req.SetSeq(ctx.Seq)
 		c.req.SetUpgrade(ctx.Upgrade)
 		c.req.SetServiceMethod(ctx.ServiceMethod)
 		c.req.SetArgs(args)
 		data, err = c.req.Marshal(c.requestBuffer)
-		if err != nil {
-			return err
+	}
+	if err == nil {
+		atomic.AddInt64(&c.count, 1)
+		if atomic.LoadUint32(&c.closed) > 0 {
+			return io.EOF
 		}
+		err = c.messages.WriteMessage(data)
 	}
-	atomic.AddInt64(&c.count, 1)
-	if atomic.LoadUint32(&c.closed) > 0 {
-		return io.EOF
-	}
-	return c.messages.WriteMessage(data)
+	return err
 }
 
 func (c *clientCodec) ReadResponseHeader(ctx *Context) error {
@@ -111,23 +108,21 @@ func (c *clientCodec) ReadResponseHeader(ctx *Context) error {
 	if c.headerEncoder != nil {
 		c.headerEncoder.Response.Reset()
 		err = c.headerEncoder.Codec.Unmarshal(data, c.headerEncoder.Response)
-		if err != nil {
-			return err
+		if err == nil {
+			ctx.Seq = c.headerEncoder.Response.GetSeq()
+			ctx.Error = c.headerEncoder.Response.GetError()
+			ctx.value = c.headerEncoder.Response.GetReply()
 		}
-		ctx.Seq = c.headerEncoder.Response.GetSeq()
-		ctx.Error = c.headerEncoder.Response.GetError()
-		ctx.value = c.headerEncoder.Response.GetReply()
 	} else {
 		c.res.Reset()
 		_, err = c.res.Unmarshal(data)
-		if err != nil {
-			return err
+		if err == nil {
+			ctx.Seq = c.res.GetSeq()
+			ctx.Error = c.res.GetError()
+			ctx.value = c.res.GetReply()
 		}
-		ctx.Seq = c.res.GetSeq()
-		ctx.Error = c.res.GetError()
-		ctx.value = c.res.GetReply()
 	}
-	return nil
+	return err
 }
 
 func (c *clientCodec) ReadResponseBody(reply []byte, x interface{}) error {
