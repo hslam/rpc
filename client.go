@@ -160,10 +160,10 @@ func (c *Client) CallWithContext(ctx context.Context, serviceMethod string, args
 		return err
 	}
 	if len(address) > 0 {
-		return c.transport().CallWithContext(address, ctx, serviceMethod, args, reply)
+		return c.transport().CallWithContext(ctx, address, serviceMethod, args, reply)
 	}
 	start := time.Now()
-	err = c.transport().CallWithContext(target.address, ctx, serviceMethod, args, reply)
+	err = c.transport().CallWithContext(ctx, target.address, serviceMethod, args, reply)
 	target.Update(c.Alpha, int64(time.Now().Sub(start)), err)
 	return err
 }

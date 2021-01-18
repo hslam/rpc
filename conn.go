@@ -23,6 +23,21 @@ var ErrShutdown = errors.New(shutdownMsg)
 // ErrWatch is returned when the watch is existed.
 var ErrWatch = errors.New("The watch is existed")
 
+var (
+	callPool    = &sync.Pool{New: func() interface{} { return &Call{} }}
+	donePool    = &sync.Pool{New: func() interface{} { return make(chan *Call, 10) }}
+	upgradePool = &sync.Pool{New: func() interface{} { return &upgrade{} }}
+)
+
+func getUpgrade() *upgrade {
+	return upgradePool.Get().(*upgrade)
+}
+
+func putUpgrade(u *upgrade) {
+	u.Reset()
+	upgradePool.Put(u)
+}
+
 // Call represents an active RPC.
 type Call struct {
 	upgrade       *upgrade
@@ -67,9 +82,6 @@ type Conn struct {
 	seq           uint64
 	pending       map[uint64]*Call
 	watchs        map[string]*Call
-	callPool      *sync.Pool
-	donePool      *sync.Pool
-	upgradePool   *sync.Pool
 	upgradeBuffer []byte
 	closing       bool
 	shutdown      bool
@@ -91,9 +103,6 @@ func NewConn() *Conn {
 	return &Conn{
 		pending:       make(map[uint64]*Call),
 		watchs:        make(map[string]*Call),
-		callPool:      &sync.Pool{New: func() interface{} { return &Call{} }},
-		donePool:      &sync.Pool{New: func() interface{} { return make(chan *Call, 10) }},
-		upgradePool:   &sync.Pool{New: func() interface{} { return &upgrade{} }},
 		upgradeBuffer: make([]byte, 1024),
 	}
 }
@@ -119,15 +128,6 @@ func NewConnWithCodec(codec ClientCodec) *Conn {
 	c.codec = codec
 	go c.read()
 	return c
-}
-
-func (conn *Conn) getUpgrade() *upgrade {
-	return conn.upgradePool.Get().(*upgrade)
-}
-
-func (conn *Conn) putUpgrade(u *upgrade) {
-	u.Reset()
-	conn.upgradePool.Put(u)
 }
 
 func (conn *Conn) write(call *Call) {
@@ -218,7 +218,7 @@ func (conn *Conn) read() {
 			if u.NoResponse == noResponse {
 				if u.Heartbeat == heartbeat {
 					call.done()
-					conn.putUpgrade(u)
+					putUpgrade(u)
 				} else if u.Watch == stopWatch {
 					conn.mutex.Lock()
 					if _, ok := conn.watchs[call.ServiceMethod]; ok {
@@ -227,7 +227,7 @@ func (conn *Conn) read() {
 					delete(conn.watchs, call.ServiceMethod)
 					conn.mutex.Unlock()
 					call.done()
-					conn.putUpgrade(u)
+					putUpgrade(u)
 				} else if u.Watch == watch {
 					call.Value = ctx.value
 					conn.mutex.Lock()
@@ -243,7 +243,7 @@ func (conn *Conn) read() {
 				}
 				continue
 			}
-			conn.putUpgrade(u)
+			putUpgrade(u)
 			err = conn.codec.ReadResponseBody(call.Reply)
 			if err != nil {
 				call.Error = errors.New("reading body " + err.Error())
@@ -300,7 +300,7 @@ func (conn *Conn) Close() (err error) {
 func (conn *Conn) RoundTrip(call *Call) *Call {
 	done := call.Done
 	done = checkDone(done)
-	call.upgrade = conn.getUpgrade()
+	call.upgrade = getUpgrade()
 	call.Done = done
 	conn.write(call)
 	return call
@@ -315,7 +315,7 @@ func (conn *Conn) Go(serviceMethod string, args interface{}, reply interface{}, 
 	call.ServiceMethod = serviceMethod
 	call.Args = args
 	call.Reply = reply
-	call.upgrade = conn.getUpgrade()
+	call.upgrade = getUpgrade()
 	done = checkDone(done)
 	call.Done = done
 	conn.write(call)
@@ -324,9 +324,9 @@ func (conn *Conn) Go(serviceMethod string, args interface{}, reply interface{}, 
 
 // Call invokes the named function, waits for it to complete, and returns its error status.
 func (conn *Conn) Call(serviceMethod string, args interface{}, reply interface{}) error {
-	done := conn.donePool.Get().(chan *Call)
-	upgrade := conn.getUpgrade()
-	call := conn.callPool.Get().(*Call)
+	done := donePool.Get().(chan *Call)
+	upgrade := getUpgrade()
+	call := callPool.Get().(*Call)
 	call.ServiceMethod = serviceMethod
 	call.Args = args
 	call.Reply = reply
@@ -336,18 +336,18 @@ func (conn *Conn) Call(serviceMethod string, args interface{}, reply interface{}
 	runtime.Gosched()
 	<-call.Done
 	ResetDone(done)
-	conn.donePool.Put(done)
+	donePool.Put(done)
 	err := call.Error
 	*call = Call{}
-	conn.callPool.Put(call)
+	callPool.Put(call)
 	return err
 }
 
 // CallWithContext acts like Call but takes a context.
 func (conn *Conn) CallWithContext(ctx context.Context, serviceMethod string, args interface{}, reply interface{}) error {
-	done := conn.donePool.Get().(chan *Call)
-	upgrade := conn.getUpgrade()
-	call := conn.callPool.Get().(*Call)
+	done := donePool.Get().(chan *Call)
+	upgrade := getUpgrade()
+	call := callPool.Get().(*Call)
 	call.ServiceMethod = serviceMethod
 	call.Args = args
 	call.Reply = reply
@@ -359,10 +359,10 @@ func (conn *Conn) CallWithContext(ctx context.Context, serviceMethod string, arg
 	select {
 	case <-call.Done:
 		ResetDone(done)
-		conn.donePool.Put(done)
+		donePool.Put(done)
 		err = call.Error
 		*call = Call{}
-		conn.callPool.Put(call)
+		callPool.Put(call)
 	case <-ctx.Done():
 		err = ctx.Err()
 	}
@@ -372,11 +372,11 @@ func (conn *Conn) CallWithContext(ctx context.Context, serviceMethod string, arg
 // Watch returns the Watcher.
 func (conn *Conn) Watch(key string) (Watcher, error) {
 	watcher := &watcher{conn: conn, C: make(chan *event, 10), key: key, done: make(chan struct{}, 1)}
-	upgrade := conn.getUpgrade()
+	upgrade := getUpgrade()
 	upgrade.NoRequest = noRequest
 	upgrade.NoResponse = noResponse
 	upgrade.Watch = watch
-	done := conn.donePool.Get().(chan *Call)
+	done := donePool.Get().(chan *Call)
 	call := new(Call)
 	call.ServiceMethod = key
 	call.upgrade = upgrade
@@ -396,12 +396,12 @@ func (conn *Conn) Watch(key string) (Watcher, error) {
 
 // stopWatch stops the key watcher .
 func (conn *Conn) stopWatch(key string) error {
-	upgrade := conn.getUpgrade()
+	upgrade := getUpgrade()
 	upgrade.NoRequest = noRequest
 	upgrade.NoResponse = noResponse
 	upgrade.Watch = stopWatch
-	done := conn.donePool.Get().(chan *Call)
-	call := conn.callPool.Get().(*Call)
+	done := donePool.Get().(chan *Call)
+	call := callPool.Get().(*Call)
 	call.ServiceMethod = key
 	call.upgrade = upgrade
 	call.Done = done
@@ -409,31 +409,31 @@ func (conn *Conn) stopWatch(key string) error {
 	runtime.Gosched()
 	<-call.Done
 	ResetDone(done)
-	conn.donePool.Put(done)
+	donePool.Put(done)
 	err := call.Error
 	*call = Call{}
-	conn.callPool.Put(call)
+	callPool.Put(call)
 	return err
 }
 
 // Ping is NOT ICMP ping, this is just used to test whether a connection is still alive.
 func (conn *Conn) Ping() error {
-	upgrade := conn.getUpgrade()
+	upgrade := getUpgrade()
 	upgrade.NoRequest = noRequest
 	upgrade.NoResponse = noResponse
 	upgrade.Heartbeat = heartbeat
-	done := conn.donePool.Get().(chan *Call)
-	call := conn.callPool.Get().(*Call)
+	done := donePool.Get().(chan *Call)
+	call := callPool.Get().(*Call)
 	call.upgrade = upgrade
 	call.Done = done
 	conn.write(call)
 	runtime.Gosched()
 	<-call.Done
 	ResetDone(done)
-	conn.donePool.Put(done)
+	donePool.Put(done)
 	err := call.Error
 	*call = Call{}
-	conn.callPool.Put(call)
+	callPool.Put(call)
 	return err
 }
 

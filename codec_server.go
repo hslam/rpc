@@ -38,8 +38,8 @@ func NewServerCodec(bodyCodec Codec, headerEncoder *Encoder, messages socket.Mes
 	c := &serverCodec{
 		headerEncoder:  headerEncoder,
 		bodyCodec:      bodyCodec,
-		replyBuffer:    make([]byte, 1024),
-		responseBuffer: make([]byte, 1024),
+		replyBuffer:    make([]byte, bufferSize),
+		responseBuffer: make([]byte, bufferSize),
 	}
 	c.messages = messages
 	if !noBatch {

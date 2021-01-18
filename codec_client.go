@@ -38,8 +38,8 @@ func NewClientCodec(bodyCodec Codec, headerEncoder *Encoder, messages socket.Mes
 	c := &clientCodec{
 		headerEncoder: headerEncoder,
 		bodyCodec:     bodyCodec,
-		argsBuffer:    make([]byte, 1024),
-		requestBuffer: make([]byte, 1024),
+		argsBuffer:    make([]byte, bufferSize),
+		requestBuffer: make([]byte, bufferSize),
 	}
 	c.messages = messages
 	if batch, ok := c.messages.(socket.Batch); ok {

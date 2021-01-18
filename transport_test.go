@@ -86,7 +86,7 @@ func TestTransport(t *testing.T) {
 
 			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 			res = service.ArithResponse{}
-			if err := trans.CallWithContext(addr, ctx, "Arith.Multiply", req, &res); err != nil {
+			if err := trans.CallWithContext(ctx, addr, "Arith.Multiply", req, &res); err != nil {
 				t.Error(err)
 			}
 			if res.Pro != A*B {
@@ -132,7 +132,7 @@ func TestTransport(t *testing.T) {
 		t.Error("should be error")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	if err := trans.CallWithContext(addr, ctx, "Arith.Multiply", req, &res); err == nil {
+	if err := trans.CallWithContext(ctx, addr, "Arith.Multiply", req, &res); err == nil {
 		t.Error("should be error")
 	}
 	cancel()

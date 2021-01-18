@@ -50,7 +50,7 @@ type RoundTripper interface {
 	RoundTrip(addr string, call *Call) *Call
 	Go(addr, serviceMethod string, args interface{}, reply interface{}, done chan *Call) *Call
 	Call(addr, serviceMethod string, args interface{}, reply interface{}) error
-	CallWithContext(addr string, ctx context.Context, serviceMethod string, args interface{}, reply interface{}) error
+	CallWithContext(ctx context.Context, addr string, serviceMethod string, args interface{}, reply interface{}) error
 	Watch(addr, key string) (Watcher, error)
 	Ping(addr string) error
 	Close() error
@@ -144,7 +144,7 @@ func (t *Transport) Call(addr, serviceMethod string, args interface{}, reply int
 }
 
 // CallWithContext acts like Call but takes a context.
-func (t *Transport) CallWithContext(addr string, ctx context.Context, serviceMethod string, args interface{}, reply interface{}) error {
+func (t *Transport) CallWithContext(ctx context.Context, addr string, serviceMethod string, args interface{}, reply interface{}) error {
 	conn, err := t.getConn(addr)
 	if err != nil {
 		return err
