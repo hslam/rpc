@@ -4,6 +4,7 @@
 package rpc
 
 import (
+	"context"
 	"errors"
 	"github.com/hslam/rpc/examples/codec/json/service"
 	"sync"
@@ -350,6 +351,14 @@ func (a *arith) Divide(req *arithRequest, res *arithResponse) error {
 	return nil
 }
 
+func (a *arith) DivideWithContext(ctx context.Context, req *arithRequest, res *arithResponse) error {
+	if req.B == 0 {
+		return errors.New("B can not be 0")
+	}
+	res.C = req.A / req.B
+	return nil
+}
+
 func (a *arith) Sleep(req *arithRequest, res *arithResponse) error {
 	time.Sleep(time.Millisecond * time.Duration(req.A))
 	return nil
@@ -382,6 +391,19 @@ func TestFunc(t *testing.T) {
 	err = conn.Ping()
 	if err != nil {
 		t.Error(err)
+	}
+	{
+		A := int32(4)
+		B := int32(8)
+		req := &arithRequest{A: A, B: B}
+		var res arithResponse
+		conn, err := Dial(network, addr, codec)
+		if err != nil {
+			t.Error(err)
+		}
+		if err := conn.CallWithContext(context.Background(), "Arith.DivideWithContext", req, &res); err != nil {
+			t.Error(err)
+		}
 	}
 	conn.Close()
 	A := int32(4)

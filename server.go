@@ -5,6 +5,7 @@
 package rpc
 
 import (
+	"context"
 	"crypto/tls"
 	"errors"
 	"github.com/hslam/funcs"
@@ -329,7 +330,13 @@ func (server *Server) callService(wg *sync.WaitGroup, ctx *Context) {
 		}
 		return
 	}
-	if err := ctx.f.ValueCall(ctx.args, ctx.reply); err != nil {
+	var err error
+	if ctx.f.WithContext() {
+		err = ctx.f.ValueCall(funcs.ValueOf(context.Background()), ctx.args, ctx.reply)
+	} else {
+		err = ctx.f.ValueCall(ctx.args, ctx.reply)
+	}
+	if err != nil {
 		ctx.Error = err.Error()
 	}
 	server.sendResponse(ctx)
