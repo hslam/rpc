@@ -301,7 +301,9 @@ func (server *Server) readRequest(codec ServerCodec, ctx *Context) (err error) {
 			codec.ReadRequestBody(nil, nil)
 			return
 		}
-		if err = codec.ReadRequestBody(ctx.value, ctx.args.Interface()); err != nil {
+		value := make([]byte, len(ctx.value))
+		copy(value, ctx.value)
+		if err = codec.ReadRequestBody(value, ctx.args.Interface()); err != nil {
 			return
 		}
 	}
