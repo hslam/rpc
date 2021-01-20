@@ -267,26 +267,33 @@ func TestGetConn(t *testing.T) {
 			cwg.Add(1)
 			go func() {
 				defer cwg.Done()
-				trans.Ping(addr)
+				for i := 0; i < 16; i++ {
+					trans.Ping(addr)
+				}
 			}()
 		}
 		cwg.Wait()
 		time.Sleep(time.Millisecond * 100)
 		server.Close()
-		for i := 0; i < 16; i++ {
+		time.Sleep(time.Millisecond * 100)
+		for i := 0; i < 4; i++ {
 			cwg.Add(1)
 			go func() {
 				defer cwg.Done()
-				trans.Ping(addr)
+				for i := 0; i < 16; i++ {
+					trans.Ping(addr)
+				}
 			}()
 		}
 		cwg.Wait()
 		time.Sleep(time.Millisecond * 100)
-		for i := 0; i < 16; i++ {
+		for i := 0; i < 4; i++ {
 			cwg.Add(1)
 			go func() {
 				defer cwg.Done()
-				trans.Ping(addr)
+				for i := 0; i < 16; i++ {
+					trans.Ping(addr)
+				}
 			}()
 		}
 		cwg.Wait()
@@ -319,17 +326,22 @@ func TestGetConn(t *testing.T) {
 			cwg.Add(1)
 			go func() {
 				defer cwg.Done()
-				trans.Ping(addr)
+				for i := 0; i < 16; i++ {
+					trans.Ping(addr)
+				}
 			}()
 		}
 		cwg.Wait()
 		time.Sleep(time.Millisecond * 100)
 		server.Close()
-		for i := 0; i < 16; i++ {
+		time.Sleep(time.Millisecond * 100)
+		for i := 0; i < 4; i++ {
 			cwg.Add(1)
 			go func() {
 				defer cwg.Done()
-				trans.Ping(addr)
+				for i := 0; i < 16; i++ {
+					trans.Ping(addr)
+				}
 			}()
 		}
 		cwg.Wait()
@@ -340,11 +352,13 @@ func TestGetConn(t *testing.T) {
 			server.Listen(network, addr, codec)
 		}()
 		time.Sleep(time.Millisecond * 10)
-		for i := 0; i < 16; i++ {
+		for i := 0; i < 4; i++ {
 			cwg.Add(1)
 			go func() {
 				defer cwg.Done()
-				trans.Ping(addr)
+				for i := 0; i < 16; i++ {
+					trans.Ping(addr)
+				}
 			}()
 		}
 		cwg.Wait()

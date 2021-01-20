@@ -34,6 +34,7 @@ type Server struct {
 	numWorkers  int
 	poll        bool
 	shared      bool
+	noCopy      bool
 	mut         sync.Mutex
 	listeners   []socket.Listener
 	mutex       sync.RWMutex
@@ -100,6 +101,13 @@ func (server *Server) SetBufferSize(size int) {
 //SetContextBuffer sets shared buffer.
 func (server *Server) SetContextBuffer(shared bool) {
 	server.shared = shared
+}
+
+// SetNoCopy reuses a buffer from the pool for minimizing memory allocations.
+// The RPC handler takes ownership of buffer, and the handler should not use buffer after this handle.
+// The default noCopy is false to make a copy of data for every RPC handler.
+func (server *Server) SetNoCopy(noCopy bool) {
+	server.noCopy = noCopy
 }
 
 //SetLogLevel sets log's level.
@@ -309,12 +317,16 @@ func (server *Server) readRequest(codec ServerCodec, ctx *Context) (err error) {
 			return
 		}
 		var value []byte
-		if ctx.f.WithContext() && server.shared {
-			value = GetBuffer(len(ctx.value))[:len(ctx.value)]
+		if server.noCopy {
+			value = ctx.value
 		} else {
-			value = make([]byte, len(ctx.value))
+			if ctx.f.WithContext() && server.shared {
+				value = GetBuffer(len(ctx.value))[:len(ctx.value)]
+			} else {
+				value = make([]byte, len(ctx.value))
+			}
+			copy(value, ctx.value)
 		}
-		copy(value, ctx.value)
 		if err = codec.ReadRequestBody(value, ctx.args.Interface()); err != nil {
 			return
 		}
@@ -344,7 +356,7 @@ func (server *Server) callService(wg *sync.WaitGroup, ctx *Context) {
 	var err error
 	if ctx.f.WithContext() {
 		var c context.Context
-		if server.shared {
+		if !server.noCopy && server.shared {
 			c = context.WithValue(context.Background(), ContextKeyBuffer, ctx.value)
 		} else {
 			c = context.Background()
@@ -447,14 +459,8 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 				if atomic.CompareAndSwapInt32(&ctx.closed, 0, 1) {
 					ctx.wg.Wait()
 					server.mutex.Lock()
-					delete(server.codecs, ctx.codec)
 					delete(codecs, ctx.codec)
-					for k, events := range server.watchs {
-						delete(events, ctx.codec)
-						if len(events) == 0 {
-							delete(server.watchs, k)
-						}
-					}
+					server.deleteCodec(ctx.codec)
 					server.mutex.Unlock()
 					ctx.codec.Close()
 				}
@@ -604,4 +610,11 @@ func SetBufferSize(size int) {
 //SetContextBuffer sets shared buffer.
 func SetContextBuffer(shared bool) {
 	DefaultServer.SetContextBuffer(shared)
+}
+
+// SetNoCopy reuses a buffer from the pool for minimizing memory allocations.
+// The RPC handler takes ownership of buffer, and the handler should not use buffer after this handle.
+// The default option is to make a copy of data for every RPC handler.
+func SetNoCopy(noCopy bool) {
+	DefaultServer.SetNoCopy(noCopy)
 }

@@ -223,6 +223,7 @@ func TestServerPollPipelining(t *testing.T) {
 	codec := "json"
 	SetPoll(true)
 	SetPipelining(true)
+	SetNoBatch(false)
 	err := RegisterName("Arith", new(service.Arith))
 	if err != nil {
 		t.Error(err)
@@ -235,7 +236,7 @@ func TestServerPollPipelining(t *testing.T) {
 	}()
 	time.Sleep(time.Millisecond * 10)
 	connwg := sync.WaitGroup{}
-	for i := 0; i < 4; i++ {
+	for i := 0; i < 32; i++ {
 		connwg.Add(1)
 		go func() {
 			defer connwg.Done()
@@ -248,16 +249,18 @@ func TestServerPollPipelining(t *testing.T) {
 				t.Error(err)
 			}
 			cwg := sync.WaitGroup{}
-			for i := 0; i < 64; i++ {
+			for i := 0; i < 32; i++ {
 				cwg.Add(1)
 				go func() {
 					defer cwg.Done()
-					A := int32(4)
-					B := int32(8)
-					req := &service.ArithRequest{A: A, B: B}
-					var res service.ArithResponse
-					if err := conn.Call("Arith.Multiply", req, &res); err != nil {
-						t.Error(err)
+					for i := 0; i < 128; i++ {
+						A := int32(4)
+						B := int32(8)
+						req := &service.ArithRequest{A: A, B: B}
+						var res service.ArithResponse
+						if err := conn.Call("Arith.Multiply", req, &res); err != nil {
+							t.Error(err)
+						}
 					}
 				}()
 			}
@@ -268,6 +271,9 @@ func TestServerPollPipelining(t *testing.T) {
 	connwg.Wait()
 	DefaultServer.Close()
 	wg.Wait()
+	SetPoll(false)
+	SetPipelining(false)
+	SetNoBatch(false)
 }
 
 func TestServerPollPipeliningNoBatch(t *testing.T) {
@@ -289,7 +295,7 @@ func TestServerPollPipeliningNoBatch(t *testing.T) {
 	}()
 	time.Sleep(time.Millisecond * 10)
 	connwg := sync.WaitGroup{}
-	for i := 0; i < 4; i++ {
+	for i := 0; i < 32; i++ {
 		connwg.Add(1)
 		go func() {
 			defer connwg.Done()
@@ -302,16 +308,18 @@ func TestServerPollPipeliningNoBatch(t *testing.T) {
 				t.Error(err)
 			}
 			cwg := sync.WaitGroup{}
-			for i := 0; i < 64; i++ {
+			for i := 0; i < 32; i++ {
 				cwg.Add(1)
 				go func() {
 					defer cwg.Done()
-					A := int32(4)
-					B := int32(8)
-					req := &service.ArithRequest{A: A, B: B}
-					var res service.ArithResponse
-					if err := conn.Call("Arith.Multiply", req, &res); err != nil {
-						t.Error(err)
+					for i := 0; i < 128; i++ {
+						A := int32(4)
+						B := int32(8)
+						req := &service.ArithRequest{A: A, B: B}
+						var res service.ArithResponse
+						if err := conn.Call("Arith.Multiply", req, &res); err != nil {
+							t.Error(err)
+						}
 					}
 				}()
 			}
@@ -322,6 +330,9 @@ func TestServerPollPipeliningNoBatch(t *testing.T) {
 	connwg.Wait()
 	DefaultServer.Close()
 	wg.Wait()
+	SetPoll(false)
+	SetPipelining(false)
+	SetNoBatch(false)
 }
 
 type arithRequest struct {
@@ -376,6 +387,51 @@ func TestSetContextBuffer(t *testing.T) {
 	server := NewServer()
 	SetContextBuffer(true)
 	server.SetContextBuffer(true)
+	err := server.RegisterName("Arith", new(arith))
+	if err != nil {
+		t.Error(err)
+	}
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		server.Listen(network, addr, codec)
+	}()
+	time.Sleep(time.Millisecond * 10)
+	conn, err := Dial(network, addr, codec)
+	if err != nil {
+		t.Error(err)
+	}
+	err = conn.Ping()
+	if err != nil {
+		t.Error(err)
+	}
+	{
+		A := int32(4)
+		B := int32(8)
+		req := &arithRequest{A: A, B: B}
+		var res arithResponse
+		conn, err := Dial(network, addr, codec)
+		if err != nil {
+			t.Error(err)
+		}
+		ctx := context.WithValue(context.Background(), ContextKeyBuffer, make([]byte, 64))
+		if err := conn.CallWithContext(ctx, "Arith.DivideWithContext", req, &res); err != nil {
+			t.Error(err)
+		}
+	}
+	conn.Close()
+	server.Close()
+	wg.Wait()
+}
+
+func TestSetNoCopy(t *testing.T) {
+	network := "tcp"
+	addr := ":9999"
+	codec := "json"
+	server := NewServer()
+	SetNoCopy(true)
+	server.SetNoCopy(true)
 	err := server.RegisterName("Arith", new(arith))
 	if err != nil {
 		t.Error(err)
