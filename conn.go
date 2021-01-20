@@ -17,12 +17,6 @@ var ErrTimeout = errors.New("timeout")
 
 const shutdownMsg = "The connection is shut down"
 
-// ContextKey represents the context key.
-type ContextKey string
-
-// ContextKeyBuffer is the key of context value buffer.
-const ContextKeyBuffer = ContextKey("rpc:context:buffer")
-
 // ErrShutdown is returned when the connection is shut down.
 var ErrShutdown = errors.New(shutdownMsg)
 
@@ -370,12 +364,7 @@ func (conn *Conn) Call(serviceMethod string, args interface{}, reply interface{}
 // CallWithContext acts like Call but takes a context.
 func (conn *Conn) CallWithContext(ctx context.Context, serviceMethod string, args interface{}, reply interface{}) error {
 	call := GetCall()
-	value := ctx.Value(ContextKeyBuffer)
-	if value != nil {
-		if buffer, ok := value.([]byte); ok {
-			call.Buffer = buffer
-		}
-	}
+	call.Buffer = GetContextBuffer(ctx)
 	call.ServiceMethod = serviceMethod
 	call.Args = args
 	call.Reply = reply

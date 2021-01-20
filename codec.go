@@ -4,11 +4,13 @@
 package rpc
 
 import (
+	"context"
 	"encoding/json"
 	"encoding/xml"
 	"errors"
 	"github.com/hslam/funcs"
 	"sync"
+	"sync/atomic"
 )
 
 var codecs = sync.Map{}
@@ -32,7 +34,74 @@ func NewCodec(name string) func() Codec {
 	return nil
 }
 
-const bufferSize = 65536
+// ContextKey represents the context key.
+type ContextKey string
+
+// ContextKeyBuffer is the key of context value buffer.
+const ContextKeyBuffer = ContextKey("rpc:context:buffer")
+
+const (
+	bufferSize  = 65536
+	bufferScale = 64
+)
+
+var (
+	buffers = sync.Map{}
+	assign  int32
+)
+
+func assignPool(size int) *sync.Pool {
+	var s int
+	if size%bufferScale > 0 {
+		s = 1
+	}
+	key := size/bufferScale + s
+	for {
+		if p, ok := buffers.Load(key); ok {
+			return p.(*sync.Pool)
+		}
+		if atomic.CompareAndSwapInt32(&assign, 0, 1) {
+			var pool = &sync.Pool{New: func() interface{} {
+				return make([]byte, key*bufferScale)
+			}}
+			buffers.Store(key, pool)
+			atomic.StoreInt32(&assign, 0)
+			return pool
+		}
+	}
+}
+
+// GetBuffer gets a buffer from the pool.
+func GetBuffer(size int) []byte {
+	if size > 0 {
+		return assignPool(size).Get().([]byte)
+	}
+	return nil
+}
+
+// PutBuffer puts a buffer to the pool.
+func PutBuffer(buf []byte) {
+	size := cap(buf)
+	if size > 0 {
+		assignPool(size).Put(buf[:size])
+	}
+}
+
+// GetContextBuffer gets a buffer from the context.
+func GetContextBuffer(ctx context.Context) (buffer []byte) {
+	value := ctx.Value(ContextKeyBuffer)
+	if value != nil {
+		if b, ok := value.([]byte); ok {
+			buffer = b
+		}
+	}
+	return
+}
+
+// FreeContextBuffer frees the context buffer to the pool.
+func FreeContextBuffer(ctx context.Context) {
+	PutBuffer(GetContextBuffer(ctx))
+}
 
 // Context is an RPC context for codec.
 type Context struct {

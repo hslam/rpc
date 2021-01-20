@@ -8,6 +8,19 @@ import (
 	"testing"
 )
 
+func TestAssignPool(t *testing.T) {
+	if len(GetBuffer(0)) > 0 {
+		t.Error()
+	}
+	b := GetBuffer(1024)
+	if len(b) < 1024 {
+		t.Error(len(b))
+	}
+	PutBuffer(b)
+	assignPool(1024)
+
+}
+
 func TestJSONCodec(t *testing.T) {
 	type Object struct {
 		A bool `json:"A" xml:"A"`
