@@ -4,6 +4,7 @@
 package rpc
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -259,6 +260,28 @@ func TestCodecPB(t *testing.T) {
 		}
 		if n, err := res.MarshalTo(nil); n > 0 || err == nil {
 			t.Error("The err should not be nil")
+		}
+	}
+}
+
+func TestCodecPBMore(t *testing.T) {
+	var c = GOGOPBCodec{}
+	{
+		var obj pbRequest
+		n := byte(reflect.TypeOf(&obj).Elem().NumField())
+		for i := byte(1); i <= n; i++ {
+			if err := c.Unmarshal([]byte{i<<3 | 7}, &obj); err == nil {
+				t.Error()
+			}
+		}
+	}
+	{
+		var obj pbResponse
+		n := byte(reflect.TypeOf(&obj).Elem().NumField())
+		for i := byte(1); i <= n; i++ {
+			if err := c.Unmarshal([]byte{i<<3 | 7}, &obj); err == nil {
+				t.Error()
+			}
 		}
 	}
 }
