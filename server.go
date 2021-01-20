@@ -33,6 +33,7 @@ type Server struct {
 	noBatch     bool
 	numWorkers  int
 	poll        bool
+	shared      bool
 	mut         sync.Mutex
 	listeners   []socket.Listener
 	mutex       sync.RWMutex
@@ -94,6 +95,11 @@ func (server *Server) SetBufferSize(size int) {
 	} else {
 		server.bufferPool = nil
 	}
+}
+
+//SetContextBuffer sets shared buffer.
+func (server *Server) SetContextBuffer(shared bool) {
+	server.shared = shared
 }
 
 //SetLogLevel sets log's level.
@@ -302,7 +308,12 @@ func (server *Server) readRequest(codec ServerCodec, ctx *Context) (err error) {
 			codec.ReadRequestBody(nil, nil)
 			return
 		}
-		value := make([]byte, len(ctx.value))
+		var value []byte
+		if ctx.f.WithContext() && server.shared {
+			value = GetBuffer(len(ctx.value))[:len(ctx.value)]
+		} else {
+			value = make([]byte, len(ctx.value))
+		}
 		copy(value, ctx.value)
 		if err = codec.ReadRequestBody(value, ctx.args.Interface()); err != nil {
 			return
@@ -332,7 +343,13 @@ func (server *Server) callService(wg *sync.WaitGroup, ctx *Context) {
 	}
 	var err error
 	if ctx.f.WithContext() {
-		err = ctx.f.ValueCall(funcs.ValueOf(context.Background()), ctx.args, ctx.reply)
+		var c context.Context
+		if server.shared {
+			c = context.WithValue(context.Background(), ContextKeyBuffer, ctx.value)
+		} else {
+			c = context.Background()
+		}
+		err = ctx.f.ValueCall(funcs.ValueOf(c), ctx.args, ctx.reply)
 	} else {
 		err = ctx.f.ValueCall(ctx.args, ctx.reply)
 	}
@@ -371,11 +388,12 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 		server.logger.Noticef("poll - %s", "disabled")
 	}
 	server.logger.Noticef("network - %s", sock.Scheme())
-	server.logger.Noticef("listening on %s", address)
 	lis, err := sock.Listen(address)
 	if err != nil {
+		server.logger.Errorf("%s", err.Error())
 		return err
 	}
+	server.logger.Noticef("listening on %s", address)
 	codecs := make(map[ServerCodec]io.Closer)
 	defer func() {
 		server.mutex.Lock()
@@ -581,4 +599,9 @@ func GetLogLevel() LogLevel {
 //SetBufferSize sets buffer size.
 func SetBufferSize(size int) {
 	DefaultServer.SetBufferSize(size)
+}
+
+//SetContextBuffer sets shared buffer.
+func SetContextBuffer(shared bool) {
+	DefaultServer.SetContextBuffer(shared)
 }

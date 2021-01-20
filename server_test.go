@@ -356,6 +356,7 @@ func (a *arith) DivideWithContext(ctx context.Context, req *arithRequest, res *a
 		return errors.New("B can not be 0")
 	}
 	res.C = req.A / req.B
+	FreeContextBuffer(ctx)
 	return nil
 }
 
@@ -366,6 +367,51 @@ func (a *arith) Sleep(req *arithRequest, res *arithResponse) error {
 
 func (a *arith) Stop(req *arithRequest, res *arithResponse) error {
 	return ErrShutdown
+}
+
+func TestSetContextBuffer(t *testing.T) {
+	network := "tcp"
+	addr := ":9999"
+	codec := "json"
+	server := NewServer()
+	SetContextBuffer(true)
+	server.SetContextBuffer(true)
+	err := server.RegisterName("Arith", new(arith))
+	if err != nil {
+		t.Error(err)
+	}
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		server.Listen(network, addr, codec)
+	}()
+	time.Sleep(time.Millisecond * 10)
+	conn, err := Dial(network, addr, codec)
+	if err != nil {
+		t.Error(err)
+	}
+	err = conn.Ping()
+	if err != nil {
+		t.Error(err)
+	}
+	{
+		A := int32(4)
+		B := int32(8)
+		req := &arithRequest{A: A, B: B}
+		var res arithResponse
+		conn, err := Dial(network, addr, codec)
+		if err != nil {
+			t.Error(err)
+		}
+		ctx := context.WithValue(context.Background(), ContextKeyBuffer, make([]byte, 64))
+		if err := conn.CallWithContext(ctx, "Arith.DivideWithContext", req, &res); err != nil {
+			t.Error(err)
+		}
+	}
+	conn.Close()
+	server.Close()
+	wg.Wait()
 }
 
 func TestFunc(t *testing.T) {

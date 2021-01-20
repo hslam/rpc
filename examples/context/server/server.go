@@ -7,5 +7,6 @@ import (
 
 func main() {
 	rpc.Register(new(service.Arith))
+	rpc.SetContextBuffer(true)
 	rpc.Listen("tcp", ":9999", "pb")
 }
