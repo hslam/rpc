@@ -24,7 +24,7 @@ var numCPU = runtime.NumCPU()
 
 // Server represents an RPC Server.
 type Server struct {
-	Registry    *funcs.Funcs
+	Funcs       *funcs.Funcs
 	logger      *log.Logger
 	ctxPool     *sync.Pool
 	upgradePool *sync.Pool
@@ -55,7 +55,7 @@ func NewServer() *Server {
 	logger.SetPrefix(logPrefix)
 	logger.SetLevel(log.Level(InfoLogLevel))
 	return &Server{
-		Registry:    funcs.New(),
+		Funcs:       funcs.New(),
 		logger:      logger,
 		ctxPool:     &sync.Pool{New: func() interface{} { return &Context{} }},
 		upgradePool: &sync.Pool{New: func() interface{} { return &upgrade{} }},
@@ -80,18 +80,18 @@ var DefaultServer = NewServer()
 // The client accesses each method using a string of the form "Type.Method",
 // where Type is the receiver's concrete type.
 func (server *Server) Register(obj interface{}) error {
-	return server.Registry.Register(obj)
+	return server.Funcs.Register(obj)
 }
 
 // RegisterName is like Register but uses the provided name for the type
 // instead of the receiver's concrete type.
 func (server *Server) RegisterName(name string, obj interface{}) error {
-	return server.Registry.RegisterName(name, obj)
+	return server.Funcs.RegisterName(name, obj)
 }
 
 // Services returns registered services.
 func (server *Server) Services() []string {
-	return server.Registry.Services()
+	return server.Funcs.Services()
 }
 
 //SetBufferSize sets buffer size.
@@ -309,7 +309,7 @@ func (server *Server) readRequest(codec ServerCodec, ctx *Context) (err error) {
 		ctx.Upgrade = nil
 	}
 	if ctx.upgrade.NoRequest != noRequest {
-		ctx.f = server.Registry.GetFunc(ctx.ServiceMethod)
+		ctx.f = server.Funcs.GetFunc(ctx.ServiceMethod)
 		if ctx.f == nil {
 			err = errors.New("can't find service " + ctx.ServiceMethod)
 			codec.ReadRequestBody(nil, nil)
