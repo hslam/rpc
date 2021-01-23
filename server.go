@@ -89,6 +89,11 @@ func (server *Server) RegisterName(name string, obj interface{}) error {
 	return server.Registry.RegisterName(name, obj)
 }
 
+// Services returns registered services.
+func (server *Server) Services() []string {
+	return server.Registry.Services()
+}
+
 //SetBufferSize sets buffer size.
 func (server *Server) SetBufferSize(size int) {
 	if size > 0 {
@@ -560,6 +565,11 @@ func Register(rcvr interface{}) error { return DefaultServer.Register(rcvr) }
 // instead of the receiver's concrete type.
 func RegisterName(name string, rcvr interface{}) error {
 	return DefaultServer.RegisterName(name, rcvr)
+}
+
+// Services returns registered services.
+func Services() []string {
+	return DefaultServer.Services()
 }
 
 // SetPipelining enables the Server to use pipelining.

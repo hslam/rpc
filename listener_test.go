@@ -20,6 +20,10 @@ func TestListen(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	services := Services()
+	if len(services) != 1 && services[0] != "Arith.Multiply" {
+		t.Error()
+	}
 	SetLogLevel(GetLogLevel())
 	wg := sync.WaitGroup{}
 	wg.Add(1)
