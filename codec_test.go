@@ -19,7 +19,18 @@ func TestAssignPool(t *testing.T) {
 	}
 	PutBuffer(b)
 	assignPool(1024)
+}
 
+func TestCheckBuffer(t *testing.T) {
+	n := 1024
+	buf := make([]byte, n)
+	if len(checkBuffer(buf, n)) != n {
+		t.Error()
+	}
+	buf = make([]byte, n-1)
+	if len(checkBuffer(buf, n)) != n {
+		t.Error()
+	}
 }
 
 func TestJSONCodec(t *testing.T) {
@@ -188,6 +199,31 @@ func TestMSGPCodec(t *testing.T) {
 func TestCodecCODE(t *testing.T) {
 	var req = request{Seq: 1024, Upgrade: make([]byte, 512), ServiceMethod: strings.Repeat("a", 512), Args: make([]byte, 512)}
 	var res = response{Seq: 1024, Error: strings.Repeat("e", 512), Reply: make([]byte, 512)}
+	var c = CODECodec{}
+	var data []byte
+	{
+		var bufq = make([]byte, 10240)
+		var bufs = make([]byte, 10240)
+		var reqCopy request
+		var resCopy response
+		data, _ = c.Marshal(bufq, &req)
+		c.Unmarshal(data, &reqCopy)
+		data, _ = c.Marshal(bufs, &res)
+		c.Unmarshal(data, &resCopy)
+	}
+	{
+		var reqCopy request
+		var resCopy response
+		data, _ = c.Marshal(nil, &req)
+		c.Unmarshal(data, &reqCopy)
+		data, _ = c.Marshal(nil, &res)
+		c.Unmarshal(data, &resCopy)
+	}
+}
+
+func TestCodecCODEMore(t *testing.T) {
+	var req = request{Seq: 1024, Upgrade: make([]byte, 64), ServiceMethod: strings.Repeat("a", 64), Args: make([]byte, 64)}
+	var res = response{Seq: 1024, Error: strings.Repeat("e", 64), Reply: make([]byte, 64)}
 	var c = CODECodec{}
 	var data []byte
 	{

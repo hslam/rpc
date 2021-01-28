@@ -30,7 +30,7 @@ func NewHeaderEncoder(name string) func() *Encoder {
 
 // DefaultEncoder returns a default header Encoder.
 func DefaultEncoder() *Encoder {
-	return NewCODEEncoder()
+	return NewPBEncoder()
 }
 
 // Request defines the interface of request.

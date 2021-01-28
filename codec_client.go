@@ -13,8 +13,8 @@ import (
 type clientCodec struct {
 	headerEncoder *Encoder
 	bodyCodec     Codec
-	req           *request
-	res           *response
+	req           *pbRequest
+	res           *pbResponse
 	buffer        []byte
 	argsBuffer    []byte
 	requestBuffer []byte
@@ -48,8 +48,8 @@ func NewClientCodec(bodyCodec Codec, headerEncoder *Encoder, messages socket.Mes
 		batch.SetConcurrency(c.Concurrency)
 	}
 	if headerEncoder == nil {
-		c.req = &request{}
-		c.res = &response{}
+		c.req = &pbRequest{}
+		c.res = &pbResponse{}
 	}
 	return c
 }
@@ -79,7 +79,11 @@ func (c *clientCodec) WriteRequest(ctx *Context, param interface{}) error {
 		c.req.SetUpgrade(ctx.Upgrade)
 		c.req.SetServiceMethod(ctx.ServiceMethod)
 		c.req.SetArgs(args)
-		data, err = c.req.Marshal(c.requestBuffer)
+		size := c.req.Size()
+		var buf = checkBuffer(c.requestBuffer, size)
+		var n int
+		n, err = c.req.MarshalTo(buf)
+		data = buf[:n]
 	}
 	if err == nil {
 		atomic.AddInt64(&c.count, 1)
@@ -115,7 +119,7 @@ func (c *clientCodec) ReadResponseHeader(ctx *Context) error {
 		}
 	} else {
 		c.res.Reset()
-		_, err = c.res.Unmarshal(data)
+		err = c.res.Unmarshal(data)
 		if err == nil {
 			ctx.Seq = c.res.GetSeq()
 			ctx.Error = c.res.GetError()

@@ -13,8 +13,8 @@ import (
 type serverCodec struct {
 	headerEncoder  *Encoder
 	bodyCodec      Codec
-	req            *request
-	res            *response
+	req            *pbRequest
+	res            *pbResponse
 	replyBuffer    []byte
 	responseBuffer []byte
 	messages       socket.Messages
@@ -48,8 +48,8 @@ func NewServerCodec(bodyCodec Codec, headerEncoder *Encoder, messages socket.Mes
 		}
 	}
 	if headerEncoder == nil {
-		c.req = &request{}
-		c.res = &response{}
+		c.req = &pbRequest{}
+		c.res = &pbResponse{}
 	}
 	return c
 }
@@ -86,7 +86,7 @@ func (c *serverCodec) ReadRequestHeader(ctx *Context) error {
 		}
 	} else {
 		c.req.Reset()
-		_, err = c.req.Unmarshal(data)
+		err = c.req.Unmarshal(data)
 		if err == nil {
 			ctx.ServiceMethod = c.req.GetServiceMethod()
 			ctx.Upgrade = c.req.GetUpgrade()
@@ -131,7 +131,11 @@ func (c *serverCodec) WriteResponse(ctx *Context, x interface{}) error {
 		c.res.SetSeq(reqSeq)
 		c.res.SetError(ctx.Error)
 		c.res.SetReply(reply)
-		data, err = c.res.Marshal(c.responseBuffer)
+		size := c.res.Size()
+		var buf = checkBuffer(c.responseBuffer, size)
+		var n int
+		n, err = c.res.MarshalTo(buf)
+		data = buf[:n]
 	}
 	if err == nil {
 		if atomic.LoadUint32(&c.closed) > 0 {

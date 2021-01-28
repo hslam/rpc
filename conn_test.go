@@ -114,7 +114,7 @@ func TestNewConnWithCodec(t *testing.T) {
 	if NewConnWithCodec(nil) != nil {
 		t.Error("should be nil")
 	}
-	clientCodec := NewClientCodec(NewJSONCodec(), NewCODEEncoder(), c.Messages())
+	clientCodec := NewClientCodec(NewJSONCodec(), DefaultEncoder(), c.Messages())
 	conn := NewConnWithCodec(clientCodec)
 	if conn == nil {
 		t.Error("should not be nil")

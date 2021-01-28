@@ -71,6 +71,15 @@ func assignPool(size int) *sync.Pool {
 	}
 }
 
+func checkBuffer(buf []byte, n int) []byte {
+	if cap(buf) >= n {
+		buf = buf[:n]
+	} else {
+		buf = make([]byte, n)
+	}
+	return buf
+}
+
 // GetBuffer gets a buffer from the pool.
 func GetBuffer(size int) []byte {
 	if size > 0 {
