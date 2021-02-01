@@ -34,11 +34,17 @@ func NewCodec(name string) func() Codec {
 	return nil
 }
 
-// ContextKey represents the context key.
-type ContextKey string
+// contextKey is a key for use with context.WithValue. It's used as
+// a pointer so it fits in an interface{} without allocation.
+type contextKey struct {
+	name string
+}
 
-// ContextKeyBuffer is the key of context value buffer.
-const ContextKeyBuffer = ContextKey("rpc:context:buffer")
+// String returns a context key.
+func (k *contextKey) String() string { return "github.com/hslam/rpc context key " + k.name }
+
+// BufferContextKey is a context key.
+var BufferContextKey = &contextKey{"buffer"}
 
 const (
 	bufferSize  = 65536
@@ -98,7 +104,7 @@ func PutBuffer(buf []byte) {
 
 // GetContextBuffer gets a buffer from the context.
 func GetContextBuffer(ctx context.Context) (buffer []byte) {
-	value := ctx.Value(ContextKeyBuffer)
+	value := ctx.Value(BufferContextKey)
 	if value != nil {
 		if b, ok := value.([]byte); ok {
 			buffer = b

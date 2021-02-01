@@ -415,7 +415,7 @@ func TestSetContextBuffer(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		ctx := context.WithValue(context.Background(), ContextKeyBuffer, make([]byte, 64))
+		ctx := context.WithValue(context.Background(), BufferContextKey, make([]byte, 64))
 		if err := conn.CallWithContext(ctx, "Arith.DivideWithContext", req, &res); err != nil {
 			t.Error(err)
 		}
@@ -460,7 +460,7 @@ func TestSetNoCopy(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		ctx := context.WithValue(context.Background(), ContextKeyBuffer, make([]byte, 64))
+		ctx := context.WithValue(context.Background(), BufferContextKey, make([]byte, 64))
 		if err := conn.CallWithContext(ctx, "Arith.DivideWithContext", req, &res); err != nil {
 			t.Error(err)
 		}

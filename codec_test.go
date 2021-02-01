@@ -33,6 +33,12 @@ func TestCheckBuffer(t *testing.T) {
 	}
 }
 
+func TestContextKey(t *testing.T) {
+	if BufferContextKey.String() != "github.com/hslam/rpc context key buffer" {
+		t.Error()
+	}
+}
+
 func TestJSONCodec(t *testing.T) {
 	type Object struct {
 		A bool `json:"A" xml:"A"`

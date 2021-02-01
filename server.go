@@ -362,7 +362,7 @@ func (server *Server) callService(wg *sync.WaitGroup, ctx *Context) {
 	if ctx.f.WithContext() {
 		var c context.Context
 		if !server.noCopy && server.shared {
-			c = context.WithValue(context.Background(), ContextKeyBuffer, ctx.value)
+			c = context.WithValue(context.Background(), BufferContextKey, ctx.value)
 		} else {
 			c = context.Background()
 		}

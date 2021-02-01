@@ -17,7 +17,7 @@ func main() {
 	req := &service.ArithRequest{A: 9, B: 2}
 	var res service.ArithResponse
 	emptyCtx := context.Background()
-	valueCtx := context.WithValue(emptyCtx, rpc.ContextKeyBuffer, make([]byte, 64))
+	valueCtx := context.WithValue(emptyCtx, rpc.BufferContextKey, make([]byte, 64))
 	ctx, cancel := context.WithTimeout(valueCtx, time.Minute)
 	defer cancel()
 	err = conn.CallWithContext(ctx, "Arith.Multiply", req, &res)

@@ -47,7 +47,7 @@ func main() {
 				ctxPool: &sync.Pool{New: func() interface{} {
 					return context.WithValue(
 						context.Background(),
-						rpc.ContextKeyBuffer,
+						rpc.BufferContextKey,
 						make([]byte, 64),
 					)
 				}},
