@@ -4,6 +4,7 @@
 package rpc
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -34,7 +35,7 @@ func TestCheckBuffer(t *testing.T) {
 }
 
 func TestContextKey(t *testing.T) {
-	if BufferContextKey.String() != "github.com/hslam/rpc context key buffer" {
+	if BufferContextKey.String() != fmt.Sprint(BufferContextKey) {
 		t.Error()
 	}
 }
