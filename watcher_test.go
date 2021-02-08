@@ -4,6 +4,7 @@
 package rpc
 
 import (
+	"context"
 	"testing"
 	"time"
 )
@@ -16,7 +17,7 @@ func TestWatcherTrigger(t *testing.T) {
 		watcher.trigger(e)
 	}
 	for i := byte(0); i < 255; i++ {
-		v, err := watcher.WaitTimeout(0)
+		v, err := watcher.Wait()
 		if err != nil {
 			t.Error(err)
 		} else if len(v) == 0 {
@@ -42,7 +43,8 @@ func TestWatcherTriggerTimeout(t *testing.T) {
 		watcher.trigger(e)
 	}
 	for i := byte(0); i < 255; i++ {
-		v, err := watcher.WaitTimeout(time.Minute)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		v, err := watcher.WaitWithContext(ctx)
 		if err != nil {
 			t.Error(err)
 		} else if len(v) == 0 {
@@ -50,11 +52,12 @@ func TestWatcherTriggerTimeout(t *testing.T) {
 		} else if v[0] != i {
 			t.Error("out of order")
 		}
+		cancel()
 	}
 	go func() {
-		close(watcher.done)
+		watcher.stop()
 	}()
-	_, err := watcher.WaitTimeout(time.Minute)
+	_, err := watcher.Wait()
 	if err != ErrWatcherShutdown {
 		t.Error(err)
 	}
@@ -62,9 +65,22 @@ func TestWatcherTriggerTimeout(t *testing.T) {
 
 func TestWatcherTriggerTimeoutErr(t *testing.T) {
 	watcher := &watcher{C: make(chan *event, 10), done: make(chan struct{}, 1)}
-	_, err := watcher.WaitTimeout(time.Millisecond * 1)
-	if err != ErrTimeout {
-		t.Error(err)
+	{
+		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*1)
+		_, err := watcher.WaitWithContext(ctx)
+		if err == nil {
+			t.Error()
+		}
+		cancel()
 	}
-	close(watcher.done)
+	watcher.stop()
+	{
+		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*1)
+		_, err := watcher.WaitWithContext(ctx)
+		if err != ErrWatcherShutdown {
+			t.Error(err)
+		}
+		cancel()
+	}
+
 }

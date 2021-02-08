@@ -4,10 +4,10 @@
 package rpc
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"sync/atomic"
-	"time"
 )
 
 // ErrWatcherShutdown is returned when the watcher is shut down.
@@ -35,8 +35,8 @@ func freeEvent(e *event) {
 type Watcher interface {
 	// Wait will return value when the key is triggered.
 	Wait() ([]byte, error)
-	// WaitTimeout acts like Wait but takes a timeout.
-	WaitTimeout(time.Duration) ([]byte, error)
+	// WaitWithContext acts like Wait but takes a context.
+	WaitWithContext(context.Context) ([]byte, error)
 	// Stop stops the watch.
 	Stop() error
 }
@@ -89,22 +89,16 @@ func (w *watcher) Wait() (value []byte, err error) {
 	return
 }
 
-func (w *watcher) WaitTimeout(timeout time.Duration) (value []byte, err error) {
-	if timeout <= 0 {
-		return w.Wait()
-	}
-	timer := time.NewTimer(timeout)
+func (w *watcher) WaitWithContext(ctx context.Context) (value []byte, err error) {
 	select {
 	case e := <-w.C:
-		timer.Stop()
 		w.triggerNext()
 		value = e.Value
 		err = e.Error
 		freeEvent(e)
-	case <-timer.C:
-		err = ErrTimeout
+	case <-ctx.Done():
+		err = ctx.Err()
 	case <-w.done:
-		timer.Stop()
 		err = ErrWatcherShutdown
 	}
 	return
