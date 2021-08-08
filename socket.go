@@ -16,6 +16,7 @@ func init() {
 	RegisterSocket("tcp", socket.NewTCPSocket)
 	RegisterSocket("unix", socket.NewUNIXSocket)
 	RegisterSocket("ws", socket.NewWSSocket)
+	RegisterSocket("inproc", socket.NewINPROCSocket)
 }
 
 // RegisterSocket registers a network socket.

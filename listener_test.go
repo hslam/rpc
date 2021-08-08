@@ -171,16 +171,19 @@ func TestServerListenWithOptions(t *testing.T) {
 	opts.Codec = "json"
 	opts.Network = ""
 	opts.Codec = ""
-	server := NewServer()
-	if err := server.ListenWithOptions(addr, opts); err == nil {
-		t.Error("The err should not be nil")
-	}
-	opts.Codec = "json"
-	if err := server.ListenWithOptions(addr, opts); err == nil {
-		t.Error("The err should not be nil")
+	{
+		server := NewServer()
+		if err := server.ListenWithOptions(addr, opts); err == nil {
+			t.Error("The err should not be nil")
+		}
+		opts.Codec = "json"
+		if err := server.ListenWithOptions(addr, opts); err == nil {
+			t.Error("The err should not be nil")
+		}
 	}
 	wg := sync.WaitGroup{}
 	{
+		server := NewServer()
 		opts.NewSocket = NewSocket("tcp")
 		wg.Add(1)
 		go func() {
@@ -192,6 +195,7 @@ func TestServerListenWithOptions(t *testing.T) {
 		wg.Wait()
 	}
 	{
+		server := NewServer()
 		opts.Codec = ""
 		opts.HeaderEncoder = ""
 		opts.NewCodec = nil
