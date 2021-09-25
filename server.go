@@ -11,13 +11,13 @@ import (
 	"github.com/hslam/funcs"
 	"github.com/hslam/log"
 	"github.com/hslam/netpoll"
+	"github.com/hslam/scheduler"
 	"github.com/hslam/socket"
 	"io"
 	"os"
 	"runtime"
 	"sync"
 	"sync/atomic"
-	"time"
 )
 
 var numCPU = runtime.NumCPU()
@@ -31,7 +31,6 @@ type Server struct {
 	bufferPool  *sync.Pool
 	pipelining  bool
 	noBatch     bool
-	numWorkers  int
 	poll        bool
 	shared      bool
 	noCopy      bool
@@ -60,7 +59,6 @@ func NewServer() *Server {
 		ctxPool:     &sync.Pool{New: func() interface{} { return &Context{} }},
 		upgradePool: &sync.Pool{New: func() interface{} { return &upgrade{} }},
 		bufferPool:  &sync.Pool{New: func() interface{} { return make([]byte, bufferSize) }},
-		numWorkers:  numCPU * 32,
 		codecs:      make(map[ServerCodec]io.Closer),
 		watchs:      make(map[string]map[ServerCodec]*Context),
 	}
@@ -174,18 +172,14 @@ func (server *Server) PushFunc(watchFunc WatchFunc) {
 func (server *Server) ServeCodec(codec ServerCodec) {
 	sending := new(sync.Mutex)
 	wg := new(sync.WaitGroup)
-	var ch chan *Context
-	var done chan struct{}
-	var workers chan struct{}
-	var worker bool
-	if !server.pipelining {
-		ch = make(chan *Context)
-		done = make(chan struct{}, 1)
-		workers = make(chan struct{}, server.numWorkers)
-		worker = true
+	var sched scheduler.Scheduler
+	if server.pipelining {
+		sched = scheduler.New(1, &scheduler.Options{Threshold: 2})
+	} else {
+		sched = scheduler.New(scheduler.Unlimited, &scheduler.Options{Threshold: 1})
 	}
 	for {
-		err := server.ServeRequest(codec, nil, sending, wg, worker, ch, done, workers)
+		err := server.ServeRequest(codec, nil, sending, wg, sched)
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			break
 		}
@@ -195,8 +189,8 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 	server.deleteCodec(codec)
 	server.mutex.Unlock()
 	codec.Close()
-	if done != nil {
-		close(done)
+	if sched != nil {
+		sched.Close()
 	}
 }
 
@@ -213,7 +207,7 @@ func (server *Server) deleteCodec(codec ServerCodec) {
 
 // ServeRequest is like ServeCodec but synchronously serves a single request.
 // It does not close the codec upon completion.
-func (server *Server) ServeRequest(codec ServerCodec, recving *sync.Mutex, sending *sync.Mutex, wg *sync.WaitGroup, worker bool, ch chan *Context, done chan struct{}, workers chan struct{}) error {
+func (server *Server) ServeRequest(codec ServerCodec, recving *sync.Mutex, sending *sync.Mutex, wg *sync.WaitGroup, sched scheduler.Scheduler) error {
 	ctx := server.ctxPool.Get().(*Context)
 	ctx.upgrade = server.getUpgrade()
 	if server.bufferPool != nil {
@@ -263,38 +257,10 @@ func (server *Server) ServeRequest(codec ServerCodec, recving *sync.Mutex, sendi
 		server.watchs[ctx.ServiceMethod] = events
 		server.mutex.Unlock()
 	}
-	if server.pipelining {
-		server.callService(nil, ctx)
-		return nil
-	}
-	if wg != nil {
-		wg.Add(1)
-	}
-	if worker {
-		select {
-		case ch <- ctx:
-		case workers <- struct{}{}:
-			go func(done chan struct{}, ch chan *Context, server *Server, wg *sync.WaitGroup, workers chan struct{}, ctx *Context) {
-				defer func() { <-workers }()
-				for {
-					server.callService(wg, ctx)
-					t := time.NewTimer(time.Second)
-					select {
-					case ctx = <-ch:
-						t.Stop()
-					case <-t.C:
-						return
-					case <-done:
-						return
-					}
-				}
-			}(done, ch, server, wg, workers, ctx)
-		default:
-			go server.callService(wg, ctx)
-		}
-	} else {
-		go server.callService(wg, ctx)
-	}
+	wg.Add(1)
+	sched.Schedule(func() {
+		server.callService(wg, ctx)
+	})
 	return nil
 }
 
@@ -428,11 +394,8 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 		codec   ServerCodec
 		recving *sync.Mutex
 		sending *sync.Mutex
-		worker  bool
 		wg      *sync.WaitGroup
-		ch      chan *Context
-		done    chan struct{}
-		workers chan struct{}
+		sched   scheduler.Scheduler
 		pipe    int32
 		closed  int32
 	}
@@ -443,23 +406,22 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 			codecs[codec] = messages
 			server.codecs[codec] = messages
 			server.mutex.Unlock()
+			var sched scheduler.Scheduler
+			if server.pipelining {
+				sched = scheduler.New(1, &scheduler.Options{Threshold: 2})
+			} else {
+				sched = scheduler.New(scheduler.Unlimited, &scheduler.Options{Threshold: 1})
+			}
 			return &ServerContext{
 				codec:   codec,
 				recving: new(sync.Mutex),
 				sending: new(sync.Mutex),
 				wg:      new(sync.WaitGroup),
+				sched:   sched,
 			}, nil
 		}, func(context socket.Context) error {
 			ctx := context.(*ServerContext)
-			if server.pipelining {
-				if !atomic.CompareAndSwapInt32(&ctx.pipe, 0, 1) {
-					return nil
-				}
-			}
-			err := server.ServeRequest(ctx.codec, ctx.recving, ctx.sending, ctx.wg, ctx.worker, ctx.ch, ctx.done, ctx.workers)
-			if server.pipelining {
-				atomic.StoreInt32(&ctx.pipe, 0)
-			}
+			err := server.ServeRequest(ctx.codec, ctx.recving, ctx.sending, ctx.wg, ctx.sched)
 			if err == io.EOF || err == io.ErrUnexpectedEOF {
 				if atomic.CompareAndSwapInt32(&ctx.closed, 0, 1) {
 					ctx.wg.Wait()
@@ -468,6 +430,9 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 					server.deleteCodec(ctx.codec)
 					server.mutex.Unlock()
 					ctx.codec.Close()
+					if ctx.sched != nil {
+						ctx.sched.Close()
+					}
 				}
 			}
 			return err

@@ -58,7 +58,6 @@ func TestServerWorkers(t *testing.T) {
 	addr := ":9999"
 	codec := "json"
 	server := NewServer()
-	server.numWorkers = 0
 	err := server.Register(new(service.Arith))
 	if err != nil {
 		t.Error(err)
