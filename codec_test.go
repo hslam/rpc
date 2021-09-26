@@ -19,7 +19,6 @@ func TestAssignPool(t *testing.T) {
 		t.Error(len(b))
 	}
 	PutBuffer(b)
-	assignPool(1024)
 }
 
 func TestCheckBuffer(t *testing.T) {

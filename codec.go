@@ -8,9 +8,9 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"errors"
+	"github.com/hslam/buffer"
 	"github.com/hslam/funcs"
 	"sync"
-	"sync/atomic"
 )
 
 var codecs = sync.Map{}
@@ -51,31 +51,7 @@ const (
 	bufferScale = 64
 )
 
-var (
-	buffers = sync.Map{}
-	assign  int32
-)
-
-func assignPool(size int) *sync.Pool {
-	var s int
-	if size%bufferScale > 0 {
-		s = 1
-	}
-	key := size/bufferScale + s
-	for {
-		if p, ok := buffers.Load(key); ok {
-			return p.(*sync.Pool)
-		}
-		if atomic.CompareAndSwapInt32(&assign, 0, 1) {
-			var pool = &sync.Pool{New: func() interface{} {
-				return make([]byte, key*bufferScale)
-			}}
-			buffers.Store(key, pool)
-			atomic.StoreInt32(&assign, 0)
-			return pool
-		}
-	}
-}
+var buffers = buffer.NewBuffers(1024)
 
 func checkBuffer(buf []byte, n int) []byte {
 	if cap(buf) >= n {
@@ -89,7 +65,7 @@ func checkBuffer(buf []byte, n int) []byte {
 // GetBuffer gets a buffer from the pool.
 func GetBuffer(size int) []byte {
 	if size > 0 {
-		return assignPool(size).Get().([]byte)
+		return buffers.AssignPool(size).GetBuffer(size)
 	}
 	return nil
 }
@@ -98,7 +74,7 @@ func GetBuffer(size int) []byte {
 func PutBuffer(buf []byte) {
 	size := cap(buf)
 	if size > 0 {
-		assignPool(size).Put(buf[:size])
+		buffers.AssignPool(size).PutBuffer(buf[:size])
 	}
 }
 
