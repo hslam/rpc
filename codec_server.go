@@ -109,7 +109,6 @@ func (c *serverCodec) ReadRequestBody(args []byte, x interface{}) error {
 }
 
 func (c *serverCodec) WriteResponse(ctx *Context, x interface{}) error {
-	defer atomic.AddInt64(&c.count, -1)
 	reqSeq := ctx.Seq
 	var reply []byte
 	var data []byte
@@ -139,9 +138,11 @@ func (c *serverCodec) WriteResponse(ctx *Context, x interface{}) error {
 	}
 	if err == nil {
 		if atomic.LoadUint32(&c.closed) > 0 {
+			atomic.AddInt64(&c.count, -1)
 			return io.EOF
 		}
 		err = c.messages.WriteMessage(data)
+		atomic.AddInt64(&c.count, -1)
 	}
 	return err
 

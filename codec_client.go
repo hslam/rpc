@@ -108,7 +108,6 @@ func (c *clientCodec) ReadResponseHeader(ctx *Context) error {
 		}
 		return err
 	}
-	defer atomic.AddInt64(&c.count, -1)
 	if c.headerEncoder != nil {
 		c.headerEncoder.Response.Reset()
 		err = c.headerEncoder.Codec.Unmarshal(data, c.headerEncoder.Response)
@@ -126,6 +125,7 @@ func (c *clientCodec) ReadResponseHeader(ctx *Context) error {
 			ctx.value = c.res.GetReply()
 		}
 	}
+	atomic.AddInt64(&c.count, -1)
 	return err
 }
 
