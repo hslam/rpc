@@ -9,6 +9,6 @@ require (
 	github.com/hslam/log v1.0.2-0.20210609143505-fd0f374101ec
 	github.com/hslam/netpoll v0.0.4-0.20210927191726-751e54478825
 	github.com/hslam/scheduler v0.0.0-20210927190836-9047c221c014
-	github.com/hslam/socket v0.0.4-0.20210930023917-6c57be8c8af5
+	github.com/hslam/socket v0.0.4-0.20211007140708-ca55b5eb27f3
 	github.com/hslam/stats v1.0.2-0.20210601134456-19f5dc799d62
 )
