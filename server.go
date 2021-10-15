@@ -142,6 +142,7 @@ func (server *Server) SetNoBatch(noBatch bool) {
 // SetPoll enables the Server to use netpoll based on epoll/kqueue.
 func (server *Server) SetPoll(enable bool) {
 	server.poll = enable
+	server.SetNoBatch(enable)
 }
 
 func (server *Server) getUpgrade() *upgrade {
@@ -282,9 +283,13 @@ func (server *Server) ServeRequest(codec ServerCodec, recving *sync.Mutex, sendi
 			pipelines[ctx.ServiceMethod] = sched
 		}
 	}
-	sched.Schedule(func() {
-		server.callService(wg, ctx)
-	})
+	if sched != nil {
+		sched.Schedule(func() {
+			server.callService(wg, ctx)
+		})
+	} else {
+		go server.callService(wg, ctx)
+	}
 	return nil
 }
 
@@ -437,8 +442,6 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 				pipelines = make(map[string]scheduler.Scheduler)
 			} else if server.pipelining {
 				sched = scheduler.New(1, &scheduler.Options{Threshold: 2})
-			} else {
-				sched = scheduler.New(scheduler.Unlimited, &scheduler.Options{Threshold: 1})
 			}
 			return &ServerContext{
 				codec:     codec,
