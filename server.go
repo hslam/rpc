@@ -245,6 +245,10 @@ func (server *Server) ServeRequest(codec ServerCodec, recving *sync.Mutex, sendi
 			server.logger.Errorln(err)
 		}
 		if !ctx.keepReading {
+			server.putUpgrade(ctx.upgrade)
+			if server.bufferPool != nil && cap(ctx.buffer) > 0 {
+				server.bufferPool.Put(ctx.buffer)
+			}
 			ctx.Reset()
 			server.ctxPool.Put(ctx)
 			return err

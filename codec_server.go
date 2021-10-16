@@ -5,6 +5,7 @@ package rpc
 
 import (
 	"errors"
+	"github.com/hslam/buffer"
 	"github.com/hslam/socket"
 	"io"
 	"sync/atomic"
@@ -17,6 +18,7 @@ type serverCodec struct {
 	res            *pbResponse
 	replyBuffer    []byte
 	responseBuffer []byte
+	pool           *buffer.Pool
 	messages       socket.Messages
 	count          int64
 	closed         uint32
@@ -35,11 +37,21 @@ func NewServerCodec(bodyCodec Codec, headerEncoder *Encoder, messages socket.Mes
 	if bodyCodec == nil {
 		return nil
 	}
+	var replyBuffer []byte
+	var responseBuffer []byte
+	var pool *buffer.Pool
+	if !noBatch {
+		replyBuffer = make([]byte, bufferSize)
+		responseBuffer = make([]byte, bufferSize)
+	} else {
+		pool = buffers.AssignPool(bufferSize)
+	}
 	c := &serverCodec{
 		headerEncoder:  headerEncoder,
 		bodyCodec:      bodyCodec,
-		replyBuffer:    make([]byte, bufferSize),
-		responseBuffer: make([]byte, bufferSize),
+		replyBuffer:    replyBuffer,
+		responseBuffer: responseBuffer,
+		pool:           pool,
 	}
 	c.messages = messages
 	if !noBatch {
@@ -113,28 +125,45 @@ func (c *serverCodec) WriteResponse(ctx *Context, x interface{}) error {
 	var reply []byte
 	var data []byte
 	var err error
-	if len(ctx.Error) == 0 && ctx.upgrade.NoResponse != noResponse {
-		reply, err = c.bodyCodec.Marshal(c.replyBuffer, x)
+	hasResponse := len(ctx.Error) == 0 && ctx.upgrade.NoResponse != noResponse
+	var replyBuffer = c.replyBuffer
+	if hasResponse {
+		if c.pool != nil {
+			replyBuffer = c.pool.GetBuffer(bufferSize)
+		}
+		reply, err = c.bodyCodec.Marshal(replyBuffer, x)
 		if err != nil {
 			ctx.Error = err.Error()
 		}
 	} else if len(ctx.value) > 0 {
 		reply = ctx.value
 	}
+	var responseBuffer = c.responseBuffer
+	if c.pool != nil {
+		responseBuffer = c.pool.GetBuffer(bufferSize)
+	}
 	if c.headerEncoder != nil {
 		c.headerEncoder.Response.SetSeq(reqSeq)
 		c.headerEncoder.Response.SetError(ctx.Error)
 		c.headerEncoder.Response.SetReply(reply)
-		data, err = c.headerEncoder.Codec.Marshal(c.responseBuffer, c.headerEncoder.Response)
+		data, err = c.headerEncoder.Codec.Marshal(responseBuffer, c.headerEncoder.Response)
 	} else {
 		c.res.SetSeq(reqSeq)
 		c.res.SetError(ctx.Error)
 		c.res.SetReply(reply)
 		size := c.res.Size()
-		var buf = checkBuffer(c.responseBuffer, size)
+		var buf = checkBuffer(responseBuffer, size)
 		var n int
 		n, err = c.res.MarshalTo(buf)
 		data = buf[:n]
+	}
+	if c.pool != nil {
+		defer func() {
+			if hasResponse {
+				c.pool.PutBuffer(replyBuffer)
+			}
+			c.pool.PutBuffer(responseBuffer)
+		}()
 	}
 	if err == nil {
 		if atomic.LoadUint32(&c.closed) > 0 {
