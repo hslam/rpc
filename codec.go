@@ -102,7 +102,6 @@ type Context struct {
 	Error         string
 	buffer        []byte
 	upgrade       *upgrade
-	keepReading   bool
 	f             *funcs.Func
 	args          funcs.Value
 	reply         funcs.Value

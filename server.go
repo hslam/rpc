@@ -227,10 +227,11 @@ func (server *Server) ServeRequest(codec ServerCodec, recving *sync.Mutex, sendi
 	if server.bufferPool != nil {
 		ctx.buffer = server.bufferPool.Get().([]byte)
 	}
+	ctx.codec = codec
 	if recving != nil {
 		recving.Lock()
 	}
-	err := server.readRequest(codec, ctx)
+	err := server.readRequestHeader(ctx)
 	if recving != nil {
 		if server.methodPipelining || server.pipelining {
 			defer recving.Unlock()
@@ -239,22 +240,13 @@ func (server *Server) ServeRequest(codec ServerCodec, recving *sync.Mutex, sendi
 		}
 	}
 	ctx.sending = sending
-	ctx.codec = codec
 	if err != nil {
-		if err != io.EOF && err != io.ErrUnexpectedEOF && err != netpoll.EAGAIN {
-			server.logger.Errorln(err)
+		server.putUpgrade(ctx.upgrade)
+		if server.bufferPool != nil && cap(ctx.buffer) > 0 {
+			server.bufferPool.Put(ctx.buffer)
 		}
-		if !ctx.keepReading {
-			server.putUpgrade(ctx.upgrade)
-			if server.bufferPool != nil && cap(ctx.buffer) > 0 {
-				server.bufferPool.Put(ctx.buffer)
-			}
-			ctx.Reset()
-			server.ctxPool.Put(ctx)
-			return err
-		}
-		ctx.Error = err.Error()
-		server.sendResponse(ctx)
+		ctx.Reset()
+		server.ctxPool.Put(ctx)
 		return err
 	}
 	if ctx.upgrade.Heartbeat == heartbeat {
@@ -289,24 +281,39 @@ func (server *Server) ServeRequest(codec ServerCodec, recving *sync.Mutex, sendi
 	}
 	if sched != nil {
 		sched.Schedule(func() {
-			server.callService(wg, ctx)
+			server.handleRequest(wg, ctx)
 		})
 	} else {
-		go server.callService(wg, ctx)
+		go server.handleRequest(wg, ctx)
 	}
 	return nil
 }
 
-func (server *Server) readRequest(codec ServerCodec, ctx *Context) (err error) {
-	err = codec.ReadRequestHeader(ctx)
-	if err != nil {
-		return
-	}
-	ctx.keepReading = true
-	if len(ctx.Upgrade) > 0 {
+func (server *Server) readRequestHeader(ctx *Context) (err error) {
+	err = ctx.codec.ReadRequestHeader(ctx)
+	if err == nil && len(ctx.Upgrade) > 0 {
 		ctx.upgrade.Unmarshal(ctx.Upgrade)
 		ctx.Upgrade = nil
 	}
+	return err
+}
+
+func (server *Server) handleRequest(wg *sync.WaitGroup, ctx *Context) {
+	if wg != nil {
+		defer wg.Done()
+	}
+	err := server.readRequestBody(ctx)
+	if err != nil {
+		server.logger.Errorln(err)
+		ctx.Error = err.Error()
+		server.sendResponse(ctx)
+	} else {
+		server.callService(ctx)
+	}
+}
+
+func (server *Server) readRequestBody(ctx *Context) (err error) {
+	var codec = ctx.codec
 	if ctx.upgrade.NoRequest != noRequest {
 		ctx.f = server.Funcs.GetFunc(ctx.ServiceMethod)
 		if ctx.f == nil {
@@ -344,10 +351,7 @@ func (server *Server) readRequest(codec ServerCodec, ctx *Context) (err error) {
 	return
 }
 
-func (server *Server) callService(wg *sync.WaitGroup, ctx *Context) {
-	if wg != nil {
-		defer wg.Done()
-	}
+func (server *Server) callService(ctx *Context) {
 	if ctx.upgrade.Watch == watch {
 		server.push(ctx, nil)
 		if server.watchFunc != nil {
