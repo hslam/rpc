@@ -16,20 +16,20 @@ func init() {
 }
 
 // RegisterHeaderEncoder registers a header Encoder.
-func RegisterHeaderEncoder(name string, New func() *Encoder) {
+func RegisterHeaderEncoder(name string, New func() Encoder) {
 	encoders.Store(name, New)
 }
 
 // NewHeaderEncoder returns a new header Encoder.
-func NewHeaderEncoder(name string) func() *Encoder {
+func NewHeaderEncoder(name string) func() Encoder {
 	if c, ok := encoders.Load(name); ok {
-		return c.(func() *Encoder)
+		return c.(func() Encoder)
 	}
 	return nil
 }
 
 // DefaultEncoder returns a default header Encoder.
-func DefaultEncoder() *Encoder {
+func DefaultEncoder() Encoder {
 	return NewPBEncoder()
 }
 
@@ -57,14 +57,9 @@ type Response interface {
 	Reset()
 }
 
-// Encoder defines the struct of Encoder.
-type Encoder struct {
-	Request  Request
-	Response Response
-	Codec    Codec
-}
-
-//NewEncoder returns the instance of Encoder.
-func NewEncoder(req Request, res Response, codec Codec) *Encoder {
-	return &Encoder{Request: req, Response: res, Codec: codec}
+// Encoder defines the interface of Encoder.
+type Encoder interface {
+	NewRequest() Request
+	NewResponse() Response
+	NewCodec() Codec
 }

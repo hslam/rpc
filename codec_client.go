@@ -5,32 +5,29 @@ package rpc
 
 import (
 	"errors"
+	"github.com/hslam/buffer"
 	"github.com/hslam/socket"
 	"io"
 	"sync/atomic"
 )
 
 type clientCodec struct {
-	headerEncoder *Encoder
+	headerEncoder Encoder
 	bodyCodec     Codec
-	req           *pbRequest
-	res           *pbResponse
-	buffer        []byte
-	argsBuffer    []byte
-	requestBuffer []byte
+	pool          *buffer.Pool
 	messages      socket.Messages
 	count         int64
 	closed        uint32
 }
 
 // NewClientCodec returns a new ClientCodec.
-func NewClientCodec(bodyCodec Codec, headerEncoder *Encoder, messages socket.Messages) ClientCodec {
+func NewClientCodec(bodyCodec Codec, headerEncoder Encoder, messages socket.Messages) ClientCodec {
 	if messages == nil {
 		return nil
 	}
 	if headerEncoder != nil {
 		if bodyCodec == nil {
-			bodyCodec = headerEncoder.Codec
+			bodyCodec = headerEncoder.NewCodec()
 		}
 	}
 	if bodyCodec == nil {
@@ -39,17 +36,11 @@ func NewClientCodec(bodyCodec Codec, headerEncoder *Encoder, messages socket.Mes
 	c := &clientCodec{
 		headerEncoder: headerEncoder,
 		bodyCodec:     bodyCodec,
-		buffer:        make([]byte, bufferSize),
-		argsBuffer:    make([]byte, bufferSize),
-		requestBuffer: make([]byte, bufferSize),
+		pool:          buffers.AssignPool(bufferSize),
 	}
 	c.messages = messages
 	if batch, ok := c.messages.(socket.Batch); ok {
 		batch.SetConcurrency(c.Concurrency)
-	}
-	if headerEncoder == nil {
-		c.req = &pbRequest{}
-		c.res = &pbResponse{}
 	}
 	return c
 }
@@ -62,29 +53,41 @@ func (c *clientCodec) WriteRequest(ctx *Context, param interface{}) error {
 	var args []byte
 	var data []byte
 	var err error
+	var argsBuffer []byte
 	if ctx.upgrade.NoRequest != noRequest {
-		args, err = c.bodyCodec.Marshal(c.argsBuffer, param)
+		argsBuffer = c.pool.GetBuffer(bufferSize)
+		args, err = c.bodyCodec.Marshal(argsBuffer, param)
 		if err != nil {
 			return err
 		}
 	}
+	var requestBuffer = c.pool.GetBuffer(bufferSize)
 	if c.headerEncoder != nil {
-		c.headerEncoder.Request.SetSeq(ctx.Seq)
-		c.headerEncoder.Request.SetUpgrade(ctx.Upgrade)
-		c.headerEncoder.Request.SetServiceMethod(ctx.ServiceMethod)
-		c.headerEncoder.Request.SetArgs(args)
-		data, err = c.headerEncoder.Codec.Marshal(c.requestBuffer, c.headerEncoder.Request)
+		req := c.headerEncoder.NewRequest()
+		req.SetSeq(ctx.Seq)
+		req.SetUpgrade(ctx.Upgrade)
+		req.SetServiceMethod(ctx.ServiceMethod)
+		req.SetArgs(args)
+		codec := c.headerEncoder.NewCodec()
+		data, err = codec.Marshal(requestBuffer, req)
 	} else {
-		c.req.SetSeq(ctx.Seq)
-		c.req.SetUpgrade(ctx.Upgrade)
-		c.req.SetServiceMethod(ctx.ServiceMethod)
-		c.req.SetArgs(args)
-		size := c.req.Size()
-		var buf = checkBuffer(c.requestBuffer, size)
+		req := &pbRequest{}
+		req.SetSeq(ctx.Seq)
+		req.SetUpgrade(ctx.Upgrade)
+		req.SetServiceMethod(ctx.ServiceMethod)
+		req.SetArgs(args)
+		size := req.Size()
+		var buf = checkBuffer(requestBuffer, size)
 		var n int
-		n, err = c.req.MarshalTo(buf)
+		n, err = req.MarshalTo(buf)
 		data = buf[:n]
 	}
+	defer func() {
+		if ctx.upgrade.NoRequest != noRequest {
+			c.pool.PutBuffer(argsBuffer)
+		}
+		c.pool.PutBuffer(requestBuffer)
+	}()
 	if err == nil {
 		atomic.AddInt64(&c.count, 1)
 		if atomic.LoadUint32(&c.closed) > 0 {
@@ -101,7 +104,8 @@ func (c *clientCodec) ReadResponseHeader(ctx *Context) error {
 	}
 	var data []byte
 	var err error
-	data, err = c.messages.ReadMessage(c.buffer)
+	var buffer = ctx.buffer
+	data, err = c.messages.ReadMessage(buffer)
 	if err != nil {
 		if err == io.EOF {
 			atomic.StoreUint32(&c.closed, 1)
@@ -109,20 +113,23 @@ func (c *clientCodec) ReadResponseHeader(ctx *Context) error {
 		return err
 	}
 	if c.headerEncoder != nil {
-		c.headerEncoder.Response.Reset()
-		err = c.headerEncoder.Codec.Unmarshal(data, c.headerEncoder.Response)
+		res := c.headerEncoder.NewResponse()
+		res.Reset()
+		codec := c.headerEncoder.NewCodec()
+		err = codec.Unmarshal(data, res)
 		if err == nil {
-			ctx.Seq = c.headerEncoder.Response.GetSeq()
-			ctx.Error = c.headerEncoder.Response.GetError()
-			ctx.value = c.headerEncoder.Response.GetReply()
+			ctx.Seq = res.GetSeq()
+			ctx.Error = res.GetError()
+			ctx.value = res.GetReply()
 		}
 	} else {
-		c.res.Reset()
-		err = c.res.Unmarshal(data)
+		res := &pbResponse{}
+		res.Reset()
+		err = res.Unmarshal(data)
 		if err == nil {
-			ctx.Seq = c.res.GetSeq()
-			ctx.Error = c.res.GetError()
-			ctx.value = c.res.GetReply()
+			ctx.Seq = res.GetSeq()
+			ctx.Error = res.GetError()
+			ctx.value = res.GetReply()
 		}
 	}
 	atomic.AddInt64(&c.count, -1)
@@ -132,9 +139,6 @@ func (c *clientCodec) ReadResponseHeader(ctx *Context) error {
 func (c *clientCodec) ReadResponseBody(reply []byte, x interface{}) error {
 	if x == nil {
 		return errors.New("x is nil")
-	}
-	if c.headerEncoder != nil {
-		return c.bodyCodec.Unmarshal(reply, x)
 	}
 	return c.bodyCodec.Unmarshal(reply, x)
 }

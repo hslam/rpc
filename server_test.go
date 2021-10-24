@@ -196,6 +196,7 @@ func TestServerPipelining(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	conn.SetPipelining(true)
 	err = conn.Ping()
 	if err != nil {
 		t.Error(err)

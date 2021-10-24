@@ -12,7 +12,7 @@ import (
 type Options struct {
 	NewSocket        func(*tls.Config) socket.Socket
 	NewCodec         func() Codec
-	NewHeaderEncoder func() *Encoder
+	NewHeaderEncoder func() Encoder
 	Network          string
 	Codec            string
 	HeaderEncoder    string

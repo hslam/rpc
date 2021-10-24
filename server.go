@@ -8,6 +8,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"github.com/hslam/buffer"
 	"github.com/hslam/funcs"
 	"github.com/hslam/log"
 	"github.com/hslam/netpoll"
@@ -28,7 +29,8 @@ type Server struct {
 	logger           *log.Logger
 	ctxPool          *sync.Pool
 	upgradePool      *sync.Pool
-	bufferPool       *sync.Pool
+	bufferSize       int
+	bufferPool       *buffer.Pool
 	pipelining       bool
 	methodPipelining bool
 	noBatch          bool
@@ -59,7 +61,8 @@ func NewServer() *Server {
 		logger:      logger,
 		ctxPool:     &sync.Pool{New: func() interface{} { return &Context{} }},
 		upgradePool: &sync.Pool{New: func() interface{} { return &upgrade{} }},
-		bufferPool:  &sync.Pool{New: func() interface{} { return make([]byte, bufferSize) }},
+		bufferSize:  bufferSize,
+		bufferPool:  buffers.AssignPool(bufferSize),
 		codecs:      make(map[ServerCodec]io.Closer),
 		watchs:      make(map[string]map[ServerCodec]*Context),
 	}
@@ -96,7 +99,7 @@ func (server *Server) Services() []string {
 //SetBufferSize sets buffer size.
 func (server *Server) SetBufferSize(size int) {
 	if size > 0 {
-		server.bufferPool = &sync.Pool{New: func() interface{} { return make([]byte, size) }}
+		server.bufferPool = buffers.AssignPool(size)
 	} else {
 		server.bufferPool = nil
 	}
@@ -177,7 +180,6 @@ func (server *Server) PushFunc(watchFunc WatchFunc) {
 
 // ServeCodec uses the specified codec to decode requests and encode responses.
 func (server *Server) ServeCodec(codec ServerCodec) {
-	sending := new(sync.Mutex)
 	wg := new(sync.WaitGroup)
 	var sched scheduler.Scheduler
 	var pipelines map[string]scheduler.Scheduler
@@ -189,7 +191,7 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 		sched = scheduler.New(scheduler.Unlimited, &scheduler.Options{Threshold: 1})
 	}
 	for {
-		err := server.ServeRequest(codec, nil, sending, wg, sched, pipelines)
+		err := server.ServeRequest(codec, nil, wg, sched, pipelines)
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			break
 		}
@@ -221,11 +223,11 @@ func (server *Server) deleteCodec(codec ServerCodec) {
 
 // ServeRequest is like ServeCodec but synchronously serves a single request.
 // It does not close the codec upon completion.
-func (server *Server) ServeRequest(codec ServerCodec, recving *sync.Mutex, sending *sync.Mutex, wg *sync.WaitGroup, sched scheduler.Scheduler, pipelines map[string]scheduler.Scheduler) error {
+func (server *Server) ServeRequest(codec ServerCodec, recving *sync.Mutex, wg *sync.WaitGroup, sched scheduler.Scheduler, pipelines map[string]scheduler.Scheduler) error {
 	ctx := server.ctxPool.Get().(*Context)
 	ctx.upgrade = server.getUpgrade()
 	if server.bufferPool != nil {
-		ctx.buffer = server.bufferPool.Get().([]byte)
+		ctx.buffer = server.bufferPool.GetBuffer(server.bufferSize)
 	}
 	ctx.codec = codec
 	if recving != nil {
@@ -239,11 +241,10 @@ func (server *Server) ServeRequest(codec ServerCodec, recving *sync.Mutex, sendi
 			recving.Unlock()
 		}
 	}
-	ctx.sending = sending
 	if err != nil {
 		server.putUpgrade(ctx.upgrade)
 		if server.bufferPool != nil && cap(ctx.buffer) > 0 {
-			server.bufferPool.Put(ctx.buffer)
+			server.bufferPool.PutBuffer(ctx.buffer)
 		}
 		ctx.Reset()
 		server.ctxPool.Put(ctx)
@@ -380,7 +381,6 @@ func (server *Server) callService(ctx *Context) {
 }
 
 func (server *Server) sendResponse(ctx *Context) {
-	ctx.sending.Lock()
 	var reply interface{}
 	if len(ctx.Error) == 0 && ctx.upgrade.NoResponse != noResponse {
 		reply = ctx.reply.Interface()
@@ -389,11 +389,10 @@ func (server *Server) sendResponse(ctx *Context) {
 	if err != nil {
 		server.logger.Errorln("writing response:", err)
 	}
-	ctx.sending.Unlock()
 	if ctx.upgrade.Watch != watch {
 		server.putUpgrade(ctx.upgrade)
 		if server.bufferPool != nil && cap(ctx.buffer) > 0 {
-			server.bufferPool.Put(ctx.buffer)
+			server.bufferPool.PutBuffer(ctx.buffer)
 		}
 		ctx.Reset()
 		server.ctxPool.Put(ctx)
@@ -430,7 +429,6 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 	type ServerContext struct {
 		codec     ServerCodec
 		recving   *sync.Mutex
-		sending   *sync.Mutex
 		wg        *sync.WaitGroup
 		sched     scheduler.Scheduler
 		pipelines map[string]scheduler.Scheduler
@@ -454,14 +452,13 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 			return &ServerContext{
 				codec:     codec,
 				recving:   new(sync.Mutex),
-				sending:   new(sync.Mutex),
 				wg:        new(sync.WaitGroup),
 				sched:     sched,
 				pipelines: pipelines,
 			}, nil
 		}, func(context socket.Context) error {
 			ctx := context.(*ServerContext)
-			err := server.ServeRequest(ctx.codec, ctx.recving, ctx.sending, ctx.wg, ctx.sched, ctx.pipelines)
+			err := server.ServeRequest(ctx.codec, ctx.recving, ctx.wg, ctx.sched, ctx.pipelines)
 			if err == io.EOF || err == io.ErrUnexpectedEOF {
 				if atomic.CompareAndSwapInt32(&ctx.closed, 0, 1) {
 					ctx.wg.Wait()
@@ -546,7 +543,7 @@ func (server *Server) ListenWithOptions(address string, opts *Options) error {
 		} else if opts.NewCodec != nil {
 			bodyCodec = opts.NewCodec()
 		}
-		var headerEncoder *Encoder
+		var headerEncoder Encoder
 		if newEncoder := NewHeaderEncoder(opts.HeaderEncoder); newEncoder != nil {
 			headerEncoder = newEncoder()
 		} else if opts.NewHeaderEncoder != nil {

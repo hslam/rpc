@@ -3,9 +3,27 @@
 
 package rpc
 
+// JSONEncoder implements a header Encoder.
+type JSONEncoder struct{}
+
 // NewJSONEncoder returns a header Encoder.
-func NewJSONEncoder() *Encoder {
-	return NewEncoder(NewJSONRequest(), NewJSONResponse(), NewJSONCodec())
+func NewJSONEncoder() Encoder {
+	return &JSONEncoder{}
+}
+
+// NewRequest returns the instance of Request.
+func (e *JSONEncoder) NewRequest() Request {
+	return NewJSONRequest()
+}
+
+// NewResponse returns the instance of Response.
+func (e *JSONEncoder) NewResponse() Response {
+	return NewJSONResponse()
+}
+
+// NewCodec returns the instance of Codec.
+func (e *JSONEncoder) NewCodec() Codec {
+	return NewJSONCodec()
 }
 
 // NewJSONCodec returns the instance of Codec.

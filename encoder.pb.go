@@ -3,9 +3,27 @@
 
 package rpc
 
+// PBEncoder implements a header Encoder.
+type PBEncoder struct{}
+
 // NewPBEncoder returns a header Encoder.
-func NewPBEncoder() *Encoder {
-	return NewEncoder(NewPBRequest(), NewPBResponse(), NewPBCodec())
+func NewPBEncoder() Encoder {
+	return &PBEncoder{}
+}
+
+// NewRequest returns the instance of Request.
+func (e *PBEncoder) NewRequest() Request {
+	return NewPBRequest()
+}
+
+// NewResponse returns the instance of Response.
+func (e *PBEncoder) NewResponse() Response {
+	return NewPBResponse()
+}
+
+// NewCodec returns the instance of Codec.
+func (e *PBEncoder) NewCodec() Codec {
+	return NewPBCodec()
 }
 
 // NewPBCodec returns the instance of Codec.

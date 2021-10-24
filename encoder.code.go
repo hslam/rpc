@@ -3,9 +3,27 @@
 
 package rpc
 
+// CODEEncoder implements a header Encoder.
+type CODEEncoder struct{}
+
 // NewCODEEncoder returns a header Encoder.
-func NewCODEEncoder() *Encoder {
-	return NewEncoder(NewCODERequest(), NewCODEResponse(), NewCODECodec())
+func NewCODEEncoder() Encoder {
+	return &CODEEncoder{}
+}
+
+// NewRequest returns the instance of Request.
+func (e *CODEEncoder) NewRequest() Request {
+	return NewCODERequest()
+}
+
+// NewResponse returns the instance of Response.
+func (e *CODEEncoder) NewResponse() Response {
+	return NewCODEResponse()
+}
+
+// NewCodec returns the instance of Codec.
+func (e *CODEEncoder) NewCodec() Codec {
+	return NewCODECodec()
 }
 
 // NewCODECodec returns the instance of Codec.

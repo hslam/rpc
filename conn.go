@@ -6,6 +6,8 @@ package rpc
 import (
 	"context"
 	"errors"
+	"github.com/hslam/buffer"
+	"github.com/hslam/scheduler"
 	"github.com/hslam/socket"
 	"io"
 	"runtime"
@@ -26,6 +28,7 @@ var ErrWatch = errors.New("The watch is existed")
 var (
 	callPool    = &sync.Pool{New: func() interface{} { return &Call{} }}
 	donePool    = &sync.Pool{New: func() interface{} { return make(chan *Call, 10) }}
+	ctxPool     = &sync.Pool{New: func() interface{} { return &Context{} }}
 	upgradePool = &sync.Pool{New: func() interface{} { return &upgrade{} }}
 )
 
@@ -36,6 +39,15 @@ func getUpgrade() *upgrade {
 func putUpgrade(u *upgrade) {
 	u.Reset()
 	upgradePool.Put(u)
+}
+
+func getContext() *Context {
+	return ctxPool.Get().(*Context)
+}
+
+func putContext(ctx *Context) {
+	ctx.Reset()
+	ctxPool.Put(ctx)
 }
 
 // GetCall gets a call from the callPool.
@@ -95,13 +107,15 @@ func (call *Call) watch() {
 // multiple goroutines simultaneously.
 type Conn struct {
 	codec         ClientCodec
-	reqMutex      sync.Mutex
-	ctx           Context
 	mutex         sync.Mutex
 	seq           uint64
 	pending       map[uint64]*Call
 	watchs        map[string]*Call
+	bufferSize    int
+	bufferPool    *buffer.Pool
 	upgradeBuffer []byte
+	sched         scheduler.Scheduler
+	pipelining    bool
 	closing       bool
 	shutdown      bool
 }
@@ -122,7 +136,10 @@ func NewConn() *Conn {
 	return &Conn{
 		pending:       make(map[uint64]*Call),
 		watchs:        make(map[string]*Call),
+		sched:         scheduler.New(scheduler.Unlimited, &scheduler.Options{Threshold: 1}),
 		upgradeBuffer: make([]byte, 1),
+		bufferSize:    bufferSize,
+		bufferPool:    buffers.AssignPool(bufferSize),
 	}
 }
 
@@ -150,8 +167,6 @@ func NewConnWithCodec(codec ClientCodec) *Conn {
 }
 
 func (conn *Conn) write(call *Call) {
-	conn.reqMutex.Lock()
-	defer conn.reqMutex.Unlock()
 	conn.mutex.Lock()
 	if conn.shutdown || conn.closing {
 		conn.mutex.Unlock()
@@ -172,18 +187,18 @@ func (conn *Conn) write(call *Call) {
 	conn.seq++
 	conn.pending[seq] = call
 	conn.mutex.Unlock()
-	conn.ctx = Context{}
-	conn.ctx.Seq = seq
-	conn.ctx.upgrade = call.upgrade
+	ctx := Context{}
+	ctx.Seq = seq
+	ctx.upgrade = call.upgrade
 	if call.upgrade.Heartbeat == heartbeat ||
 		call.upgrade.Watch == watch ||
 		call.upgrade.Watch == stopWatch ||
 		call.upgrade.NoRequest == noRequest ||
 		call.upgrade.NoResponse == noResponse {
-		conn.ctx.Upgrade, _ = call.upgrade.Marshal(conn.upgradeBuffer)
+		ctx.Upgrade, _ = call.upgrade.Marshal(conn.upgradeBuffer)
 	}
-	conn.ctx.ServiceMethod = call.ServiceMethod
-	err := conn.codec.WriteRequest(&conn.ctx, call.Args)
+	ctx.ServiceMethod = call.ServiceMethod
+	err := conn.codec.WriteRequest(&ctx, call.Args)
 	if err != nil {
 		conn.mutex.Lock()
 		delete(conn.pending, seq)
@@ -200,10 +215,11 @@ func (conn *Conn) write(call *Call) {
 
 func (conn *Conn) read() {
 	var err error
-	var ctx Context
 	for err == nil {
-		ctx = Context{}
-		err = conn.codec.ReadResponseHeader(&ctx)
+		ctx := getContext()
+		buffer := conn.bufferPool.GetBuffer(conn.bufferSize)
+		ctx.buffer = buffer
+		err = conn.codec.ReadResponseHeader(ctx)
 		if err != nil {
 			break
 		}
@@ -211,13 +227,17 @@ func (conn *Conn) read() {
 		conn.mutex.Lock()
 		call := conn.pending[seq]
 		delete(conn.pending, seq)
+		num := len(conn.pending)
 		conn.mutex.Unlock()
+		var err error
 		switch {
 		case call == nil:
 			err = conn.codec.ReadResponseBody(nil, nil)
 			if err != nil {
 				err = errors.New("reading error body: " + err.Error())
 			}
+			conn.bufferPool.PutBuffer(buffer)
+			putContext(ctx)
 		case len(ctx.Error) > 0:
 			if ctx.Error == shutdownMsg {
 				call.Error = ErrShutdown
@@ -229,16 +249,9 @@ func (conn *Conn) read() {
 				err = errors.New("reading error body: " + err.Error())
 			}
 			call.done()
+			conn.bufferPool.PutBuffer(buffer)
+			putContext(ctx)
 		default:
-			if len(ctx.value) > 0 {
-				if cap(call.Buffer) >= len(ctx.value) {
-					call.Value = call.Buffer[:len(ctx.value)]
-				} else {
-					call.Value = make([]byte, len(ctx.value))
-				}
-				copy(call.Value, ctx.value)
-
-			}
 			u := call.upgrade
 			if u.NoResponse == noResponse {
 				if u.Heartbeat == heartbeat {
@@ -254,7 +267,10 @@ func (conn *Conn) read() {
 					call.done()
 					putUpgrade(u)
 				} else if u.Watch == watch {
-					call.Value = ctx.value
+					if len(ctx.value) > 0 {
+						call.Value = make([]byte, len(ctx.value))
+						copy(call.Value, ctx.value)
+					}
 					conn.mutex.Lock()
 					if _, ok := conn.watchs[call.ServiceMethod]; ok {
 						conn.pending[seq] = call
@@ -266,17 +282,20 @@ func (conn *Conn) read() {
 						call.watch()
 					}
 				}
+				conn.bufferPool.PutBuffer(buffer)
+				putContext(ctx)
 				continue
 			}
 			putUpgrade(u)
-			err = conn.codec.ReadResponseBody(call.Value, call.Reply)
-			if err != nil {
-				call.Error = errors.New("reading body " + err.Error())
+			if num > 1 && !conn.pipelining {
+				conn.sched.Schedule(func() {
+					conn.finishCall(ctx, call, seq)
+				})
+			} else {
+				conn.finishCall(ctx, call, seq)
 			}
-			call.done()
 		}
 	}
-	conn.reqMutex.Lock()
 	conn.mutex.Lock()
 	conn.shutdown = true
 	if err == io.EOF {
@@ -292,7 +311,30 @@ func (conn *Conn) read() {
 		}
 	}
 	conn.mutex.Unlock()
-	conn.reqMutex.Unlock()
+}
+
+func (conn *Conn) finishCall(ctx *Context, call *Call, seq uint64) {
+	if len(ctx.value) > 0 {
+		if cap(call.Buffer) >= len(ctx.value) {
+			call.Value = call.Buffer[:len(ctx.value)]
+		} else {
+			call.Value = make([]byte, len(ctx.value))
+		}
+		copy(call.Value, ctx.value)
+	}
+	err := conn.codec.ReadResponseBody(call.Value, call.Reply)
+	if err != nil {
+		call.Error = errors.New("reading body " + err.Error())
+	}
+	call.done()
+	buf := ctx.buffer
+	conn.bufferPool.PutBuffer(buf)
+	putContext(ctx)
+}
+
+// SetPipelining enables the Server to use pipelining per connection.
+func (conn *Conn) SetPipelining(enable bool) {
+	conn.pipelining = enable
 }
 
 // NumCalls returns the number of calls.
@@ -317,7 +359,11 @@ func (conn *Conn) Close() (err error) {
 	}
 	conn.closing = true
 	conn.mutex.Unlock()
-	return conn.codec.Close()
+	err = conn.codec.Close()
+	if conn.sched != nil {
+		conn.sched.Close()
+	}
+	return
 }
 
 // RoundTrip executes a single RPC transaction, returning

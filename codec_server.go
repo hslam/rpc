@@ -12,56 +12,37 @@ import (
 )
 
 type serverCodec struct {
-	headerEncoder  *Encoder
-	bodyCodec      Codec
-	req            *pbRequest
-	res            *pbResponse
-	replyBuffer    []byte
-	responseBuffer []byte
-	pool           *buffer.Pool
-	messages       socket.Messages
-	count          int64
-	closed         uint32
+	headerEncoder Encoder
+	bodyCodec     Codec
+	pool          *buffer.Pool
+	messages      socket.Messages
+	count         int64
+	closed        uint32
 }
 
 // NewServerCodec returns a new ServerCodec.
-func NewServerCodec(bodyCodec Codec, headerEncoder *Encoder, messages socket.Messages, noBatch bool) ServerCodec {
+func NewServerCodec(bodyCodec Codec, headerEncoder Encoder, messages socket.Messages, noBatch bool) ServerCodec {
 	if messages == nil {
 		return nil
 	}
 	if headerEncoder != nil {
 		if bodyCodec == nil {
-			bodyCodec = headerEncoder.Codec
+			bodyCodec = headerEncoder.NewCodec()
 		}
 	}
 	if bodyCodec == nil {
 		return nil
 	}
-	var replyBuffer []byte
-	var responseBuffer []byte
-	var pool *buffer.Pool
-	if !noBatch {
-		replyBuffer = make([]byte, bufferSize)
-		responseBuffer = make([]byte, bufferSize)
-	} else {
-		pool = buffers.AssignPool(bufferSize)
-	}
 	c := &serverCodec{
-		headerEncoder:  headerEncoder,
-		bodyCodec:      bodyCodec,
-		replyBuffer:    replyBuffer,
-		responseBuffer: responseBuffer,
-		pool:           pool,
+		headerEncoder: headerEncoder,
+		bodyCodec:     bodyCodec,
+		pool:          buffers.AssignPool(bufferSize),
 	}
 	c.messages = messages
 	if !noBatch {
 		if batch, ok := c.messages.(socket.Batch); ok {
 			batch.SetConcurrency(c.Concurrency)
 		}
-	}
-	if headerEncoder == nil {
-		c.req = &pbRequest{}
-		c.res = &pbResponse{}
 	}
 	return c
 }
@@ -76,10 +57,7 @@ func (c *serverCodec) ReadRequestHeader(ctx *Context) error {
 	}
 	var data []byte
 	var err error
-	var buffer []byte
-	if ctx != nil && len(ctx.buffer) > 0 {
-		buffer = ctx.buffer
-	}
+	var buffer = ctx.buffer
 	data, err = c.messages.ReadMessage(buffer)
 	if err != nil {
 		if err == io.EOF {
@@ -88,22 +66,25 @@ func (c *serverCodec) ReadRequestHeader(ctx *Context) error {
 		return err
 	}
 	if c.headerEncoder != nil {
-		c.headerEncoder.Request.Reset()
-		err = c.headerEncoder.Codec.Unmarshal(data, c.headerEncoder.Request)
+		req := c.headerEncoder.NewRequest()
+		req.Reset()
+		codec := c.headerEncoder.NewCodec()
+		err = codec.Unmarshal(data, req)
 		if err == nil {
-			ctx.ServiceMethod = c.headerEncoder.Request.GetServiceMethod()
-			ctx.Upgrade = c.headerEncoder.Request.GetUpgrade()
-			ctx.Seq = c.headerEncoder.Request.GetSeq()
-			ctx.value = c.headerEncoder.Request.GetArgs()
+			ctx.ServiceMethod = req.GetServiceMethod()
+			ctx.Upgrade = req.GetUpgrade()
+			ctx.Seq = req.GetSeq()
+			ctx.value = req.GetArgs()
 		}
 	} else {
-		c.req.Reset()
-		err = c.req.Unmarshal(data)
+		req := &pbRequest{}
+		req.Reset()
+		err = req.Unmarshal(data)
 		if err == nil {
-			ctx.ServiceMethod = c.req.GetServiceMethod()
-			ctx.Upgrade = c.req.GetUpgrade()
-			ctx.Seq = c.req.GetSeq()
-			ctx.value = c.req.GetArgs()
+			ctx.ServiceMethod = req.GetServiceMethod()
+			ctx.Upgrade = req.GetUpgrade()
+			ctx.Seq = req.GetSeq()
+			ctx.value = req.GetArgs()
 		}
 	}
 	atomic.AddInt64(&c.count, 1)
@@ -114,9 +95,6 @@ func (c *serverCodec) ReadRequestBody(args []byte, x interface{}) error {
 	if x == nil {
 		return errors.New("x is nil")
 	}
-	if c.headerEncoder != nil {
-		return c.bodyCodec.Unmarshal(args, x)
-	}
 	return c.bodyCodec.Unmarshal(args, x)
 }
 
@@ -126,11 +104,9 @@ func (c *serverCodec) WriteResponse(ctx *Context, x interface{}) error {
 	var data []byte
 	var err error
 	hasResponse := len(ctx.Error) == 0 && ctx.upgrade.NoResponse != noResponse
-	var replyBuffer = c.replyBuffer
+	var replyBuffer []byte
 	if hasResponse {
-		if c.pool != nil {
-			replyBuffer = c.pool.GetBuffer(bufferSize)
-		}
+		replyBuffer = c.pool.GetBuffer(bufferSize)
 		reply, err = c.bodyCodec.Marshal(replyBuffer, x)
 		if err != nil {
 			ctx.Error = err.Error()
@@ -138,33 +114,31 @@ func (c *serverCodec) WriteResponse(ctx *Context, x interface{}) error {
 	} else if len(ctx.value) > 0 {
 		reply = ctx.value
 	}
-	var responseBuffer = c.responseBuffer
-	if c.pool != nil {
-		responseBuffer = c.pool.GetBuffer(bufferSize)
-	}
+	var responseBuffer = c.pool.GetBuffer(bufferSize)
 	if c.headerEncoder != nil {
-		c.headerEncoder.Response.SetSeq(reqSeq)
-		c.headerEncoder.Response.SetError(ctx.Error)
-		c.headerEncoder.Response.SetReply(reply)
-		data, err = c.headerEncoder.Codec.Marshal(responseBuffer, c.headerEncoder.Response)
+		res := c.headerEncoder.NewResponse()
+		res.SetSeq(reqSeq)
+		res.SetError(ctx.Error)
+		res.SetReply(reply)
+		codec := c.headerEncoder.NewCodec()
+		data, err = codec.Marshal(responseBuffer, res)
 	} else {
-		c.res.SetSeq(reqSeq)
-		c.res.SetError(ctx.Error)
-		c.res.SetReply(reply)
-		size := c.res.Size()
+		var res = &pbResponse{}
+		res.SetSeq(reqSeq)
+		res.SetError(ctx.Error)
+		res.SetReply(reply)
+		size := res.Size()
 		var buf = checkBuffer(responseBuffer, size)
 		var n int
-		n, err = c.res.MarshalTo(buf)
+		n, err = res.MarshalTo(buf)
 		data = buf[:n]
 	}
-	if c.pool != nil {
-		defer func() {
-			if hasResponse {
-				c.pool.PutBuffer(replyBuffer)
-			}
-			c.pool.PutBuffer(responseBuffer)
-		}()
-	}
+	defer func() {
+		if hasResponse {
+			c.pool.PutBuffer(replyBuffer)
+		}
+		c.pool.PutBuffer(responseBuffer)
+	}()
 	if err == nil {
 		if atomic.LoadUint32(&c.closed) > 0 {
 			atomic.AddInt64(&c.count, -1)

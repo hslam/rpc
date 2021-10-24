@@ -56,7 +56,7 @@ func DialWithOptions(address string, opts *Options) (*Conn, error) {
 		} else if opts.NewCodec != nil {
 			bodyCodec = opts.NewCodec()
 		}
-		var headerEncoder *Encoder
+		var headerEncoder Encoder
 		if newEncoder := NewHeaderEncoder(opts.HeaderEncoder); newEncoder != nil {
 			headerEncoder = newEncoder()
 		} else if opts.NewHeaderEncoder != nil {
