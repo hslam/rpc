@@ -36,7 +36,7 @@ func NewServerCodec(bodyCodec Codec, headerEncoder Encoder, messages socket.Mess
 	c := &serverCodec{
 		headerEncoder: headerEncoder,
 		bodyCodec:     bodyCodec,
-		pool:          buffers.AssignPool(bufferSize),
+		pool:          buffer.AssignPool(bufferSize),
 	}
 	c.messages = messages
 	if !noBatch {

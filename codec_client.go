@@ -36,9 +36,12 @@ func NewClientCodec(bodyCodec Codec, headerEncoder Encoder, messages socket.Mess
 	c := &clientCodec{
 		headerEncoder: headerEncoder,
 		bodyCodec:     bodyCodec,
-		pool:          buffers.AssignPool(bufferSize),
+		pool:          buffer.AssignPool(bufferSize),
 	}
 	c.messages = messages
+	if sched, ok := c.messages.(socket.Scheduler); ok {
+		sched.SetScheduling(true)
+	}
 	if batch, ok := c.messages.(socket.Batch); ok {
 		batch.SetConcurrency(c.Concurrency)
 	}

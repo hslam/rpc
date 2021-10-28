@@ -47,11 +47,8 @@ func (k *contextKey) String() string { return "github.com/hslam/rpc context key 
 var BufferContextKey = &contextKey{"buffer"}
 
 const (
-	bufferSize  = 65536
-	bufferScale = 64
+	bufferSize = 65536
 )
-
-var buffers = buffer.NewBuffers(1024)
 
 func checkBuffer(buf []byte, n int) []byte {
 	if cap(buf) >= n {
@@ -65,7 +62,7 @@ func checkBuffer(buf []byte, n int) []byte {
 // GetBuffer gets a buffer from the pool.
 func GetBuffer(size int) []byte {
 	if size > 0 {
-		return buffers.AssignPool(size).GetBuffer(size)
+		return buffer.AssignPool(size).GetBuffer(size)
 	}
 	return nil
 }
@@ -74,7 +71,7 @@ func GetBuffer(size int) []byte {
 func PutBuffer(buf []byte) {
 	size := cap(buf)
 	if size > 0 {
-		buffers.AssignPool(size).PutBuffer(buf[:size])
+		buffer.AssignPool(size).PutBuffer(buf[:size])
 	}
 }
 

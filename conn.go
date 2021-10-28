@@ -115,7 +115,7 @@ type Conn struct {
 	bufferPool    *buffer.Pool
 	upgradeBuffer []byte
 	sched         scheduler.Scheduler
-	pipelining    bool
+	pipelines     map[string]scheduler.Scheduler
 	closing       bool
 	shutdown      bool
 }
@@ -136,10 +136,9 @@ func NewConn() *Conn {
 	return &Conn{
 		pending:       make(map[uint64]*Call),
 		watchs:        make(map[string]*Call),
-		sched:         scheduler.New(scheduler.Unlimited, &scheduler.Options{Threshold: 1}),
 		upgradeBuffer: make([]byte, 1),
 		bufferSize:    bufferSize,
-		bufferPool:    buffers.AssignPool(bufferSize),
+		bufferPool:    buffer.AssignPool(bufferSize),
 	}
 }
 
@@ -287,8 +286,22 @@ func (conn *Conn) read() {
 				continue
 			}
 			putUpgrade(u)
-			if num > 1 && !conn.pipelining {
-				conn.sched.Schedule(func() {
+			var sched scheduler.Scheduler
+			if conn.pipelines != nil {
+				sched = conn.pipelines[ctx.ServiceMethod]
+				if sched == nil {
+					sched = scheduler.New(1, &scheduler.Options{Threshold: 2})
+					conn.pipelines[ctx.ServiceMethod] = sched
+				}
+			} else if conn.sched != nil {
+				sched = conn.sched
+			}
+			if sched != nil {
+				sched.Schedule(func() {
+					conn.finishCall(ctx, call, seq)
+				})
+			} else if num > 1 {
+				scheduler.Schedule(func() {
 					conn.finishCall(ctx, call, seq)
 				})
 			} else {
@@ -332,9 +345,14 @@ func (conn *Conn) finishCall(ctx *Context, call *Call, seq uint64) {
 	putContext(ctx)
 }
 
-// SetPipelining enables the Server to use pipelining per connection.
+// SetPipelining enables the client to use pipelining per connection.
 func (conn *Conn) SetPipelining(enable bool) {
-	conn.pipelining = enable
+	conn.sched = scheduler.New(1, &scheduler.Options{Threshold: 2})
+}
+
+// SetMethodPipelining enables the client to use pipelining per connection and method.
+func (conn *Conn) SetMethodPipelining(enable bool) {
+	conn.pipelines = make(map[string]scheduler.Scheduler)
 }
 
 // NumCalls returns the number of calls.

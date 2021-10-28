@@ -62,7 +62,7 @@ func NewServer() *Server {
 		ctxPool:     &sync.Pool{New: func() interface{} { return &Context{} }},
 		upgradePool: &sync.Pool{New: func() interface{} { return &upgrade{} }},
 		bufferSize:  bufferSize,
-		bufferPool:  buffers.AssignPool(bufferSize),
+		bufferPool:  buffer.AssignPool(bufferSize),
 		codecs:      make(map[ServerCodec]io.Closer),
 		watchs:      make(map[string]map[ServerCodec]*Context),
 	}
@@ -99,7 +99,7 @@ func (server *Server) Services() []string {
 //SetBufferSize sets buffer size.
 func (server *Server) SetBufferSize(size int) {
 	if size > 0 {
-		server.bufferPool = buffers.AssignPool(size)
+		server.bufferPool = buffer.AssignPool(size)
 	} else {
 		server.bufferPool = nil
 	}
@@ -145,7 +145,6 @@ func (server *Server) SetNoBatch(noBatch bool) {
 // SetPoll enables the Server to use netpoll based on epoll/kqueue.
 func (server *Server) SetPoll(enable bool) {
 	server.poll = enable
-	server.SetNoBatch(enable)
 }
 
 func (server *Server) getUpgrade() *upgrade {
@@ -187,8 +186,6 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 		pipelines = make(map[string]scheduler.Scheduler)
 	} else if server.pipelining {
 		sched = scheduler.New(1, &scheduler.Options{Threshold: 2})
-	} else {
-		sched = scheduler.New(scheduler.Unlimited, &scheduler.Options{Threshold: 1})
 	}
 	for {
 		err := server.ServeRequest(codec, nil, wg, sched, pipelines)
@@ -285,7 +282,9 @@ func (server *Server) ServeRequest(codec ServerCodec, recving *sync.Mutex, wg *s
 			server.handleRequest(wg, ctx)
 		})
 	} else {
-		go server.handleRequest(wg, ctx)
+		scheduler.Schedule(func() {
+			server.handleRequest(wg, ctx)
+		})
 	}
 	return nil
 }
@@ -407,6 +406,13 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 		server.logger.Noticef("poll - %s", "disabled")
 	}
 	server.logger.Noticef("network - %s", sock.Scheme())
+	if server.methodPipelining {
+		server.logger.Noticef("io - pipelining by method")
+	} else if server.pipelining {
+		server.logger.Noticef("io - pipelining")
+	} else {
+		server.logger.Noticef("io - multiplexing")
+	}
 	lis, err := sock.Listen(address)
 	if err != nil {
 		server.logger.Errorf("%s", err.Error())
