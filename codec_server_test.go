@@ -42,6 +42,13 @@ func TestNewServerCodec(t *testing.T) {
 		message.Close()
 		lis.Close()
 		codec.ReadRequestHeader(nil)
+		codec.Close()
+		if codec.ReadRequestHeader(nil) == nil {
+			t.Error("The err should not be nil")
+		}
+		if codec.WriteResponse(nil, nil) == nil {
+			t.Error("The err should not be nil")
+		}
 	}()
 	sock.Dial(addr)
 	wg.Wait()

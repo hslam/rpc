@@ -47,6 +47,10 @@ func NewServerCodec(bodyCodec Codec, headerEncoder Encoder, messages socket.Mess
 	return c
 }
 
+func (c *serverCodec) Messages() socket.Messages {
+	return c.messages
+}
+
 func (c *serverCodec) Concurrency() int {
 	return int(atomic.LoadInt64(&c.count))
 }
@@ -55,16 +59,8 @@ func (c *serverCodec) ReadRequestHeader(ctx *Context) error {
 	if atomic.LoadUint32(&c.closed) > 0 {
 		return io.EOF
 	}
-	var data []byte
 	var err error
-	var buffer = ctx.buffer
-	data, err = c.messages.ReadMessage(buffer)
-	if err != nil {
-		if err == io.EOF {
-			atomic.StoreUint32(&c.closed, 1)
-		}
-		return err
-	}
+	var data = ctx.data
 	if c.headerEncoder != nil {
 		req := c.headerEncoder.NewRequest()
 		req.Reset()
@@ -99,6 +95,9 @@ func (c *serverCodec) ReadRequestBody(args []byte, x interface{}) error {
 }
 
 func (c *serverCodec) WriteResponse(ctx *Context, x interface{}) error {
+	if atomic.LoadUint32(&c.closed) > 0 {
+		return io.EOF
+	}
 	reqSeq := ctx.Seq
 	var reply []byte
 	var data []byte
@@ -140,10 +139,6 @@ func (c *serverCodec) WriteResponse(ctx *Context, x interface{}) error {
 		c.pool.PutBuffer(responseBuffer)
 	}()
 	if err == nil {
-		if atomic.LoadUint32(&c.closed) > 0 {
-			atomic.AddInt64(&c.count, -1)
-			return io.EOF
-		}
 		err = c.messages.WriteMessage(data)
 		atomic.AddInt64(&c.count, -1)
 	}

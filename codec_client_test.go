@@ -42,6 +42,10 @@ func TestNewClientCodec(t *testing.T) {
 		t.Error("The err should not be nil")
 	}
 	message.Close()
+	codec.Close()
+	if codec.ReadResponseHeader(nil) == nil {
+		t.Error("The err should not be nil")
+	}
 	lis.Close()
 	wg.Wait()
 }

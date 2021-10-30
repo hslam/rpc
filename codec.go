@@ -10,6 +10,7 @@ import (
 	"errors"
 	"github.com/hslam/buffer"
 	"github.com/hslam/funcs"
+	"github.com/hslam/socket"
 	"sync"
 )
 
@@ -98,6 +99,7 @@ type Context struct {
 	ServiceMethod string
 	Error         string
 	buffer        []byte
+	data          []byte
 	upgrade       *upgrade
 	f             *funcs.Func
 	args          funcs.Value
@@ -120,6 +122,7 @@ func (ctx *Context) Reset() {
 // connection. ReadRequestBody may be called with a nil
 // argument to force the body of the request to be read and discarded.
 type ServerCodec interface {
+	Messages() socket.Messages
 	ReadRequestHeader(*Context) error
 	ReadRequestBody([]byte, interface{}) error
 	WriteResponse(*Context, interface{}) error
@@ -135,6 +138,7 @@ type ServerCodec interface {
 // argument to force the body of the response to be read and then
 // discarded.
 type ClientCodec interface {
+	Messages() socket.Messages
 	WriteRequest(*Context, interface{}) error
 	ReadResponseHeader(*Context) error
 	ReadResponseBody([]byte, interface{}) error

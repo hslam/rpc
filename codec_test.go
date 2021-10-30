@@ -5,9 +5,14 @@ package rpc
 
 import (
 	"fmt"
+	"github.com/hslam/rpc/examples/codec/json/service"
+	"github.com/hslam/socket"
+	"io"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 )
 
 func TestAssignPool(t *testing.T) {
@@ -31,6 +36,99 @@ func TestCheckBuffer(t *testing.T) {
 	if len(checkBuffer(buf, n)) != n {
 		t.Error()
 	}
+}
+
+type mockClientCodec struct {
+}
+
+func (c *mockClientCodec) Messages() socket.Messages {
+	return nil
+}
+
+func (c *mockClientCodec) WriteRequest(ctx *Context, param interface{}) error {
+	return io.EOF
+}
+
+func (c *mockClientCodec) ReadResponseHeader(ctx *Context) error {
+	return io.EOF
+}
+
+func (c *mockClientCodec) ReadResponseBody(reply []byte, x interface{}) error {
+	return io.EOF
+}
+
+func (c *mockClientCodec) Close() error {
+	return io.EOF
+}
+
+type mockServerCodec struct {
+}
+
+func (c *mockServerCodec) Messages() socket.Messages {
+	return nil
+}
+
+func (c *mockServerCodec) ReadRequestHeader(ctx *Context) error {
+	return io.EOF
+}
+
+func (c *mockServerCodec) ReadRequestBody(args []byte, x interface{}) error {
+	return io.EOF
+}
+
+func (c *mockServerCodec) WriteResponse(ctx *Context, x interface{}) error {
+	return io.EOF
+}
+
+func (c *mockServerCodec) Close() error {
+	return io.EOF
+}
+
+func TestServerCodecAndClientCodec(t *testing.T) {
+	network := "tcp"
+	addr := ":9999"
+	codec := "json"
+	opts := DefaultOptions()
+	opts.Network = network
+	opts.Codec = codec
+	opts.HeaderEncoder = "json"
+	server := NewServer()
+	err := server.Register(new(service.Arith))
+	if err != nil {
+		t.Error(err)
+	}
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		server.ListenWithOptions(addr, opts)
+	}()
+	time.Sleep(time.Millisecond * 10)
+	conn, err := DialWithOptions(addr, opts)
+	if err != nil {
+		t.Error(err)
+	}
+	A := int32(4)
+	B := int32(8)
+	req := &service.ArithRequest{A: A, B: B}
+	var res service.ArithResponse
+	if err := conn.Call("Arith.Multiply", req, &res); err != nil {
+		t.Error(err)
+	}
+	if res.Pro != A*B {
+		t.Error(res.Pro)
+	}
+	conn.Close()
+	conn.handle(nil)
+	server.Close()
+	var ctx *Context
+	ctx = &Context{Error: "error", codec: &mockServerCodec{}, upgrade: getUpgrade(), buffer: server.bufferPool.GetBuffer(0)}
+	if err := server.ServeRequest(ctx, nil, nil, nil, nil); err == nil {
+		t.Error()
+	}
+	ctx = &Context{Error: "error", codec: &mockServerCodec{}, upgrade: getUpgrade(), buffer: server.bufferPool.GetBuffer(0)}
+	server.sendResponse(ctx)
+	wg.Wait()
 }
 
 func TestContextKey(t *testing.T) {

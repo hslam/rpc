@@ -180,6 +180,7 @@ func (server *Server) PushFunc(watchFunc WatchFunc) {
 // ServeCodec uses the specified codec to decode requests and encode responses.
 func (server *Server) ServeCodec(codec ServerCodec) {
 	wg := new(sync.WaitGroup)
+	var pipeline = scheduler.New(1, &scheduler.Options{Threshold: 2})
 	var sched scheduler.Scheduler
 	var pipelines map[string]scheduler.Scheduler
 	if server.methodPipelining {
@@ -187,11 +188,23 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 	} else if server.pipelining {
 		sched = scheduler.New(1, &scheduler.Options{Threshold: 2})
 	}
+	messages := codec.Messages()
 	for {
-		err := server.ServeRequest(codec, nil, wg, sched, pipelines)
-		if err == io.EOF || err == io.ErrUnexpectedEOF {
+		ctx := server.ctxPool.Get().(*Context)
+		ctx.upgrade = server.getUpgrade()
+		if server.bufferPool != nil {
+			ctx.buffer = server.bufferPool.GetBuffer(server.bufferSize)
+		}
+		ctx.codec = codec
+		data, err := messages.ReadMessage(ctx.buffer)
+		if err != nil {
 			break
 		}
+		ctx.data = data
+		pipeline.Schedule(func() {
+			server.ServeRequest(ctx, nil, wg, sched, pipelines)
+		})
+
 	}
 	wg.Wait()
 	server.mutex.Lock()
@@ -204,6 +217,9 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 		}
 	} else if sched != nil {
 		sched.Close()
+	}
+	if pipeline != nil {
+		pipeline.Close()
 	}
 }
 
@@ -220,24 +236,8 @@ func (server *Server) deleteCodec(codec ServerCodec) {
 
 // ServeRequest is like ServeCodec but synchronously serves a single request.
 // It does not close the codec upon completion.
-func (server *Server) ServeRequest(codec ServerCodec, recving *sync.Mutex, wg *sync.WaitGroup, sched scheduler.Scheduler, pipelines map[string]scheduler.Scheduler) error {
-	ctx := server.ctxPool.Get().(*Context)
-	ctx.upgrade = server.getUpgrade()
-	if server.bufferPool != nil {
-		ctx.buffer = server.bufferPool.GetBuffer(server.bufferSize)
-	}
-	ctx.codec = codec
-	if recving != nil {
-		recving.Lock()
-	}
+func (server *Server) ServeRequest(ctx *Context, recving *sync.Mutex, wg *sync.WaitGroup, sched scheduler.Scheduler, pipelines map[string]scheduler.Scheduler) error {
 	err := server.readRequestHeader(ctx)
-	if recving != nil {
-		if server.methodPipelining || server.pipelining {
-			defer recving.Unlock()
-		} else {
-			recving.Unlock()
-		}
-	}
 	if err != nil {
 		server.putUpgrade(ctx.upgrade)
 		if server.bufferPool != nil && cap(ctx.buffer) > 0 {
@@ -247,6 +247,7 @@ func (server *Server) ServeRequest(codec ServerCodec, recving *sync.Mutex, wg *s
 		server.ctxPool.Put(ctx)
 		return err
 	}
+	var codec = ctx.codec
 	if ctx.upgrade.Heartbeat == heartbeat {
 		server.sendResponse(ctx)
 		return nil
@@ -436,6 +437,8 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 		codec     ServerCodec
 		recving   *sync.Mutex
 		wg        *sync.WaitGroup
+		messages  socket.Messages
+		pipeline  scheduler.Scheduler
 		sched     scheduler.Scheduler
 		pipelines map[string]scheduler.Scheduler
 		pipe      int32
@@ -448,6 +451,7 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 			codecs[codec] = messages
 			server.codecs[codec] = messages
 			server.mutex.Unlock()
+			var pipeline = scheduler.New(1, &scheduler.Options{Threshold: 2})
 			var pipelines map[string]scheduler.Scheduler
 			var sched scheduler.Scheduler
 			if server.methodPipelining {
@@ -459,26 +463,53 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 				codec:     codec,
 				recving:   new(sync.Mutex),
 				wg:        new(sync.WaitGroup),
+				messages:  messages,
+				pipeline:  pipeline,
 				sched:     sched,
 				pipelines: pipelines,
 			}, nil
 		}, func(context socket.Context) error {
-			ctx := context.(*ServerContext)
-			err := server.ServeRequest(ctx.codec, ctx.recving, ctx.wg, ctx.sched, ctx.pipelines)
+			svrctx := context.(*ServerContext)
+			ctx := server.ctxPool.Get().(*Context)
+			ctx.upgrade = server.getUpgrade()
+			if server.bufferPool != nil {
+				ctx.buffer = server.bufferPool.GetBuffer(server.bufferSize)
+			}
+			ctx.codec = svrctx.codec
+			svrctx.recving.Lock()
+			data, err := svrctx.messages.ReadMessage(ctx.buffer)
+			if len(data) > 0 {
+				ctx.data = data
+				svrctx.pipeline.Schedule(func() {
+					server.ServeRequest(ctx, svrctx.recving, svrctx.wg, svrctx.sched, svrctx.pipelines)
+				})
+			}
+			svrctx.recving.Unlock()
+			if len(data) == 0 {
+				server.putUpgrade(ctx.upgrade)
+				if server.bufferPool != nil && cap(ctx.buffer) > 0 {
+					server.bufferPool.PutBuffer(ctx.buffer)
+				}
+				ctx.Reset()
+				server.ctxPool.Put(ctx)
+			}
 			if err == io.EOF || err == io.ErrUnexpectedEOF {
-				if atomic.CompareAndSwapInt32(&ctx.closed, 0, 1) {
-					ctx.wg.Wait()
+				if atomic.CompareAndSwapInt32(&svrctx.closed, 0, 1) {
+					svrctx.wg.Wait()
 					server.mutex.Lock()
-					delete(codecs, ctx.codec)
-					server.deleteCodec(ctx.codec)
+					delete(codecs, svrctx.codec)
+					server.deleteCodec(svrctx.codec)
 					server.mutex.Unlock()
-					ctx.codec.Close()
-					if ctx.pipelines != nil {
-						for _, s := range ctx.pipelines {
+					svrctx.codec.Close()
+					if svrctx.pipelines != nil {
+						for _, s := range svrctx.pipelines {
 							s.Close()
 						}
-					} else if ctx.sched != nil {
-						ctx.sched.Close()
+					} else if svrctx.sched != nil {
+						svrctx.sched.Close()
+					}
+					if svrctx.pipeline != nil {
+						svrctx.pipeline.Close()
 					}
 				}
 			}

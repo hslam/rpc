@@ -214,100 +214,18 @@ func (conn *Conn) write(call *Call) {
 
 func (conn *Conn) read() {
 	var err error
+	var messages = conn.codec.Messages()
+	var pipeline = scheduler.New(1, &scheduler.Options{Threshold: 2})
 	for err == nil {
 		ctx := getContext()
-		buffer := conn.bufferPool.GetBuffer(conn.bufferSize)
-		ctx.buffer = buffer
-		err = conn.codec.ReadResponseHeader(ctx)
+		ctx.buffer = conn.bufferPool.GetBuffer(conn.bufferSize)
+		ctx.data, err = messages.ReadMessage(ctx.buffer)
 		if err != nil {
 			break
 		}
-		seq := ctx.Seq
-		conn.mutex.Lock()
-		call := conn.pending[seq]
-		delete(conn.pending, seq)
-		num := len(conn.pending)
-		conn.mutex.Unlock()
-		var err error
-		switch {
-		case call == nil:
-			err = conn.codec.ReadResponseBody(nil, nil)
-			if err != nil {
-				err = errors.New("reading error body: " + err.Error())
-			}
-			conn.bufferPool.PutBuffer(buffer)
-			putContext(ctx)
-		case len(ctx.Error) > 0:
-			if ctx.Error == shutdownMsg {
-				call.Error = ErrShutdown
-			} else {
-				call.Error = errors.New(ctx.Error)
-			}
-			err = conn.codec.ReadResponseBody(nil, nil)
-			if err != nil {
-				err = errors.New("reading error body: " + err.Error())
-			}
-			call.done()
-			conn.bufferPool.PutBuffer(buffer)
-			putContext(ctx)
-		default:
-			u := call.upgrade
-			if u.NoResponse == noResponse {
-				if u.Heartbeat == heartbeat {
-					call.done()
-					putUpgrade(u)
-				} else if u.Watch == stopWatch {
-					conn.mutex.Lock()
-					if _, ok := conn.watchs[call.ServiceMethod]; ok {
-						delete(conn.pending, seq)
-					}
-					delete(conn.watchs, call.ServiceMethod)
-					conn.mutex.Unlock()
-					call.done()
-					putUpgrade(u)
-				} else if u.Watch == watch {
-					if len(ctx.value) > 0 {
-						call.Value = make([]byte, len(ctx.value))
-						copy(call.Value, ctx.value)
-					}
-					conn.mutex.Lock()
-					if _, ok := conn.watchs[call.ServiceMethod]; ok {
-						conn.pending[seq] = call
-					}
-					conn.mutex.Unlock()
-					if len(call.Value) == 0 {
-						call.done()
-					} else {
-						call.watch()
-					}
-				}
-				conn.bufferPool.PutBuffer(buffer)
-				putContext(ctx)
-				continue
-			}
-			putUpgrade(u)
-			var sched scheduler.Scheduler
-			if conn.pipelines != nil {
-				sched = conn.pipelines[ctx.ServiceMethod]
-				if sched == nil {
-					sched = scheduler.New(1, &scheduler.Options{Threshold: 2})
-					conn.pipelines[ctx.ServiceMethod] = sched
-				}
-			} else if conn.sched != nil {
-				sched = conn.sched
-			}
-			if sched != nil {
-				sched.Schedule(func() {
-					conn.finishCall(ctx, call, seq)
-				})
-			} else if num > 1 {
-				scheduler.Schedule(func() {
-					conn.finishCall(ctx, call, seq)
-				})
-			} else {
-				conn.finishCall(ctx, call, seq)
-			}
-		}
+		pipeline.Schedule(func() {
+			conn.handle(ctx)
+		})
 	}
 	conn.mutex.Lock()
 	conn.shutdown = true
@@ -324,6 +242,94 @@ func (conn *Conn) read() {
 		}
 	}
 	conn.mutex.Unlock()
+}
+
+func (conn *Conn) handle(ctx *Context) {
+	var err error
+	err = conn.codec.ReadResponseHeader(ctx)
+	if err != nil {
+		return
+	}
+	seq := ctx.Seq
+	conn.mutex.Lock()
+	call := conn.pending[seq]
+	if call != nil && call.upgrade.Watch != watch {
+		delete(conn.pending, seq)
+	}
+	conn.mutex.Unlock()
+	switch {
+	case call == nil:
+		err = conn.codec.ReadResponseBody(nil, nil)
+		if err != nil {
+			err = errors.New("reading error body: " + err.Error())
+		}
+		conn.bufferPool.PutBuffer(ctx.buffer)
+		putContext(ctx)
+	case len(ctx.Error) > 0:
+		if ctx.Error == shutdownMsg {
+			call.Error = ErrShutdown
+		} else {
+			call.Error = errors.New(ctx.Error)
+		}
+		err = conn.codec.ReadResponseBody(nil, nil)
+		if err != nil {
+			err = errors.New("reading error body: " + err.Error())
+		}
+		call.done()
+		conn.bufferPool.PutBuffer(ctx.buffer)
+		putContext(ctx)
+	default:
+		u := call.upgrade
+		if u.NoResponse == noResponse {
+			if u.Heartbeat == heartbeat {
+				call.done()
+				putUpgrade(u)
+			} else if u.Watch == stopWatch {
+				conn.mutex.Lock()
+				if _, ok := conn.watchs[call.ServiceMethod]; ok {
+					delete(conn.pending, seq)
+				}
+				delete(conn.watchs, call.ServiceMethod)
+				conn.mutex.Unlock()
+				call.done()
+				putUpgrade(u)
+			} else if u.Watch == watch {
+				if len(ctx.value) > 0 {
+					call.Value = make([]byte, len(ctx.value))
+					copy(call.Value, ctx.value)
+				}
+				if len(call.Value) == 0 {
+					call.done()
+				} else {
+					call.watch()
+				}
+			}
+			conn.bufferPool.PutBuffer(ctx.buffer)
+			putContext(ctx)
+			return
+		}
+		putUpgrade(u)
+		var sched scheduler.Scheduler
+		if conn.pipelines != nil {
+			sched = conn.pipelines[ctx.ServiceMethod]
+			if sched == nil {
+				sched = scheduler.New(1, &scheduler.Options{Threshold: 2})
+				conn.pipelines[ctx.ServiceMethod] = sched
+			}
+		} else if conn.sched != nil {
+			sched = conn.sched
+		}
+		if sched != nil {
+			sched.Schedule(func() {
+				conn.finishCall(ctx, call, seq)
+			})
+		} else {
+			scheduler.Schedule(func() {
+				conn.finishCall(ctx, call, seq)
+			})
+		}
+	}
+
 }
 
 func (conn *Conn) finishCall(ctx *Context, call *Call, seq uint64) {
