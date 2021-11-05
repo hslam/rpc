@@ -119,7 +119,8 @@ func TestServerCodecAndClientCodec(t *testing.T) {
 		t.Error(res.Pro)
 	}
 	conn.Close()
-	conn.handle(nil)
+	conn.handle(nil, true)
+	conn.handle(nil, false)
 	server.Close()
 	var ctx *Context
 	ctx = &Context{Error: "error", codec: &mockServerCodec{}, upgrade: getUpgrade(), buffer: server.bufferPool.GetBuffer(0)}

@@ -9,6 +9,7 @@ import (
 	"github.com/hslam/buffer"
 	"github.com/hslam/scheduler"
 	"github.com/hslam/socket"
+	"github.com/hslam/transition"
 	"io"
 	"runtime"
 	"sync"
@@ -215,7 +216,11 @@ func (conn *Conn) write(call *Call) {
 func (conn *Conn) read() {
 	var err error
 	var messages = conn.codec.Messages()
+	wg := sync.WaitGroup{}
 	var pipeline = scheduler.New(1, &scheduler.Options{Threshold: 2})
+	var trans = transition.NewTransition(64, func() int {
+		return int(conn.NumCalls())
+	})
 	for err == nil {
 		ctx := getContext()
 		ctx.buffer = conn.bufferPool.GetBuffer(conn.bufferSize)
@@ -223,8 +228,15 @@ func (conn *Conn) read() {
 		if err != nil {
 			break
 		}
-		pipeline.Schedule(func() {
-			conn.handle(ctx)
+		trans.Smooth(func() {
+			wg.Wait()
+			conn.handle(ctx, false)
+		}, func() {
+			wg.Add(1)
+			pipeline.Schedule(func() {
+				conn.handle(ctx, true)
+				wg.Done()
+			})
 		})
 	}
 	conn.mutex.Lock()
@@ -244,7 +256,7 @@ func (conn *Conn) read() {
 	conn.mutex.Unlock()
 }
 
-func (conn *Conn) handle(ctx *Context) {
+func (conn *Conn) handle(ctx *Context, async bool) {
 	var err error
 	err = conn.codec.ReadResponseHeader(ctx)
 	if err != nil {
@@ -323,10 +335,12 @@ func (conn *Conn) handle(ctx *Context) {
 			sched.Schedule(func() {
 				conn.finishCall(ctx, call, seq)
 			})
-		} else {
+		} else if async {
 			scheduler.Schedule(func() {
 				conn.finishCall(ctx, call, seq)
 			})
+		} else {
+			conn.finishCall(ctx, call, seq)
 		}
 	}
 
