@@ -68,6 +68,10 @@ func (c *mockServerCodec) Messages() socket.Messages {
 	return nil
 }
 
+func (c *mockServerCodec) Concurrency() int {
+	return 1
+}
+
 func (c *mockServerCodec) ReadRequestHeader(ctx *Context) error {
 	return io.EOF
 }
