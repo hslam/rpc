@@ -14,6 +14,7 @@ import (
 	"github.com/hslam/netpoll"
 	"github.com/hslam/scheduler"
 	"github.com/hslam/socket"
+	"github.com/hslam/transition"
 	"io"
 	"os"
 	"runtime"
@@ -180,7 +181,6 @@ func (server *Server) PushFunc(watchFunc WatchFunc) {
 // ServeCodec uses the specified codec to decode requests and encode responses.
 func (server *Server) ServeCodec(codec ServerCodec) {
 	wg := new(sync.WaitGroup)
-	var pipeline = scheduler.New(1, &scheduler.Options{Threshold: 2})
 	var sched scheduler.Scheduler
 	var pipelines map[string]scheduler.Scheduler
 	if server.methodPipelining {
@@ -189,6 +189,9 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 		sched = scheduler.New(1, &scheduler.Options{Threshold: 2})
 	}
 	messages := codec.Messages()
+	pwg := sync.WaitGroup{}
+	var pipeline = scheduler.New(1, &scheduler.Options{Threshold: 2})
+	var trans = transition.NewTransition(16, codec.Concurrency)
 	for {
 		ctx := server.ctxPool.Get().(*Context)
 		ctx.upgrade = server.getUpgrade()
@@ -201,8 +204,15 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 			break
 		}
 		ctx.data = data
-		pipeline.Schedule(func() {
+		trans.Smooth(func() {
+			pwg.Wait()
 			server.ServeRequest(ctx, nil, wg, sched, pipelines)
+		}, func() {
+			pwg.Add(1)
+			pipeline.Schedule(func() {
+				server.ServeRequest(ctx, nil, wg, sched, pipelines)
+				pwg.Done()
+			})
 		})
 
 	}
@@ -439,6 +449,8 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 		wg        *sync.WaitGroup
 		messages  socket.Messages
 		pipeline  scheduler.Scheduler
+		trans     *transition.Transition
+		pwg       *sync.WaitGroup
 		sched     scheduler.Scheduler
 		pipelines map[string]scheduler.Scheduler
 		pipe      int32
@@ -465,6 +477,8 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 				wg:        new(sync.WaitGroup),
 				messages:  messages,
 				pipeline:  pipeline,
+				trans:     transition.NewTransition(16, codec.Concurrency),
+				pwg:       new(sync.WaitGroup),
 				sched:     sched,
 				pipelines: pipelines,
 			}, nil
@@ -480,8 +494,15 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 			data, err := svrctx.messages.ReadMessage(ctx.buffer)
 			if len(data) > 0 {
 				ctx.data = data
-				svrctx.pipeline.Schedule(func() {
+				svrctx.trans.Smooth(func() {
+					svrctx.pwg.Wait()
 					server.ServeRequest(ctx, svrctx.recving, svrctx.wg, svrctx.sched, svrctx.pipelines)
+				}, func() {
+					svrctx.pwg.Add(1)
+					svrctx.pipeline.Schedule(func() {
+						server.ServeRequest(ctx, svrctx.recving, svrctx.wg, svrctx.sched, svrctx.pipelines)
+						svrctx.pwg.Done()
+					})
 				})
 			}
 			svrctx.recving.Unlock()

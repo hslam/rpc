@@ -218,9 +218,7 @@ func (conn *Conn) read() {
 	var messages = conn.codec.Messages()
 	wg := sync.WaitGroup{}
 	var pipeline = scheduler.New(1, &scheduler.Options{Threshold: 2})
-	var trans = transition.NewTransition(64, func() int {
-		return int(conn.NumCalls())
-	})
+	var trans = transition.NewTransition(16, conn.codec.Concurrency)
 	for err == nil {
 		ctx := getContext()
 		ctx.buffer = conn.bufferPool.GetBuffer(conn.bufferSize)
