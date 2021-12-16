@@ -27,10 +27,11 @@ var ErrShutdown = errors.New(shutdownMsg)
 var ErrWatch = errors.New("The watch is existed")
 
 var (
-	callPool    = &sync.Pool{New: func() interface{} { return &Call{} }}
-	donePool    = &sync.Pool{New: func() interface{} { return make(chan *Call, 10) }}
-	ctxPool     = &sync.Pool{New: func() interface{} { return &Context{} }}
-	upgradePool = &sync.Pool{New: func() interface{} { return &upgrade{} }}
+	callPool          = &sync.Pool{New: func() interface{} { return &Call{} }}
+	donePool          = &sync.Pool{New: func() interface{} { return make(chan *Call, 10) }}
+	ctxPool           = &sync.Pool{New: func() interface{} { return &Context{} }}
+	upgradePool       = &sync.Pool{New: func() interface{} { return &upgrade{} }}
+	upgradeBufferPool = &sync.Pool{New: func() interface{} { return make([]byte, upgradeSize) }}
 )
 
 func getUpgrade() *upgrade {
@@ -40,6 +41,16 @@ func getUpgrade() *upgrade {
 func putUpgrade(u *upgrade) {
 	u.Reset()
 	upgradePool.Put(u)
+}
+
+func getUpgradeBuffer() []byte {
+	return upgradeBufferPool.Get().([]byte)
+}
+
+func putUpgradeBuffer(b []byte) {
+	if cap(b) == upgradeSize {
+		upgradeBufferPool.Put(b)
+	}
 }
 
 func getContext() *Context {
@@ -117,7 +128,6 @@ type Conn struct {
 	watchs         map[string]*Call
 	bufferSize     int
 	bufferPool     *buffer.Pool
-	upgradeBuffer  []byte
 	writeSched     scheduler.Scheduler
 	readSched      scheduler.Scheduler
 	writePipelines map[string]scheduler.Scheduler
@@ -140,11 +150,10 @@ type NewClientCodecFunc func(messages socket.Messages) ClientCodec
 // concurrent reads or concurrent writes.
 func NewConn() *Conn {
 	return &Conn{
-		pending:       make(map[uint64]*Call),
-		watchs:        make(map[string]*Call),
-		upgradeBuffer: make([]byte, 1),
-		bufferSize:    bufferSize,
-		bufferPool:    buffer.AssignPool(bufferSize),
+		pending:    make(map[uint64]*Call),
+		watchs:     make(map[string]*Call),
+		bufferSize: bufferSize,
+		bufferPool: buffer.AssignPool(bufferSize),
 	}
 }
 
@@ -217,12 +226,14 @@ func (conn *Conn) send(call *Call) {
 	ctx := Context{}
 	ctx.Seq = seq
 	ctx.upgrade = call.upgrade
+	var upgradeBuffer []byte
 	if call.upgrade.Heartbeat == heartbeat ||
 		call.upgrade.Watch == watch ||
 		call.upgrade.Watch == stopWatch ||
 		call.upgrade.NoRequest == noRequest ||
 		call.upgrade.NoResponse == noResponse {
-		ctx.Upgrade, _ = call.upgrade.Marshal(conn.upgradeBuffer)
+		upgradeBuffer = getUpgradeBuffer()
+		ctx.Upgrade, _ = call.upgrade.Marshal(upgradeBuffer)
 	}
 	ctx.ServiceMethod = call.ServiceMethod
 	err := conn.codec.WriteRequest(&ctx, call.Args)
@@ -238,6 +249,7 @@ func (conn *Conn) send(call *Call) {
 			call.done()
 		}
 	}
+	putUpgradeBuffer(upgradeBuffer)
 }
 
 func (conn *Conn) read() {

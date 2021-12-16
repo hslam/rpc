@@ -6,22 +6,16 @@ package rpc
 import "errors"
 
 const (
-	// NoRequest represents a no request transaction.
-	noRequest = 0x1
-	// NoResponse represents a no response transaction.
-	noResponse = 0x1
-	// FlateCompress represents a flate compress transaction.
+	upgradeSize = 1
+
+	noRequest     = 0x1
+	noResponse    = 0x1
 	flateCompress = 0x1
-	// ZlibCompress represents a zlib compress transaction.
-	zlibCompress = 0x2
-	// GzipCompress represents a gzip compress transaction.
-	gzipCompress = 0x3
-	// Heartbeat represents a heartbeat transaction.
-	heartbeat = 0x1
-	// startWatch represents a start watch transaction.
-	watch = 0x1
-	// StopWatch represents a stop watch transaction.
-	stopWatch = 0x2
+	zlibCompress  = 0x2
+	gzipCompress  = 0x3
+	heartbeat     = 0x1
+	watch         = 0x1
+	stopWatch     = 0x2
 )
 
 type upgrade struct {
@@ -38,7 +32,7 @@ func (u *upgrade) Reset() {
 }
 
 func (u *upgrade) Marshal(buf []byte) ([]byte, error) {
-	var size uint64 = 1
+	var size uint64 = upgradeSize
 	if uint64(cap(buf)) >= size {
 		buf = buf[:size]
 	} else {
