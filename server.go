@@ -26,24 +26,23 @@ var numCPU = runtime.NumCPU()
 
 // Server represents an RPC Server.
 type Server struct {
-	Funcs            *funcs.Funcs
-	logger           *log.Logger
-	ctxPool          *sync.Pool
-	upgradePool      *sync.Pool
-	bufferSize       int
-	bufferPool       *buffer.Pool
-	pipelining       bool
-	methodPipelining bool
-	noBatch          bool
-	poll             bool
-	shared           bool
-	noCopy           bool
-	mut              sync.Mutex
-	listeners        []socket.Listener
-	mutex            sync.RWMutex
-	codecs           map[ServerCodec]io.Closer
-	watchs           map[string]map[ServerCodec]*Context
-	watchFunc        WatchFunc
+	Funcs       *funcs.Funcs
+	logger      *log.Logger
+	ctxPool     *sync.Pool
+	upgradePool *sync.Pool
+	bufferSize  int
+	bufferPool  *buffer.Pool
+	pipelining  bool
+	noBatch     bool
+	poll        bool
+	shared      bool
+	noCopy      bool
+	mut         sync.Mutex
+	listeners   []socket.Listener
+	mutex       sync.RWMutex
+	codecs      map[ServerCodec]io.Closer
+	watchs      map[string]map[ServerCodec]*Context
+	watchFunc   WatchFunc
 }
 
 // NewServerCodecFunc is the function making a new ServerCodec by socket.Messages.
@@ -133,11 +132,6 @@ func (server *Server) SetPipelining(enable bool) {
 	server.pipelining = enable
 }
 
-// SetMethodPipelining enables the Server to use pipelining per connection and method.
-func (server *Server) SetMethodPipelining(enable bool) {
-	server.methodPipelining = enable
-}
-
 // SetNoBatch disables the Server to use batch writer.
 func (server *Server) SetNoBatch(noBatch bool) {
 	server.noBatch = noBatch
@@ -182,10 +176,7 @@ func (server *Server) PushFunc(watchFunc WatchFunc) {
 func (server *Server) ServeCodec(codec ServerCodec) {
 	wg := new(sync.WaitGroup)
 	var sched scheduler.Scheduler
-	var pipelines map[string]scheduler.Scheduler
-	if server.methodPipelining {
-		pipelines = make(map[string]scheduler.Scheduler)
-	} else if server.pipelining {
+	if server.pipelining {
 		sched = scheduler.New(1, &scheduler.Options{Threshold: 2})
 	}
 	messages := codec.Messages()
@@ -203,9 +194,9 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 		}
 		ctx.data = data
 		trans.Smooth(func() {
-			server.ServeRequest(ctx, nil, wg, sched, pipelines)
+			server.ServeRequest(ctx, nil, wg, sched)
 		}, func() {
-			server.ServeRequest(ctx, nil, wg, sched, pipelines)
+			server.ServeRequest(ctx, nil, wg, sched)
 		})
 	}
 	wg.Wait()
@@ -213,11 +204,7 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 	server.deleteCodec(codec)
 	server.mutex.Unlock()
 	codec.Close()
-	if pipelines != nil {
-		for _, s := range pipelines {
-			s.Close()
-		}
-	} else if sched != nil {
+	if sched != nil {
 		sched.Close()
 	}
 	if trans != nil {
@@ -238,7 +225,7 @@ func (server *Server) deleteCodec(codec ServerCodec) {
 
 // ServeRequest is like ServeCodec but synchronously serves a single request.
 // It does not close the codec upon completion.
-func (server *Server) ServeRequest(ctx *Context, recving *sync.Mutex, wg *sync.WaitGroup, sched scheduler.Scheduler, pipelines map[string]scheduler.Scheduler) error {
+func (server *Server) ServeRequest(ctx *Context, recving *sync.Mutex, wg *sync.WaitGroup, sched scheduler.Scheduler) error {
 	err := server.readRequestHeader(ctx)
 	if err != nil {
 		server.putUpgrade(ctx.upgrade)
@@ -273,13 +260,6 @@ func (server *Server) ServeRequest(ctx *Context, recving *sync.Mutex, wg *sync.W
 		server.mutex.Unlock()
 	}
 	wg.Add(1)
-	if server.methodPipelining {
-		sched = pipelines[ctx.ServiceMethod]
-		if sched == nil {
-			sched = scheduler.New(1, &scheduler.Options{Threshold: 2})
-			pipelines[ctx.ServiceMethod] = sched
-		}
-	}
 	if sched != nil {
 		sched.Schedule(func() {
 			server.handleRequest(wg, ctx)
@@ -409,9 +389,7 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 		server.logger.Noticef("poll - %s", "disabled")
 	}
 	server.logger.Noticef("network - %s", sock.Scheme())
-	if server.methodPipelining {
-		server.logger.Noticef("io - pipelining by method")
-	} else if server.pipelining {
+	if server.pipelining {
 		server.logger.Noticef("io - pipelining")
 	} else {
 		server.logger.Noticef("io - multiplexing")
@@ -436,15 +414,14 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 	server.listeners = append(server.listeners, lis)
 	server.mut.Unlock()
 	type ServerContext struct {
-		codec     ServerCodec
-		recving   *sync.Mutex
-		wg        *sync.WaitGroup
-		messages  socket.Messages
-		trans     *transition.Transition
-		sched     scheduler.Scheduler
-		pipelines map[string]scheduler.Scheduler
-		pipe      int32
-		closed    int32
+		codec    ServerCodec
+		recving  *sync.Mutex
+		wg       *sync.WaitGroup
+		messages socket.Messages
+		trans    *transition.Transition
+		sched    scheduler.Scheduler
+		pipe     int32
+		closed   int32
 	}
 	if server.poll {
 		return lis.ServeMessages(func(messages socket.Messages) (socket.Context, error) {
@@ -453,21 +430,17 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 			codecs[codec] = messages
 			server.codecs[codec] = messages
 			server.mutex.Unlock()
-			var pipelines map[string]scheduler.Scheduler
 			var sched scheduler.Scheduler
-			if server.methodPipelining {
-				pipelines = make(map[string]scheduler.Scheduler)
-			} else if server.pipelining {
+			if server.pipelining {
 				sched = scheduler.New(1, &scheduler.Options{Threshold: 2})
 			}
 			return &ServerContext{
-				codec:     codec,
-				recving:   new(sync.Mutex),
-				wg:        new(sync.WaitGroup),
-				messages:  messages,
-				trans:     transition.NewTransition(16, codec.Concurrency),
-				sched:     sched,
-				pipelines: pipelines,
+				codec:    codec,
+				recving:  new(sync.Mutex),
+				wg:       new(sync.WaitGroup),
+				messages: messages,
+				trans:    transition.NewTransition(16, codec.Concurrency),
+				sched:    sched,
 			}, nil
 		}, func(context socket.Context) error {
 			svrctx := context.(*ServerContext)
@@ -482,9 +455,9 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 			if len(data) > 0 {
 				ctx.data = data
 				svrctx.trans.Smooth(func() {
-					server.ServeRequest(ctx, svrctx.recving, svrctx.wg, svrctx.sched, svrctx.pipelines)
+					server.ServeRequest(ctx, svrctx.recving, svrctx.wg, svrctx.sched)
 				}, func() {
-					server.ServeRequest(ctx, svrctx.recving, svrctx.wg, svrctx.sched, svrctx.pipelines)
+					server.ServeRequest(ctx, svrctx.recving, svrctx.wg, svrctx.sched)
 				})
 			}
 			svrctx.recving.Unlock()
@@ -504,11 +477,7 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 					server.deleteCodec(svrctx.codec)
 					server.mutex.Unlock()
 					svrctx.codec.Close()
-					if svrctx.pipelines != nil {
-						for _, s := range svrctx.pipelines {
-							s.Close()
-						}
-					} else if svrctx.sched != nil {
+					if svrctx.sched != nil {
 						svrctx.sched.Close()
 					}
 					if svrctx.trans != nil {
@@ -621,11 +590,6 @@ func Services() []string {
 // SetPipelining enables the Server to use pipelining per connection.
 func SetPipelining(enable bool) {
 	DefaultServer.SetPipelining(enable)
-}
-
-// SetMethodPipelining enables the Server to use pipelining per connection and method.
-func SetMethodPipelining(enable bool) {
-	DefaultServer.SetMethodPipelining(enable)
 }
 
 // SetNoBatch disables the Server to use batch writer.

@@ -120,20 +120,17 @@ func (call *Call) watch() {
 // with a single Conn, and a Conn may be used by
 // multiple goroutines simultaneously.
 type Conn struct {
-	codec          ClientCodec
-	pipeMut        sync.Mutex
-	mutex          sync.Mutex
-	seq            uint64
-	pending        map[uint64]*Call
-	watchs         map[string]*Call
-	bufferSize     int
-	bufferPool     *buffer.Pool
-	writeSched     scheduler.Scheduler
-	readSched      scheduler.Scheduler
-	writePipelines map[string]scheduler.Scheduler
-	readPipelines  map[string]scheduler.Scheduler
-	closing        bool
-	shutdown       bool
+	codec      ClientCodec
+	mutex      sync.Mutex
+	seq        uint64
+	pending    map[uint64]*Call
+	watchs     map[string]*Call
+	bufferSize int
+	bufferPool *buffer.Pool
+	writeSched scheduler.Scheduler
+	readSched  scheduler.Scheduler
+	closing    bool
+	shutdown   bool
 }
 
 // NewClientCodecFunc is the function to make a new ClientCodec by socket.Messages.
@@ -181,22 +178,10 @@ func NewConnWithCodec(codec ClientCodec) *Conn {
 }
 
 func (conn *Conn) write(call *Call) {
-	if conn.writePipelines != nil || conn.writeSched != nil {
-		conn.pipeMut.Lock()
-		var sched scheduler.Scheduler
-		if conn.writePipelines != nil {
-			sched = conn.writePipelines[call.ServiceMethod]
-			if sched == nil {
-				sched = scheduler.New(1, &scheduler.Options{Threshold: 2})
-				conn.writePipelines[call.ServiceMethod] = sched
-			}
-		} else {
-			sched = conn.writeSched
-		}
-		sched.Schedule(func() {
+	if conn.writeSched != nil {
+		conn.writeSched.Schedule(func() {
 			conn.send(call)
 		})
-		conn.pipeMut.Unlock()
 	} else {
 		conn.send(call)
 	}
@@ -284,11 +269,6 @@ func (conn *Conn) recv() {
 		}
 	}
 	conn.mutex.Unlock()
-	if conn.readPipelines != nil {
-		for _, sched := range conn.readPipelines {
-			sched.Close()
-		}
-	}
 	if conn.readSched != nil {
 		conn.readSched.Close()
 	}
@@ -362,18 +342,8 @@ func (conn *Conn) read(ctx *Context, async bool) {
 			return
 		}
 		putUpgrade(u)
-		var sched scheduler.Scheduler
-		if conn.readPipelines != nil {
-			sched = conn.readPipelines[ctx.ServiceMethod]
-			if sched == nil {
-				sched = scheduler.New(1, &scheduler.Options{Threshold: 2})
-				conn.readPipelines[ctx.ServiceMethod] = sched
-			}
-		} else if conn.readSched != nil {
-			sched = conn.readSched
-		}
-		if sched != nil {
-			sched.Schedule(func() {
+		if conn.readSched != nil {
+			conn.readSched.Schedule(func() {
 				conn.finishCall(ctx, call, seq)
 			})
 		} else if async {
@@ -412,12 +382,6 @@ func (conn *Conn) SetPipelining(enable bool) {
 	conn.readSched = scheduler.New(1, &scheduler.Options{Threshold: 2})
 }
 
-// SetMethodPipelining enables the client to use pipelining per connection and method.
-func (conn *Conn) SetMethodPipelining(enable bool) {
-	conn.writePipelines = make(map[string]scheduler.Scheduler)
-	conn.readPipelines = make(map[string]scheduler.Scheduler)
-}
-
 // NumCalls returns the number of calls.
 func (conn *Conn) NumCalls() (n uint64) {
 	conn.mutex.Lock()
@@ -441,19 +405,9 @@ func (conn *Conn) Close() (err error) {
 	conn.closing = true
 	conn.mutex.Unlock()
 	err = conn.codec.Close()
-	if conn.writePipelines != nil || conn.writeSched != nil {
-		conn.pipeMut.Lock()
-		if conn.writePipelines != nil {
-			for _, sched := range conn.writePipelines {
-				sched.Close()
-			}
-		}
-		if conn.writeSched != nil {
-			conn.writeSched.Close()
-		}
-		conn.pipeMut.Unlock()
+	if conn.writeSched != nil {
+		conn.writeSched.Close()
 	}
-
 	return
 }
 
