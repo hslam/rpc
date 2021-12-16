@@ -84,21 +84,23 @@ type Call struct {
 }
 
 func (call *Call) done() {
-	select {
-	case call.Done <- call:
-	default:
+	if call.watcher == nil || !call.watcher.done {
+		select {
+		case call.Done <- call:
+		default:
+		}
 	}
-	call.watch()
+	if call.watcher != nil {
+		call.watch()
+	}
 }
 
 func (call *Call) watch() {
-	if call.watcher != nil {
-		if len(call.Value) > 0 || call.Error != nil {
-			e := getEvent()
-			e.Value = call.Value
-			e.Error = call.Error
-			call.watcher.trigger(e)
-		}
+	if len(call.Value) > 0 || call.Error != nil {
+		e := getEvent()
+		e.Value = call.Value
+		e.Error = call.Error
+		call.watcher.trigger(e)
 	}
 }
 
@@ -510,7 +512,8 @@ func (conn *Conn) CallWithContext(ctx context.Context, serviceMethod string, arg
 
 // Watch returns the Watcher.
 func (conn *Conn) Watch(key string) (Watcher, error) {
-	watcher := &watcher{conn: conn, C: make(chan *event, 10), key: key, done: make(chan struct{}, 1)}
+	watcher := &watcher{conn: conn, key: key}
+	watcher.cond.L = &watcher.mut
 	upgrade := getUpgrade()
 	upgrade.NoRequest = noRequest
 	upgrade.NoResponse = noResponse
@@ -523,6 +526,7 @@ func (conn *Conn) Watch(key string) (Watcher, error) {
 	conn.write(call)
 	var err error
 	<-call.Done
+	watcher.done = true
 	err = call.Error
 	if err != nil {
 		watcher.stop()

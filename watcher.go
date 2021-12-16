@@ -4,7 +4,6 @@
 package rpc
 
 import (
-	"context"
 	"errors"
 	"sync"
 	"sync/atomic"
@@ -35,79 +34,55 @@ func freeEvent(e *event) {
 type Watcher interface {
 	// Wait will return value when the key is triggered.
 	Wait() ([]byte, error)
-	// WaitWithContext acts like Wait but takes a context.
-	WaitWithContext(context.Context) ([]byte, error)
 	// Stop stops the watch.
 	Stop() error
 }
 
 type watcher struct {
 	conn   *Conn
-	C      chan *event
-	key    string
 	mut    sync.Mutex
+	cond   sync.Cond
+	key    string
 	events []*event
-	done   chan struct{}
+	done   bool
 	closed uint32
 }
 
 func (w *watcher) trigger(e *event) {
 	w.mut.Lock()
-	if len(w.events) == 0 {
-		select {
-		case w.C <- e:
-			w.mut.Unlock()
-			return
-		default:
-		}
-	}
 	w.events = append(w.events, e)
 	w.mut.Unlock()
-}
-
-func (w *watcher) triggerNext() {
-	w.mut.Lock()
-	for len(w.events) > 0 && cap(w.C) > len(w.C) {
-		next := w.events[0]
-		w.C <- next
-		n := copy(w.events, w.events[1:])
-		w.events = w.events[:n]
-	}
-	w.mut.Unlock()
+	w.cond.Signal()
 }
 
 func (w *watcher) Wait() (value []byte, err error) {
-	select {
-	case e := <-w.C:
-		w.triggerNext()
-		value = e.Value
-		err = e.Error
-		freeEvent(e)
-	case <-w.done:
+	if atomic.LoadUint32(&w.closed) > 0 {
 		err = ErrWatcherShutdown
+		return
 	}
-	return
-}
-
-func (w *watcher) WaitWithContext(ctx context.Context) (value []byte, err error) {
-	select {
-	case e := <-w.C:
-		w.triggerNext()
-		value = e.Value
-		err = e.Error
-		freeEvent(e)
-	case <-ctx.Done():
-		err = ctx.Err()
-	case <-w.done:
-		err = ErrWatcherShutdown
+	w.mut.Lock()
+	for {
+		if len(w.events) > 0 {
+			e := w.events[0]
+			w.events = w.events[1:]
+			w.mut.Unlock()
+			value = e.Value
+			err = e.Error
+			freeEvent(e)
+			return
+		}
+		w.cond.Wait()
+		if atomic.LoadUint32(&w.closed) > 0 {
+			w.mut.Unlock()
+			err = ErrWatcherShutdown
+			return
+		}
 	}
-	return
 }
 
 func (w *watcher) stop() {
-	if atomic.CompareAndSwapUint32(&w.closed, 0, 1) {
-		close(w.done)
-	}
+	atomic.StoreUint32(&w.closed, 1)
+	w.cond.Broadcast()
 }
 
 func (w *watcher) Stop() error {

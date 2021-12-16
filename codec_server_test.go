@@ -41,7 +41,7 @@ func TestNewServerCodec(t *testing.T) {
 		}()
 		message.Close()
 		lis.Close()
-		codec.ReadRequestHeader(nil)
+		codec.ReadRequestHeader(&Context{})
 		codec.Close()
 		if codec.ReadRequestHeader(nil) == nil {
 			t.Error("The err should not be nil")
