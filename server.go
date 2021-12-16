@@ -189,8 +189,6 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 		sched = scheduler.New(1, &scheduler.Options{Threshold: 2})
 	}
 	messages := codec.Messages()
-	pwg := sync.WaitGroup{}
-	var pipeline = scheduler.New(1, &scheduler.Options{Threshold: 2})
 	var trans = transition.NewTransition(16, codec.Concurrency)
 	for {
 		ctx := server.ctxPool.Get().(*Context)
@@ -205,16 +203,10 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 		}
 		ctx.data = data
 		trans.Smooth(func() {
-			pwg.Wait()
 			server.ServeRequest(ctx, nil, wg, sched, pipelines)
 		}, func() {
-			pwg.Add(1)
-			pipeline.Schedule(func() {
-				server.ServeRequest(ctx, nil, wg, sched, pipelines)
-				pwg.Done()
-			})
+			server.ServeRequest(ctx, nil, wg, sched, pipelines)
 		})
-
 	}
 	wg.Wait()
 	server.mutex.Lock()
@@ -228,8 +220,8 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 	} else if sched != nil {
 		sched.Close()
 	}
-	if pipeline != nil {
-		pipeline.Close()
+	if trans != nil {
+		trans.Close()
 	}
 }
 
@@ -448,9 +440,7 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 		recving   *sync.Mutex
 		wg        *sync.WaitGroup
 		messages  socket.Messages
-		pipeline  scheduler.Scheduler
 		trans     *transition.Transition
-		pwg       *sync.WaitGroup
 		sched     scheduler.Scheduler
 		pipelines map[string]scheduler.Scheduler
 		pipe      int32
@@ -463,7 +453,6 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 			codecs[codec] = messages
 			server.codecs[codec] = messages
 			server.mutex.Unlock()
-			var pipeline = scheduler.New(1, &scheduler.Options{Threshold: 2})
 			var pipelines map[string]scheduler.Scheduler
 			var sched scheduler.Scheduler
 			if server.methodPipelining {
@@ -476,9 +465,7 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 				recving:   new(sync.Mutex),
 				wg:        new(sync.WaitGroup),
 				messages:  messages,
-				pipeline:  pipeline,
 				trans:     transition.NewTransition(16, codec.Concurrency),
-				pwg:       new(sync.WaitGroup),
 				sched:     sched,
 				pipelines: pipelines,
 			}, nil
@@ -495,14 +482,9 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 			if len(data) > 0 {
 				ctx.data = data
 				svrctx.trans.Smooth(func() {
-					svrctx.pwg.Wait()
 					server.ServeRequest(ctx, svrctx.recving, svrctx.wg, svrctx.sched, svrctx.pipelines)
 				}, func() {
-					svrctx.pwg.Add(1)
-					svrctx.pipeline.Schedule(func() {
-						server.ServeRequest(ctx, svrctx.recving, svrctx.wg, svrctx.sched, svrctx.pipelines)
-						svrctx.pwg.Done()
-					})
+					server.ServeRequest(ctx, svrctx.recving, svrctx.wg, svrctx.sched, svrctx.pipelines)
 				})
 			}
 			svrctx.recving.Unlock()
@@ -529,8 +511,8 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 					} else if svrctx.sched != nil {
 						svrctx.sched.Close()
 					}
-					if svrctx.pipeline != nil {
-						svrctx.pipeline.Close()
+					if svrctx.trans != nil {
+						svrctx.trans.Close()
 					}
 				}
 			}

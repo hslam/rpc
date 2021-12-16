@@ -243,8 +243,6 @@ func (conn *Conn) send(call *Call) {
 func (conn *Conn) read() {
 	var err error
 	var messages = conn.codec.Messages()
-	wg := sync.WaitGroup{}
-	var pipeline = scheduler.New(1, &scheduler.Options{Threshold: 2})
 	var trans = transition.NewTransition(16, conn.codec.Concurrency)
 	for err == nil {
 		ctx := getContext()
@@ -254,14 +252,9 @@ func (conn *Conn) read() {
 			break
 		}
 		trans.Smooth(func() {
-			wg.Wait()
 			conn.handle(ctx, false)
 		}, func() {
-			wg.Add(1)
-			pipeline.Schedule(func() {
-				conn.handle(ctx, true)
-				wg.Done()
-			})
+			conn.handle(ctx, true)
 		})
 	}
 	conn.mutex.Lock()
@@ -286,6 +279,9 @@ func (conn *Conn) read() {
 	}
 	if conn.readSched != nil {
 		conn.readSched.Close()
+	}
+	if trans != nil {
+		trans.Close()
 	}
 }
 

@@ -11,5 +11,5 @@ require (
 	github.com/hslam/scheduler v0.0.0-20211028175315-641598104976
 	github.com/hslam/socket v0.0.4-0.20211121144928-0536b5b22829
 	github.com/hslam/stats v1.0.2-0.20210601134456-19f5dc799d62
-	github.com/hslam/transition v0.0.0-20211105214052-19d0aa6350f6
+	github.com/hslam/transition v0.0.0-20211216122802-b8bd298a64c6
 )
