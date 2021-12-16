@@ -164,7 +164,7 @@ func (conn *Conn) Dial(s socket.Socket, address string, New NewClientCodecFunc) 
 		return nil, err
 	}
 	conn.codec = New(c.Messages())
-	go conn.read()
+	go conn.recv()
 	return conn, nil
 }
 
@@ -176,12 +176,12 @@ func NewConnWithCodec(codec ClientCodec) *Conn {
 	}
 	c := NewConn()
 	c.codec = codec
-	go c.read()
+	go c.recv()
 	return c
 }
 
 func (conn *Conn) write(call *Call) {
-	if conn.writePipelines != nil || conn.readSched != nil {
+	if conn.writePipelines != nil || conn.writeSched != nil {
 		conn.pipeMut.Lock()
 		var sched scheduler.Scheduler
 		if conn.writePipelines != nil {
@@ -191,7 +191,7 @@ func (conn *Conn) write(call *Call) {
 				conn.writePipelines[call.ServiceMethod] = sched
 			}
 		} else {
-			sched = conn.readSched
+			sched = conn.writeSched
 		}
 		sched.Schedule(func() {
 			conn.send(call)
@@ -252,7 +252,7 @@ func (conn *Conn) send(call *Call) {
 	putUpgradeBuffer(upgradeBuffer)
 }
 
-func (conn *Conn) read() {
+func (conn *Conn) recv() {
 	var err error
 	var messages = conn.codec.Messages()
 	var trans = transition.NewTransition(16, conn.codec.Concurrency)
@@ -264,9 +264,9 @@ func (conn *Conn) read() {
 			break
 		}
 		trans.Smooth(func() {
-			conn.handle(ctx, false)
+			conn.read(ctx, false)
 		}, func() {
-			conn.handle(ctx, true)
+			conn.read(ctx, true)
 		})
 	}
 	conn.mutex.Lock()
@@ -297,7 +297,7 @@ func (conn *Conn) read() {
 	}
 }
 
-func (conn *Conn) handle(ctx *Context, async bool) {
+func (conn *Conn) read(ctx *Context, async bool) {
 	var err error
 	err = conn.codec.ReadResponseHeader(ctx)
 	if err != nil {
