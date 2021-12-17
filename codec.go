@@ -107,6 +107,8 @@ type Context struct {
 	sending       *sync.Mutex
 	codec         ServerCodec
 	value         []byte
+	stream        *stream
+	ctx           *Context
 }
 
 // Reset resets the Context.

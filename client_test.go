@@ -15,8 +15,6 @@ func TestClient(t *testing.T) {
 	network := "tcp"
 	addr := ":9999"
 	codec := "json"
-	var k = "foo"
-	var str = "bar"
 	opts := DefaultOptions()
 	opts.Network = network
 	opts.Codec = codec
@@ -32,30 +30,11 @@ func TestClient(t *testing.T) {
 		server.ListenWithOptions(addr, opts)
 	}()
 	time.Sleep(time.Millisecond * 10)
-	server.PushFunc(func(key string) (value []byte, ok bool) {
-		if key == k {
-			return []byte(str), true
-		}
-		return nil, false
-	})
+
 	client := NewClient(opts, addr)
 	err = client.Ping()
 	if err != nil {
 		t.Error(err)
-	}
-	watch, err := client.Watch(k)
-	if err != nil {
-		t.Error(err)
-	}
-	v, err := watch.Wait()
-	if err != nil {
-		t.Error(err)
-	} else if string(v) != str {
-		t.Error(string(v))
-	}
-	watch.Stop()
-	if _, err := watch.Wait(); err == nil {
-		t.Error()
 	}
 	A := int32(4)
 	B := int32(8)
@@ -110,10 +89,6 @@ func TestClient(t *testing.T) {
 		client := NewClient(opts, addr)
 		client.DialTimeout = time.Millisecond * 100
 		err = client.Ping()
-		if err == nil {
-			t.Error()
-		}
-		_, err := client.Watch(k)
 		if err == nil {
 			t.Error()
 		}
@@ -210,8 +185,6 @@ func TestClientLeastTime(t *testing.T) {
 	network := "tcp"
 	addrs := []string{":9997", ":9998", ":9999"}
 	codec := "json"
-	var k = "foo"
-	var str = "bar"
 	opts := DefaultOptions()
 	opts.Network = network
 	opts.Codec = codec
@@ -230,32 +203,12 @@ func TestClientLeastTime(t *testing.T) {
 		}()
 	}
 	time.Sleep(time.Millisecond * 10)
-	server.PushFunc(func(key string) (value []byte, ok bool) {
-		if key == k {
-			return []byte(str), true
-		}
-		return nil, false
-	})
 	client := NewClient(opts, addrs...)
 	client.Scheduling = LeastTimeScheduling
 	for i := 0; i < 64; i++ {
 		err = client.Ping()
 		if err != nil {
 			t.Error(err)
-		}
-		watch, err := client.Watch(k)
-		if err != nil {
-			t.Error(err)
-		}
-		v, err := watch.Wait()
-		if err != nil {
-			t.Error(err)
-		} else if string(v) != str {
-			t.Error(string(v))
-		}
-		watch.Stop()
-		if _, err := watch.Wait(); err == nil {
-			t.Error()
 		}
 		A := int32(4)
 		B := int32(8)

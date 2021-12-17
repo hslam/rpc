@@ -168,19 +168,19 @@ func (c *Client) CallWithContext(ctx context.Context, serviceMethod string, args
 	return err
 }
 
-// Watch returns the Watcher.
-func (c *Client) Watch(key string) (Watcher, error) {
+// NewStream creates a new Stream for the client side.
+func (c *Client) NewStream(serviceMethod string) (Stream, error) {
 	address, target, err := c.director()
 	if err != nil {
-		return c.transport().Watch("", key)
+		return c.transport().NewStream("", serviceMethod)
 	}
 	if len(address) > 0 {
-		return c.transport().Watch(address, key)
+		return c.transport().NewStream(address, serviceMethod)
 	}
 	start := time.Now()
-	watcher, err := c.transport().Watch(target.address, key)
+	stream, err := c.transport().NewStream(target.address, serviceMethod)
 	target.Update(c.Alpha, int64(time.Now().Sub(start)), err)
-	return watcher, err
+	return stream, err
 }
 
 // Go invokes the function asynchronously. It returns the Call structure representing

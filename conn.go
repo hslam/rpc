@@ -23,9 +23,6 @@ const shutdownMsg = "The connection is shut down"
 // ErrShutdown is returned when the connection is shut down.
 var ErrShutdown = errors.New(shutdownMsg)
 
-// ErrWatch is returned when the watch is existed.
-var ErrWatch = errors.New("The watch is existed")
-
 var (
 	callPool          = &sync.Pool{New: func() interface{} { return &Call{} }}
 	donePool          = &sync.Pool{New: func() interface{} { return make(chan *Call, 10) }}
@@ -91,27 +88,22 @@ type Call struct {
 	CallError     bool
 	Error         error
 	Done          chan *Call
-	watcher       *watcher
+	stream        *stream
 }
 
 func (call *Call) done() {
-	if call.watcher == nil || !call.watcher.done {
-		select {
-		case call.Done <- call:
-		default:
-		}
-	}
-	if call.watcher != nil {
-		call.watch()
+	select {
+	case call.Done <- call:
+	default:
 	}
 }
 
-func (call *Call) watch() {
-	if len(call.Value) > 0 || call.Error != nil {
+func (call *Call) streaming() {
+	if call.stream != nil && call.upgrade.Stream == streaming {
 		e := getEvent()
 		e.Value = call.Value
 		e.Error = call.Error
-		call.watcher.trigger(e)
+		call.stream.trigger(e)
 	}
 }
 
@@ -124,7 +116,7 @@ type Conn struct {
 	mutex      sync.Mutex
 	seq        uint64
 	pending    map[uint64]*Call
-	watchs     map[string]*Call
+	streams    map[uint64]*Call
 	bufferSize int
 	bufferPool *buffer.Pool
 	writeSched scheduler.Scheduler
@@ -148,7 +140,7 @@ type NewClientCodecFunc func(messages socket.Messages) ClientCodec
 func NewConn() *Conn {
 	return &Conn{
 		pending:    make(map[uint64]*Call),
-		watchs:     make(map[string]*Call),
+		streams:    make(map[uint64]*Call),
 		bufferSize: bufferSize,
 		bufferPool: buffer.AssignPool(bufferSize),
 	}
@@ -196,27 +188,33 @@ func (conn *Conn) send(call *Call) {
 		return
 	}
 	seq := conn.seq
-	if call.upgrade.Watch == watch {
-		if _, ok := conn.watchs[call.ServiceMethod]; ok {
-			conn.mutex.Unlock()
-			call.Error = ErrWatch
-			call.done()
-			return
+	var isStreaming bool
+	var closeStreaming bool
+	if call.upgrade.Stream > 0 {
+		switch call.upgrade.Stream {
+		case openStream:
+			call.stream.seq = seq
+			conn.streams[seq] = call
+		case streaming:
+			isStreaming = true
+			seq = call.stream.seq
+		case closeStream:
+			closeStreaming = true
+			seq = call.stream.seq
 		}
-		conn.watchs[call.ServiceMethod] = call
 	}
-	conn.seq++
-	conn.pending[seq] = call
+	if !isStreaming {
+		if !closeStreaming {
+			conn.seq++
+		}
+		conn.pending[seq] = call
+	}
 	conn.mutex.Unlock()
 	ctx := Context{}
 	ctx.Seq = seq
 	ctx.upgrade = call.upgrade
 	var upgradeBuffer []byte
-	if call.upgrade.Heartbeat == heartbeat ||
-		call.upgrade.Watch == watch ||
-		call.upgrade.Watch == stopWatch ||
-		call.upgrade.NoRequest == noRequest ||
-		call.upgrade.NoResponse == noResponse {
+	if !call.upgrade.IsZero() {
 		upgradeBuffer = getUpgradeBuffer()
 		ctx.Upgrade, _ = call.upgrade.Marshal(upgradeBuffer)
 	}
@@ -225,14 +223,17 @@ func (conn *Conn) send(call *Call) {
 	if err != nil {
 		conn.mutex.Lock()
 		delete(conn.pending, seq)
-		if call.upgrade.Watch == watch {
-			delete(conn.watchs, call.ServiceMethod)
+		if call.upgrade.Stream == openStream {
+			delete(conn.streams, seq)
 		}
 		conn.mutex.Unlock()
 		if call != nil {
 			call.Error = err
 			call.done()
 		}
+	}
+	if isStreaming {
+		PutCall(call)
 	}
 	putUpgradeBuffer(upgradeBuffer)
 }
@@ -263,9 +264,9 @@ func (conn *Conn) recv() {
 		call.Error = err
 		call.done()
 	}
-	for _, call := range conn.watchs {
-		if call.watcher != nil {
-			call.watcher.stop()
+	for _, call := range conn.streams {
+		if call.stream != nil {
+			call.stream.stop()
 		}
 	}
 	conn.mutex.Unlock()
@@ -286,7 +287,7 @@ func (conn *Conn) read(ctx *Context, async bool) {
 	seq := ctx.Seq
 	conn.mutex.Lock()
 	call := conn.pending[seq]
-	if call != nil && call.upgrade.Watch != watch {
+	if call != nil && call.upgrade.Stream != openStream && call.upgrade.Stream != streaming {
 		delete(conn.pending, seq)
 	}
 	conn.mutex.Unlock()
@@ -317,25 +318,21 @@ func (conn *Conn) read(ctx *Context, async bool) {
 			if u.Heartbeat == heartbeat {
 				call.done()
 				putUpgrade(u)
-			} else if u.Watch == stopWatch {
+			} else if u.Stream == closeStream {
 				conn.mutex.Lock()
-				if _, ok := conn.watchs[call.ServiceMethod]; ok {
+				if _, ok := conn.streams[ctx.Seq]; ok {
 					delete(conn.pending, seq)
 				}
-				delete(conn.watchs, call.ServiceMethod)
+				delete(conn.streams, ctx.Seq)
 				conn.mutex.Unlock()
 				call.done()
 				putUpgrade(u)
-			} else if u.Watch == watch {
-				if len(ctx.value) > 0 {
-					call.Value = make([]byte, len(ctx.value))
-					copy(call.Value, ctx.value)
-				}
-				if len(call.Value) == 0 {
-					call.done()
-				} else {
-					call.watch()
-				}
+			} else if u.Stream == streaming {
+				call.Value = make([]byte, len(ctx.value))
+				copy(call.Value, ctx.value)
+				call.streaming()
+			} else if u.Stream == openStream {
+				call.done()
 			}
 			conn.bufferPool.PutBuffer(ctx.buffer)
 			putContext(ctx)
@@ -386,7 +383,7 @@ func (conn *Conn) SetPipelining(enable bool) {
 func (conn *Conn) NumCalls() (n uint64) {
 	conn.mutex.Lock()
 	p := uint64(len(conn.pending))
-	n = uint64(len(conn.watchs))
+	n = uint64(len(conn.streams))
 	if p > n {
 		n = p
 	}
@@ -472,39 +469,54 @@ func (conn *Conn) CallWithContext(ctx context.Context, serviceMethod string, arg
 	return err
 }
 
-// Watch returns the Watcher.
-func (conn *Conn) Watch(key string) (Watcher, error) {
-	watcher := &watcher{conn: conn, key: key}
-	watcher.cond.L = &watcher.mut
+// NewStream creates a new Stream for the client side.
+func (conn *Conn) NewStream(serviceMethod string) (Stream, error) {
+	stream := &stream{unmarshal: func(data []byte, v interface{}) error {
+		return conn.codec.ReadResponseBody(data, v)
+	}}
+	stream.cond.L = &stream.mut
 	upgrade := getUpgrade()
 	upgrade.NoRequest = noRequest
 	upgrade.NoResponse = noResponse
-	upgrade.Watch = watch
+	upgrade.Stream = openStream
 	call := new(Call)
-	call.ServiceMethod = key
+	call.ServiceMethod = serviceMethod
 	call.upgrade = upgrade
 	call.Done = make(chan *Call, 1)
-	call.watcher = watcher
+	call.stream = stream
 	conn.write(call)
 	var err error
 	<-call.Done
-	watcher.done = true
+	stream.done = true
+	call.upgrade.NoRequest = 0
+	call.upgrade.Stream = streaming
+	stream.write = func(m interface{}) (err error) {
+		streamCall := callPool.Get().(*Call)
+		streamCall.upgrade = call.upgrade
+		streamCall.stream = stream
+		streamCall.Args = m
+		conn.write(streamCall)
+		return
+	}
+	stream.close = func() error {
+		return conn.closeStream(stream)
+	}
 	err = call.Error
 	if err != nil {
-		watcher.stop()
+		stream.Close()
 		return nil, err
 	}
-	return watcher, err
+	return stream, err
 }
 
-// stopWatch stops the key watcher .
-func (conn *Conn) stopWatch(key string) error {
+// closeStream stops the stream.
+func (conn *Conn) closeStream(s *stream) error {
 	upgrade := getUpgrade()
 	upgrade.NoRequest = noRequest
 	upgrade.NoResponse = noResponse
-	upgrade.Watch = stopWatch
+	upgrade.Stream = closeStream
 	call := GetCall()
-	call.ServiceMethod = key
+	call.stream = s
 	call.upgrade = upgrade
 	conn.write(call)
 	<-call.Done

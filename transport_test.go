@@ -15,8 +15,6 @@ func TestTransport(t *testing.T) {
 	network := "tcp"
 	addr := ":9999"
 	codec := "json"
-	var k = "foo"
-	var str = "bar"
 	opts := DefaultOptions()
 	opts.Network = network
 	opts.Codec = codec
@@ -40,32 +38,12 @@ func TestTransport(t *testing.T) {
 		Options:             opts,
 		ticker:              time.Millisecond * 10,
 	}
-	server.PushFunc(func(key string) (value []byte, ok bool) {
-		if key == k {
-			return []byte(str), true
-		}
-		return nil, false
-	})
 	err = trans.Ping(addr)
 	if err != nil {
 		t.Error(err)
 	}
 	err = trans.Ping("")
 	if err == nil {
-		t.Error()
-	}
-	watch, err := trans.Watch(addr, k)
-	if err != nil {
-		t.Error(err)
-	}
-	v, err := watch.Wait()
-	if err != nil {
-		t.Error(err)
-	} else if string(v) != str {
-		t.Error(string(v))
-	}
-	watch.Stop()
-	if _, err := watch.Wait(); err == nil {
 		t.Error()
 	}
 	A := int32(4)
@@ -136,9 +114,6 @@ func TestTransport(t *testing.T) {
 		t.Error("should be error")
 	}
 	cancel()
-	if _, err := trans.Watch(addr, "foo"); err == nil {
-		t.Error("should be error")
-	}
 	call = new(Call)
 	call.ServiceMethod = "Arith.Multiply"
 	call.Args = req

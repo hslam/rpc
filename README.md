@@ -14,8 +14,7 @@ Package rpc implements a remote procedure call over TCP, UNIX, HTTP and WS. The 
 * **[Codec](https://github.com/hslam/codec "codec")** json/[code](https://github.com/hslam/code "code")/pb
 * Multiplexing/Pipelining
 * [Auto batching](https://github.com/hslam/writer "writer")
-* Call/Go/RoundTrip/Ping/Watch/CallWithContext
-* Server push
+* Call/Go/RoundTrip/Ping/Stream/CallWithContext
 * Conn/Transport/Client
 * TLS
 
@@ -28,7 +27,6 @@ Package rpc implements a remote procedure call over TCP, UNIX, HTTP and WS. The 
 |Pipelining|No|No|Yes|No|No|
 |Auto Batching|No|No|Yes|No|No|
 |Transport|No|No|Yes|No|No|
-|Server Push|No|No|Yes|Yes|Yes|
 
 ## [Benchmark](http://github.com/hslam/rpc-benchmark "rpc-benchmark")
 

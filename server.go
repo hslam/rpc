@@ -41,15 +41,10 @@ type Server struct {
 	listeners   []socket.Listener
 	mutex       sync.RWMutex
 	codecs      map[ServerCodec]io.Closer
-	watchs      map[string]map[ServerCodec]*Context
-	watchFunc   WatchFunc
 }
 
 // NewServerCodecFunc is the function making a new ServerCodec by socket.Messages.
 type NewServerCodecFunc func(messages socket.Messages) ServerCodec
-
-// WatchFunc is the function getting value by key.
-type WatchFunc func(key string) (value []byte, ok bool)
 
 // NewServer returns a new Server.
 func NewServer() *Server {
@@ -64,7 +59,6 @@ func NewServer() *Server {
 		bufferSize:  bufferSize,
 		bufferPool:  buffer.AssignPool(bufferSize),
 		codecs:      make(map[ServerCodec]io.Closer),
-		watchs:      make(map[string]map[ServerCodec]*Context),
 	}
 }
 
@@ -151,27 +145,6 @@ func (server *Server) putUpgrade(u *upgrade) {
 	server.upgradePool.Put(u)
 }
 
-// Push triggers the waiting clients with the watch key value..
-func (server *Server) Push(key string, value []byte) {
-	server.mutex.RLock()
-	watchs := server.watchs[key]
-	server.mutex.RUnlock()
-	for _, ctx := range watchs {
-		server.push(ctx, value)
-	}
-}
-
-func (server *Server) push(ctx *Context, value []byte) {
-	ctx.value = value
-	server.sendResponse(ctx)
-	ctx.value = nil
-}
-
-// PushFunc sets a WatchFunc.
-func (server *Server) PushFunc(watchFunc WatchFunc) {
-	server.watchFunc = watchFunc
-}
-
 // ServeCodec uses the specified codec to decode requests and encode responses.
 func (server *Server) ServeCodec(codec ServerCodec) {
 	wg := new(sync.WaitGroup)
@@ -181,6 +154,7 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 	}
 	messages := codec.Messages()
 	var trans = transition.NewTransition(16, codec.Concurrency)
+	var streams = make(map[uint64]*Context)
 	for {
 		ctx := server.ctxPool.Get().(*Context)
 		ctx.upgrade = server.getUpgrade()
@@ -194,9 +168,9 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 		}
 		ctx.data = data
 		trans.Smooth(func() {
-			server.ServeRequest(ctx, nil, wg, sched)
+			server.ServeRequest(ctx, nil, wg, sched, streams)
 		}, func() {
-			server.ServeRequest(ctx, nil, wg, sched)
+			server.ServeRequest(ctx, nil, wg, sched, streams)
 		})
 	}
 	wg.Wait()
@@ -210,22 +184,19 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 	if trans != nil {
 		trans.Close()
 	}
+	for _, ctx := range streams {
+		ctx.stream.Close()
+	}
 }
 
 // deleteCodec closes the specified codec.
 func (server *Server) deleteCodec(codec ServerCodec) {
 	delete(server.codecs, codec)
-	for k, events := range server.watchs {
-		delete(events, codec)
-		if len(events) == 0 {
-			delete(server.watchs, k)
-		}
-	}
 }
 
 // ServeRequest is like ServeCodec but synchronously serves a single request.
 // It does not close the codec upon completion.
-func (server *Server) ServeRequest(ctx *Context, recving *sync.Mutex, wg *sync.WaitGroup, sched scheduler.Scheduler) error {
+func (server *Server) ServeRequest(ctx *Context, recving *sync.Mutex, wg *sync.WaitGroup, sched scheduler.Scheduler, streams map[uint64]*Context) error {
 	err := server.readRequestHeader(ctx)
 	if err != nil {
 		server.putUpgrade(ctx.upgrade)
@@ -236,28 +207,49 @@ func (server *Server) ServeRequest(ctx *Context, recving *sync.Mutex, wg *sync.W
 		server.ctxPool.Put(ctx)
 		return err
 	}
-	var codec = ctx.codec
 	if ctx.upgrade.Heartbeat == heartbeat {
 		server.sendResponse(ctx)
 		return nil
-	} else if ctx.upgrade.Watch == stopWatch {
-		server.mutex.Lock()
-		if events, ok := server.watchs[ctx.ServiceMethod]; ok {
-			delete(events, codec)
+	} else if ctx.upgrade.Stream == openStream {
+		ctx.stream = &stream{
+			close: func() error {
+				return nil
+			},
+			unmarshal: func(data []byte, v interface{}) error {
+				return ctx.codec.ReadRequestBody(data, v)
+			},
+			write: func(m interface{}) (err error) {
+				sendCtx := server.ctxPool.Get().(*Context)
+				sendCtx.upgrade = server.getUpgrade()
+				sendCtx.Seq = ctx.Seq
+				sendCtx.upgrade.Stream = streaming
+				err = ctx.codec.WriteResponse(sendCtx, m)
+				sendCtx.Reset()
+				server.ctxPool.Put(sendCtx)
+				return
+			},
 		}
-		server.mutex.Unlock()
+		ctx.stream.cond.L = &ctx.stream.mut
+		var ok bool
+		if _, ok = streams[ctx.Seq]; !ok {
+			streams[ctx.Seq] = ctx
+		}
+		wg.Add(1)
+		go server.handleRequest(wg, ctx)
+		return nil
+	} else if ctx.upgrade.Stream == closeStream {
+		if streamCtx, ok := streams[ctx.Seq]; ok {
+			streamCtx.stream.Close()
+			delete(streams, ctx.Seq)
+		}
 		server.sendResponse(ctx)
 		return nil
-	} else if ctx.upgrade.Watch == watch {
-		server.mutex.Lock()
-		var events map[ServerCodec]*Context
-		var ok bool
-		if events, ok = server.watchs[ctx.ServiceMethod]; !ok {
-			events = make(map[ServerCodec]*Context)
+	} else if ctx.upgrade.Stream == streaming {
+		if streamCtx, ok := streams[ctx.Seq]; ok {
+			ctx.ctx = streamCtx
 		}
-		events[codec] = ctx
-		server.watchs[ctx.ServiceMethod] = events
-		server.mutex.Unlock()
+		server.handleRequest(nil, ctx)
+		return nil
 	}
 	wg.Add(1)
 	if sched != nil {
@@ -297,10 +289,10 @@ func (server *Server) handleRequest(wg *sync.WaitGroup, ctx *Context) {
 
 func (server *Server) readRequestBody(ctx *Context) (err error) {
 	var codec = ctx.codec
-	if ctx.upgrade.NoRequest != noRequest {
+	if ctx.upgrade.Stream == openStream {
 		ctx.f = server.Funcs.GetFunc(ctx.ServiceMethod)
 		if ctx.f == nil {
-			err = errors.New("can't find service " + ctx.ServiceMethod)
+			err = errors.New("can't find stream service " + ctx.ServiceMethod)
 			codec.ReadRequestBody(nil, nil)
 			return
 		}
@@ -310,42 +302,68 @@ func (server *Server) readRequestBody(ctx *Context) (err error) {
 			codec.ReadRequestBody(nil, nil)
 			return
 		}
-		var value []byte
-		if server.noCopy {
-			value = ctx.value
-		} else {
-			if ctx.f.WithContext() && server.shared {
-				value = GetBuffer(len(ctx.value))[:len(ctx.value)]
+		if stream, ok := ctx.args.Interface().(SetStream); ok {
+			stream.Connect(ctx.stream)
+		}
+	} else if ctx.upgrade.Stream == streaming {
+		if streamCtx := ctx.ctx; streamCtx != nil {
+			var value []byte
+			if server.noCopy {
+				value = ctx.value
 			} else {
 				value = make([]byte, len(ctx.value))
+				copy(value, ctx.value)
 			}
-			copy(value, ctx.value)
+			e := getEvent()
+			e.Value = value
+			streamCtx.stream.trigger(e)
 		}
-		if err = codec.ReadRequestBody(value, ctx.args.Interface()); err != nil {
-			return
+	} else {
+		if ctx.upgrade.NoRequest != noRequest {
+			ctx.f = server.Funcs.GetFunc(ctx.ServiceMethod)
+			if ctx.f == nil {
+				err = errors.New("can't find service " + ctx.ServiceMethod)
+				codec.ReadRequestBody(nil, nil)
+				return
+			}
+			ctx.args = ctx.f.GetValueIn(0)
+			if ctx.args == funcs.ZeroValue {
+				err = errors.New("can't find args")
+				codec.ReadRequestBody(nil, nil)
+				return
+			}
+			var value []byte
+			if server.noCopy {
+				value = ctx.value
+			} else {
+				if ctx.f.WithContext() && server.shared {
+					value = GetBuffer(len(ctx.value))[:len(ctx.value)]
+				} else {
+					value = make([]byte, len(ctx.value))
+				}
+				copy(value, ctx.value)
+			}
+			if err = codec.ReadRequestBody(value, ctx.args.Interface()); err != nil {
+				return
+			}
 		}
-	}
-	if ctx.upgrade.NoResponse != noResponse {
-		ctx.reply = ctx.f.GetValueIn(1)
-		if ctx.reply == funcs.ZeroValue {
-			err = errors.New("can't find reply")
+		if ctx.upgrade.NoResponse != noResponse {
+			ctx.reply = ctx.f.GetValueIn(1)
+			if ctx.reply == funcs.ZeroValue {
+				err = errors.New("can't find reply")
+			}
 		}
 	}
 	return
 }
 
 func (server *Server) callService(ctx *Context) {
-	if ctx.upgrade.Watch == watch {
-		server.push(ctx, nil)
-		if server.watchFunc != nil {
-			if value, ok := server.watchFunc(ctx.ServiceMethod); ok {
-				server.push(ctx, value)
-			}
-		}
-		return
-	}
 	var err error
-	if ctx.f.WithContext() {
+	if ctx.upgrade.Stream == openStream {
+		go ctx.f.ValueCall(ctx.args)
+	} else if ctx.upgrade.Stream == streaming {
+		return
+	} else if ctx.f.WithContext() {
 		var c context.Context
 		if !server.noCopy && server.shared {
 			c = context.WithValue(context.Background(), BufferContextKey, ctx.value)
@@ -371,7 +389,7 @@ func (server *Server) sendResponse(ctx *Context) {
 	if err != nil {
 		server.logger.Errorln("writing response:", err)
 	}
-	if ctx.upgrade.Watch != watch {
+	if ctx.upgrade.Stream != openStream {
 		server.putUpgrade(ctx.upgrade)
 		if server.bufferPool != nil && cap(ctx.buffer) > 0 {
 			server.bufferPool.PutBuffer(ctx.buffer)
@@ -420,6 +438,7 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 		messages socket.Messages
 		trans    *transition.Transition
 		sched    scheduler.Scheduler
+		streams  map[uint64]*Context
 		pipe     int32
 		closed   int32
 	}
@@ -434,6 +453,7 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 			if server.pipelining {
 				sched = scheduler.New(1, &scheduler.Options{Threshold: 2})
 			}
+			var streams = make(map[uint64]*Context)
 			return &ServerContext{
 				codec:    codec,
 				recving:  new(sync.Mutex),
@@ -441,6 +461,7 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 				messages: messages,
 				trans:    transition.NewTransition(16, codec.Concurrency),
 				sched:    sched,
+				streams:  streams,
 			}, nil
 		}, func(context socket.Context) error {
 			svrctx := context.(*ServerContext)
@@ -455,9 +476,9 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 			if len(data) > 0 {
 				ctx.data = data
 				svrctx.trans.Smooth(func() {
-					server.ServeRequest(ctx, svrctx.recving, svrctx.wg, svrctx.sched)
+					server.ServeRequest(ctx, svrctx.recving, svrctx.wg, svrctx.sched, svrctx.streams)
 				}, func() {
-					server.ServeRequest(ctx, svrctx.recving, svrctx.wg, svrctx.sched)
+					server.ServeRequest(ctx, svrctx.recving, svrctx.wg, svrctx.sched, svrctx.streams)
 				})
 			}
 			svrctx.recving.Unlock()
@@ -600,16 +621,6 @@ func SetNoBatch(noBatch bool) {
 // SetPoll enables the Server to use netpoll based on epoll/kqueue.
 func SetPoll(enable bool) {
 	DefaultServer.SetPoll(enable)
-}
-
-// Push triggers the waiting clients with the watch key value.
-func Push(key string, value []byte) {
-	DefaultServer.Push(key, value)
-}
-
-// PushFunc sets a WatchFunc.
-func PushFunc(watchFunc WatchFunc) {
-	DefaultServer.PushFunc(watchFunc)
 }
 
 // ServeCodec uses the specified codec to decode requests and encode responses.

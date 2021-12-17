@@ -2,8 +2,8 @@ github.com/hslam/buffer v0.0.0-20211027181515-93d623f7e213 h1:0jr8x0IYeDlcIbFTlq
 github.com/hslam/buffer v0.0.0-20211027181515-93d623f7e213/go.mod h1:Gvbj40hnzR54zoUOuDZqDi7aziar8UlkHXk6NVYLg2U=
 github.com/hslam/code v1.0.2-0.20210610150014-db5f483caa02 h1:kFxF3z/LPJO6fWDgtEQzBhuX9R5jbCF2AsgO3+woLRo=
 github.com/hslam/code v1.0.2-0.20210610150014-db5f483caa02/go.mod h1:XdrE1+PuRCUDrZogV+seq9n7dFU/gxpDM76ipEo/aUk=
-github.com/hslam/funcs v1.0.2-0.20210604153148-47ed10e52aca h1:agQuI9i5OvGcmPr1tdFY+8orhYa18tI7/Y5VACHy5DU=
-github.com/hslam/funcs v1.0.2-0.20210604153148-47ed10e52aca/go.mod h1:KyY5JoFH01sc4UpHKeGCmGTRdNoCQta0OM6JZ5lWMwU=
+github.com/hslam/funcs v1.0.2-0.20211217140558-062148f72dbb h1:cdNFidQDIzcsarOeEScVup5TQrGRx853ZHqp/HYGlfo=
+github.com/hslam/funcs v1.0.2-0.20211217140558-062148f72dbb/go.mod h1:KyY5JoFH01sc4UpHKeGCmGTRdNoCQta0OM6JZ5lWMwU=
 github.com/hslam/inproc v0.0.0-20210808071438-d2fc848886cb h1:ZotvpqsWEmJLYk0Doq1cbncoNar+21VYgabteGfwTcY=
 github.com/hslam/inproc v0.0.0-20210808071438-d2fc848886cb/go.mod h1:UDfJZX2mkqDQFBK4P8oSuiM+PC08eis5Vvr0tvdhC3I=
 github.com/hslam/log v1.0.2-0.20210609143505-fd0f374101ec h1:hH4UbQ/PhUDRWYFbSryFWov16j5Jqt6Vsbucy0CQNgw=

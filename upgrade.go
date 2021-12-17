@@ -8,27 +8,27 @@ import "errors"
 const (
 	upgradeSize = 1
 
-	noRequest     = 0x1
-	noResponse    = 0x1
-	flateCompress = 0x1
-	zlibCompress  = 0x2
-	gzipCompress  = 0x3
-	heartbeat     = 0x1
-	watch         = 0x1
-	stopWatch     = 0x2
+	noRequest   = 0x1
+	noResponse  = 0x1
+	heartbeat   = 0x1
+	openStream  = 0x1
+	streaming   = 0x2
+	closeStream = 0x3
 )
 
 type upgrade struct {
-	NoRequest  byte
-	NoResponse byte
-	Compress   byte
-	Heartbeat  byte
-	Watch      byte
-	Reserve    byte
+	NoRequest  byte //1bit
+	NoResponse byte //1bit
+	Heartbeat  byte //1bit
+	Stream     byte //2bit
 }
 
 func (u *upgrade) Reset() {
 	*u = upgrade{}
+}
+
+func (u *upgrade) IsZero() bool {
+	return u.NoRequest+u.NoResponse+u.Heartbeat+u.Stream == 0
 }
 
 func (u *upgrade) Marshal(buf []byte) ([]byte, error) {
@@ -39,7 +39,7 @@ func (u *upgrade) Marshal(buf []byte) ([]byte, error) {
 		buf = make([]byte, size)
 	}
 	var offset uint64
-	buf[0] = u.NoRequest<<7 + u.NoResponse<<6 + u.Compress<<4 + u.Heartbeat<<3 + u.Watch<<1 + u.Reserve
+	buf[0] = u.NoRequest<<7 + u.NoResponse<<6 + u.Heartbeat<<5 + u.Stream<<3
 	offset++
 	return buf[:offset], nil
 }
@@ -51,10 +51,8 @@ func (u *upgrade) Unmarshal(data []byte) (uint64, error) {
 	}
 	u.NoRequest = data[0] >> 7 & 0x1
 	u.NoResponse = data[0] >> 6 & 0x1
-	u.Compress = data[0] >> 4 & 0x3
-	u.Heartbeat = data[0] >> 3 & 0x1
-	u.Watch = data[0] >> 1 & 0x3
-	u.Reserve = data[0] & 0x1
+	u.Heartbeat = data[0] >> 5 & 0x1
+	u.Stream = data[0] >> 3 & 0x3
 	offset++
 	return offset, nil
 }

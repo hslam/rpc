@@ -16,10 +16,11 @@ func testUpgrade(buf []byte, t *testing.T) {
 	u := &upgrade{
 		NoRequest:  noRequest,
 		NoResponse: noResponse,
-		Compress:   flateCompress,
 		Heartbeat:  heartbeat,
-		Watch:      watch,
-		Reserve:    1,
+		Stream:     streaming,
+	}
+	if u.IsZero() {
+		t.Error()
 	}
 	data, err := u.Marshal(buf)
 	if err != nil {
@@ -39,17 +40,11 @@ func testUpgrade(buf []byte, t *testing.T) {
 	if u.NoResponse != noResponse {
 		t.Error("NoResponse Unmarshal error")
 	}
-	if u.Compress != flateCompress {
-		t.Errorf("Compress Unmarshal error %d", u.Compress)
-	}
 	if u.Heartbeat != heartbeat {
 		t.Error("Heartbeat Unmarshal error")
 	}
-	if u.Watch != watch {
+	if u.Stream != streaming {
 		t.Error("Watch Unmarshal error")
-	}
-	if u.Reserve != 1 {
-		t.Errorf("Reserve Unmarshal error %d", u.Reserve)
 	}
 }
 

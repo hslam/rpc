@@ -309,10 +309,6 @@ func TestConnWriteWatch(t *testing.T) {
 	conn.Close()
 	conn.shutdown = false
 	conn.closing = false
-	_, err = conn.Watch("foo")
-	if err == nil {
-		t.Error("The err should not be nil")
-	}
 	server.Close()
 	wg.Wait()
 }
@@ -396,29 +392,6 @@ func TestConnRead(t *testing.T) {
 	}
 	time.Sleep(time.Millisecond * 500)
 	conn.Close()
-	server.Close()
-	wg.Wait()
-}
-
-func TestConnWatch(t *testing.T) {
-	network := "tcp"
-	addr := ":9999"
-	codec := "json"
-	var k = "foo"
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	server := NewServer()
-	go func() {
-		defer wg.Done()
-		server.Listen(network, addr, codec)
-	}()
-	time.Sleep(time.Millisecond * 10)
-	conn, err := Dial(network, addr, codec)
-	if err != nil {
-		t.Error(err)
-	}
-	conn.codec.Close()
-	conn.Watch(k)
 	server.Close()
 	wg.Wait()
 }
