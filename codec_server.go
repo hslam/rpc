@@ -21,7 +21,7 @@ type serverCodec struct {
 }
 
 // NewServerCodec returns a new ServerCodec.
-func NewServerCodec(bodyCodec Codec, headerEncoder Encoder, messages socket.Messages, noBatch bool) ServerCodec {
+func NewServerCodec(bodyCodec Codec, headerEncoder Encoder, messages socket.Messages, noBatch bool, writeBufSize int) ServerCodec {
 	if messages == nil {
 		return nil
 	}
@@ -33,10 +33,13 @@ func NewServerCodec(bodyCodec Codec, headerEncoder Encoder, messages socket.Mess
 	if bodyCodec == nil {
 		return nil
 	}
+	if writeBufSize < 1 {
+		writeBufSize = bufferSize
+	}
 	c := &serverCodec{
 		headerEncoder: headerEncoder,
 		bodyCodec:     bodyCodec,
-		pool:          buffer.AssignPool(bufferSize),
+		pool:          buffer.AssignPool(writeBufSize),
 	}
 	c.messages = messages
 	if !noBatch {
@@ -105,7 +108,7 @@ func (c *serverCodec) WriteResponse(ctx *Context, x interface{}) error {
 	hasResponse := len(ctx.Error) == 0 && ctx.upgrade.NoResponse != noResponse
 	var replyBuffer []byte
 	if hasResponse {
-		replyBuffer = c.pool.GetBuffer(bufferSize)
+		replyBuffer = c.pool.GetBuffer(0)
 		reply, err = c.bodyCodec.Marshal(replyBuffer, x)
 		if err != nil {
 			ctx.Error = err.Error()
@@ -113,7 +116,7 @@ func (c *serverCodec) WriteResponse(ctx *Context, x interface{}) error {
 	} else if len(ctx.value) > 0 {
 		reply = ctx.value
 	}
-	var responseBuffer = c.pool.GetBuffer(bufferSize)
+	var responseBuffer = c.pool.GetBuffer(0)
 	if c.headerEncoder != nil {
 		res := c.headerEncoder.NewResponse()
 		res.SetSeq(reqSeq)

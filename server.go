@@ -93,9 +93,11 @@ func (server *Server) Services() []string {
 //SetBufferSize sets buffer size.
 func (server *Server) SetBufferSize(size int) {
 	if size > 0 {
+		server.bufferSize = size
 		server.bufferPool = buffer.AssignPool(size)
 	} else {
-		server.bufferPool = nil
+		server.bufferSize = bufferSize
+		server.bufferPool = buffer.AssignPool(bufferSize)
 	}
 }
 
@@ -536,7 +538,7 @@ func (server *Server) Listen(network, address string, codec string) error {
 	if newSocket := NewSocket(network); newSocket != nil {
 		if newCodec := NewCodec(codec); newCodec != nil {
 			return server.listen(newSocket(nil), address, func(messages socket.Messages) ServerCodec {
-				return NewServerCodec(newCodec(), nil, messages, server.noBatch)
+				return NewServerCodec(newCodec(), nil, messages, server.noBatch, server.bufferSize)
 			})
 		}
 		return errors.New("unsupported codec: " + codec)
@@ -549,7 +551,7 @@ func (server *Server) ListenTLS(network, address string, codec string, config *t
 	if newSocket := NewSocket(network); newSocket != nil {
 		if newCodec := NewCodec(codec); newCodec != nil {
 			return server.listen(newSocket(config), address, func(messages socket.Messages) ServerCodec {
-				return NewServerCodec(newCodec(), nil, messages, server.noBatch)
+				return NewServerCodec(newCodec(), nil, messages, server.noBatch, server.bufferSize)
 			})
 		}
 		return errors.New("unsupported codec: " + codec)
@@ -584,7 +586,7 @@ func (server *Server) ListenWithOptions(address string, opts *Options) error {
 		} else if opts.NewHeaderEncoder != nil {
 			headerEncoder = opts.NewHeaderEncoder()
 		}
-		return NewServerCodec(bodyCodec, headerEncoder, messages, server.noBatch)
+		return NewServerCodec(bodyCodec, headerEncoder, messages, server.noBatch, server.bufferSize)
 	})
 }
 

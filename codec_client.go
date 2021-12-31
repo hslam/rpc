@@ -14,14 +14,14 @@ import (
 type clientCodec struct {
 	headerEncoder Encoder
 	bodyCodec     Codec
-	pool          *buffer.Pool
+	bufferPool    *buffer.Pool
 	messages      socket.Messages
 	count         int64
 	closed        uint32
 }
 
 // NewClientCodec returns a new ClientCodec.
-func NewClientCodec(bodyCodec Codec, headerEncoder Encoder, messages socket.Messages) ClientCodec {
+func NewClientCodec(bodyCodec Codec, headerEncoder Encoder, messages socket.Messages, writeBufSize int) ClientCodec {
 	if messages == nil {
 		return nil
 	}
@@ -33,16 +33,28 @@ func NewClientCodec(bodyCodec Codec, headerEncoder Encoder, messages socket.Mess
 	if bodyCodec == nil {
 		return nil
 	}
+	if writeBufSize < 1 {
+		writeBufSize = bufferSize
+	}
 	c := &clientCodec{
 		headerEncoder: headerEncoder,
 		bodyCodec:     bodyCodec,
-		pool:          buffer.AssignPool(bufferSize),
+		bufferPool:    buffer.AssignPool(writeBufSize),
 	}
 	c.messages = messages
 	if batch, ok := c.messages.(socket.Batch); ok {
 		batch.SetConcurrency(c.Concurrency)
 	}
 	return c
+}
+
+//SetBufferSize sets buffer size.
+func (c *clientCodec) SetBufferSize(size int) {
+	if size > 0 {
+		c.bufferPool = buffer.AssignPool(size)
+	} else {
+		c.bufferPool = buffer.AssignPool(bufferSize)
+	}
 }
 
 func (c *clientCodec) Messages() socket.Messages {
@@ -62,13 +74,13 @@ func (c *clientCodec) WriteRequest(ctx *Context, param interface{}) error {
 	var err error
 	var argsBuffer []byte
 	if ctx.upgrade.NoRequest != noRequest {
-		argsBuffer = c.pool.GetBuffer(bufferSize)
+		argsBuffer = c.bufferPool.GetBuffer(0)
 		args, err = c.bodyCodec.Marshal(argsBuffer, param)
 		if err != nil {
 			return err
 		}
 	}
-	var requestBuffer = c.pool.GetBuffer(bufferSize)
+	var requestBuffer = c.bufferPool.GetBuffer(0)
 	if c.headerEncoder != nil {
 		req := c.headerEncoder.NewRequest()
 		req.SetSeq(ctx.Seq)
@@ -91,9 +103,9 @@ func (c *clientCodec) WriteRequest(ctx *Context, param interface{}) error {
 	}
 	defer func() {
 		if ctx.upgrade.NoRequest != noRequest {
-			c.pool.PutBuffer(argsBuffer)
+			c.bufferPool.PutBuffer(argsBuffer)
 		}
-		c.pool.PutBuffer(requestBuffer)
+		c.bufferPool.PutBuffer(requestBuffer)
 	}()
 	if err == nil {
 		atomic.AddInt64(&c.count, 1)

@@ -21,13 +21,13 @@ func TestNewServerCodec(t *testing.T) {
 		conn, _ := lis.Accept()
 		message := conn.Messages()
 		headerEncoder := NewHeaderEncoder("json")
-		if NewServerCodec(nil, nil, nil, false) != nil {
+		if NewServerCodec(nil, nil, nil, false, bufferSize) != nil {
 			t.Error("should be nil")
 		}
-		if NewServerCodec(nil, nil, message, false) != nil {
+		if NewServerCodec(nil, nil, message, false, bufferSize) != nil {
 			t.Error("should be nil")
 		}
-		codec := NewServerCodec(nil, headerEncoder(), message, false)
+		codec := NewServerCodec(nil, headerEncoder(), message, false, bufferSize)
 		if codec == nil {
 			t.Error("should not be nil")
 		}
@@ -66,13 +66,13 @@ func TestNewServerCodecNoBatch(t *testing.T) {
 		conn, _ := lis.Accept()
 		message := conn.Messages()
 		headerEncoder := NewHeaderEncoder("json")
-		if NewServerCodec(nil, nil, nil, true) != nil {
+		if NewServerCodec(nil, nil, nil, true, bufferSize) != nil {
 			t.Error("should be nil")
 		}
-		if NewServerCodec(nil, nil, message, true) != nil {
+		if NewServerCodec(nil, nil, message, true, bufferSize) != nil {
 			t.Error("should be nil")
 		}
-		codec := NewServerCodec(nil, headerEncoder(), message, true)
+		codec := NewServerCodec(nil, headerEncoder(), message, true, bufferSize)
 		if codec == nil {
 			t.Error("should not be nil")
 		}

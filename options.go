@@ -17,12 +17,14 @@ type Options struct {
 	Codec            string
 	HeaderEncoder    string
 	TLSConfig        *tls.Config
+	ClientBufferSize int
 }
 
 //DefaultOptions returns a default options.
 func DefaultOptions() *Options {
 	return &Options{
-		NewSocket: socket.NewTCPSocket,
-		NewCodec:  NewJSONCodec,
+		NewSocket:        socket.NewTCPSocket,
+		NewCodec:         NewJSONCodec,
+		ClientBufferSize: bufferSize,
 	}
 }

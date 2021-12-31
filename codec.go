@@ -76,6 +76,11 @@ func PutBuffer(buf []byte) {
 	}
 }
 
+// BufferSize sets the buffer size.
+type BufferSize interface {
+	SetBufferSize(int)
+}
+
 // GetContextBuffer gets a buffer from the context.
 func GetContextBuffer(ctx context.Context) (buffer []byte) {
 	value := ctx.Value(BufferContextKey)

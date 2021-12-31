@@ -28,13 +28,13 @@ func TestNewClientCodec(t *testing.T) {
 	conn, _ := sock.Dial(addr)
 	message := conn.Messages()
 	headerEncoder := NewHeaderEncoder("json")
-	if NewClientCodec(nil, nil, nil) != nil {
+	if NewClientCodec(nil, nil, nil, bufferSize) != nil {
 		t.Error("should be nil")
 	}
-	if NewClientCodec(nil, nil, message) != nil {
+	if NewClientCodec(nil, nil, message, bufferSize) != nil {
 		t.Error("should be nil")
 	}
-	codec := NewClientCodec(nil, headerEncoder(), message)
+	codec := NewClientCodec(nil, headerEncoder(), message, bufferSize)
 	if codec == nil {
 		t.Error("should not be nil")
 	}

@@ -14,7 +14,7 @@ func Dial(network, address, codec string) (*Conn, error) {
 	if newSocket := NewSocket(network); newSocket != nil {
 		if newCodec := NewCodec(codec); newCodec != nil {
 			return NewConn().Dial(newSocket(nil), address, func(messages socket.Messages) ClientCodec {
-				return NewClientCodec(newCodec(), nil, messages)
+				return NewClientCodec(newCodec(), nil, messages, bufferSize)
 			})
 		}
 		return nil, errors.New("unsupported codec: " + codec)
@@ -27,7 +27,7 @@ func DialTLS(network, address, codec string, config *tls.Config) (*Conn, error) 
 	if newSocket := NewSocket(network); newSocket != nil {
 		if newCodec := NewCodec(codec); newCodec != nil {
 			return NewConn().Dial(newSocket(config), address, func(messages socket.Messages) ClientCodec {
-				return NewClientCodec(newCodec(), nil, messages)
+				return NewClientCodec(newCodec(), nil, messages, bufferSize)
 			})
 		}
 		return nil, errors.New("unsupported codec: " + codec)
@@ -62,6 +62,6 @@ func DialWithOptions(address string, opts *Options) (*Conn, error) {
 		} else if opts.NewHeaderEncoder != nil {
 			headerEncoder = opts.NewHeaderEncoder()
 		}
-		return NewClientCodec(bodyCodec, headerEncoder, messages)
+		return NewClientCodec(bodyCodec, headerEncoder, messages, opts.ClientBufferSize)
 	})
 }

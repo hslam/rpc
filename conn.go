@@ -117,7 +117,6 @@ type Conn struct {
 	seq        uint64
 	pending    map[uint64]*Call
 	streams    map[uint64]*Call
-	bufferSize int
 	bufferPool *buffer.Pool
 	writeSched scheduler.Scheduler
 	readSched  scheduler.Scheduler
@@ -141,7 +140,6 @@ func NewConn() *Conn {
 	return &Conn{
 		pending:    make(map[uint64]*Call),
 		streams:    make(map[uint64]*Call),
-		bufferSize: bufferSize,
 		bufferPool: buffer.AssignPool(bufferSize),
 	}
 }
@@ -167,6 +165,18 @@ func NewConnWithCodec(codec ClientCodec) *Conn {
 	c.codec = codec
 	go c.recv()
 	return c
+}
+
+//SetBufferSize sets buffer size.
+func (conn *Conn) SetBufferSize(size int) {
+	if size > 0 {
+		conn.bufferPool = buffer.AssignPool(size)
+	} else {
+		conn.bufferPool = buffer.AssignPool(bufferSize)
+	}
+	if s, ok := conn.codec.(BufferSize); ok {
+		s.SetBufferSize(size)
+	}
 }
 
 func (conn *Conn) write(call *Call) {
@@ -244,7 +254,7 @@ func (conn *Conn) recv() {
 	var trans = transition.NewTransition(16, conn.codec.Concurrency)
 	for err == nil {
 		ctx := getContext()
-		ctx.buffer = conn.bufferPool.GetBuffer(conn.bufferSize)
+		ctx.buffer = conn.bufferPool.GetBuffer(0)
 		ctx.data, err = messages.ReadMessage(ctx.buffer)
 		if err != nil {
 			break
