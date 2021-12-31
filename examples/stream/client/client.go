@@ -23,7 +23,8 @@ func main() {
 		if err := stream.WriteMessage(req); err != nil {
 			panic(err)
 		}
-		if err := stream.ReadMessage(&res); err != nil {
+		buf := make([]byte, 64)
+		if err := stream.ReadMessage(buf, &res); err != nil {
 			panic(err)
 		}
 		fmt.Printf("%d * %d = %d\n", req.A, req.B, res.Pro)

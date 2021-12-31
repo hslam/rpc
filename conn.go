@@ -328,7 +328,7 @@ func (conn *Conn) read(ctx *Context, async bool) {
 				call.done()
 				putUpgrade(u)
 			} else if u.Stream == streaming {
-				call.Value = make([]byte, len(ctx.value))
+				call.Value = GetBuffer(len(ctx.value))
 				copy(call.Value, ctx.value)
 				call.streaming()
 			} else if u.Stream == openStream {
@@ -471,9 +471,7 @@ func (conn *Conn) CallWithContext(ctx context.Context, serviceMethod string, arg
 
 // NewStream creates a new Stream for the client side.
 func (conn *Conn) NewStream(serviceMethod string) (Stream, error) {
-	stream := &stream{unmarshal: func(data []byte, v interface{}) error {
-		return conn.codec.ReadResponseBody(data, v)
-	}}
+	stream := &stream{unmarshal: conn.codec.ReadResponseBody}
 	stream.cond.L = &stream.mut
 	upgrade := getUpgrade()
 	upgrade.NoRequest = noRequest

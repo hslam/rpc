@@ -40,7 +40,7 @@ type Stream interface {
 	// WriteMessage writes a message to the stream.
 	WriteMessage(m interface{}) error
 	// ReadMessage reads a single message from the stream.
-	ReadMessage(m interface{}) error
+	ReadMessage(b []byte, m interface{}) error
 	// Close closes the stream.
 	Close() error
 }
@@ -64,7 +64,7 @@ func (w *stream) trigger(e *event) {
 	w.cond.Signal()
 }
 
-func (w *stream) ReadMessage(m interface{}) (err error) {
+func (w *stream) ReadMessage(b []byte, m interface{}) (err error) {
 	w.mut.Lock()
 	if atomic.LoadInt32(&w.closed) > 0 {
 		w.mut.Unlock()
@@ -76,7 +76,14 @@ func (w *stream) ReadMessage(m interface{}) (err error) {
 			e := w.events[0]
 			w.events = w.events[1:]
 			w.mut.Unlock()
-			w.unmarshal(e.Value, m)
+			if cap(b) > len(e.Value) {
+				b = b[:len(e.Value)]
+			} else {
+				b = make([]byte, len(e.Value))
+			}
+			copy(b, e.Value)
+			PutBuffer(e.Value)
+			w.unmarshal(b, m)
 			err = e.Error
 			freeEvent(e)
 			return

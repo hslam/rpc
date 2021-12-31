@@ -36,7 +36,8 @@ func TestStream(t *testing.T) {
 		if err := stream.WriteMessage(req); err != nil {
 			t.Error(err)
 		}
-		if err := stream.ReadMessage(&res); err != nil {
+		buf := make([]byte, 64)
+		if err := stream.ReadMessage(buf, &res); err != nil {
 			t.Error(err)
 		}
 	}
@@ -60,7 +61,7 @@ type mockStreamArith struct{}
 func (a *mockStreamArith) StreamMultiply(stream *mockStream) error {
 	for {
 		var req = &mockStreamArithRequest{}
-		if err := stream.Read(req); err != nil {
+		if err := stream.Read(nil, req); err != nil {
 			return err
 		}
 		res := mockStreamArithResponse{}
@@ -81,8 +82,8 @@ func (s *mockStream) Connect(stream Stream) error {
 	return nil
 }
 
-func (s *mockStream) Read(req *mockStreamArithRequest) error {
-	return s.stream.ReadMessage(req)
+func (s *mockStream) Read(buf []byte, req *mockStreamArithRequest) error {
+	return s.stream.ReadMessage(buf, req)
 }
 
 func (s *mockStream) Write(res *mockStreamArithResponse) error {

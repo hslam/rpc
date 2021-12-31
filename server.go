@@ -215,9 +215,7 @@ func (server *Server) ServeRequest(ctx *Context, recving *sync.Mutex, wg *sync.W
 			close: func() error {
 				return nil
 			},
-			unmarshal: func(data []byte, v interface{}) error {
-				return ctx.codec.ReadRequestBody(data, v)
-			},
+			unmarshal: ctx.codec.ReadRequestBody,
 			write: func(m interface{}) (err error) {
 				sendCtx := server.ctxPool.Get().(*Context)
 				sendCtx.upgrade = server.getUpgrade()
@@ -234,8 +232,7 @@ func (server *Server) ServeRequest(ctx *Context, recving *sync.Mutex, wg *sync.W
 		if _, ok = streams[ctx.Seq]; !ok {
 			streams[ctx.Seq] = ctx
 		}
-		wg.Add(1)
-		go server.handleRequest(wg, ctx)
+		server.handleRequest(nil, ctx)
 		return nil
 	} else if ctx.upgrade.Stream == closeStream {
 		if streamCtx, ok := streams[ctx.Seq]; ok {
@@ -307,13 +304,8 @@ func (server *Server) readRequestBody(ctx *Context) (err error) {
 		}
 	} else if ctx.upgrade.Stream == streaming {
 		if streamCtx := ctx.ctx; streamCtx != nil {
-			var value []byte
-			if server.noCopy {
-				value = ctx.value
-			} else {
-				value = make([]byte, len(ctx.value))
-				copy(value, ctx.value)
-			}
+			value := GetBuffer(len(ctx.value))
+			copy(value, ctx.value)
 			e := getEvent()
 			e.Value = value
 			streamCtx.stream.trigger(e)
@@ -360,8 +352,14 @@ func (server *Server) readRequestBody(ctx *Context) (err error) {
 func (server *Server) callService(ctx *Context) {
 	var err error
 	if ctx.upgrade.Stream == openStream {
-		go ctx.f.ValueCall(ctx.args)
+		go func() {
+			ctx.f.ValueCall(ctx.args)
+		}()
 	} else if ctx.upgrade.Stream == streaming {
+		server.putUpgrade(ctx.upgrade)
+		if server.bufferPool != nil && cap(ctx.buffer) > 0 {
+			server.bufferPool.PutBuffer(ctx.buffer)
+		}
 		return
 	} else if ctx.f.WithContext() {
 		var c context.Context
@@ -389,11 +387,18 @@ func (server *Server) sendResponse(ctx *Context) {
 	if err != nil {
 		server.logger.Errorln("writing response:", err)
 	}
-	if ctx.upgrade.Stream != openStream {
+	if server.bufferPool != nil && cap(ctx.buffer) > 0 {
+		server.bufferPool.PutBuffer(ctx.buffer)
+	}
+	if ctx.upgrade.Stream == openStream {
+		ctx.value = nil
+		ctx.buffer = nil
+		ctx.data = nil
+		ctx.Upgrade = nil
+		ctx.ServiceMethod = ""
+		ctx.Error = ""
+	} else {
 		server.putUpgrade(ctx.upgrade)
-		if server.bufferPool != nil && cap(ctx.buffer) > 0 {
-			server.bufferPool.PutBuffer(ctx.buffer)
-		}
 		ctx.Reset()
 		server.ctxPool.Put(ctx)
 	}

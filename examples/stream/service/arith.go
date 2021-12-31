@@ -10,8 +10,9 @@ type Arith struct{}
 //StreamMultiply operation
 func (a *Arith) StreamMultiply(stream *Stream) error {
 	for {
+		buf := make([]byte, 64)
 		var req = &ArithRequest{}
-		if err := stream.Read(req); err != nil {
+		if err := stream.Read(buf, req); err != nil {
 			return err
 		}
 		res := ArithResponse{}
@@ -35,8 +36,8 @@ func (s *Stream) Connect(stream rpc.Stream) error {
 }
 
 //Read reads a message from the rpc stream.
-func (s *Stream) Read(req *ArithRequest) error {
-	return s.stream.ReadMessage(req)
+func (s *Stream) Read(buf []byte, req *ArithRequest) error {
+	return s.stream.ReadMessage(buf, req)
 }
 
 //Write writes a message to the rpc stream.
