@@ -224,6 +224,7 @@ func (server *Server) ServeRequest(ctx *Context, recving *sync.Mutex, wg *sync.W
 				sendCtx.Seq = ctx.Seq
 				sendCtx.upgrade.Stream = streaming
 				err = ctx.codec.WriteResponse(sendCtx, m)
+				server.putUpgrade(sendCtx.upgrade)
 				sendCtx.Reset()
 				server.ctxPool.Put(sendCtx)
 				return

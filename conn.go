@@ -498,6 +498,7 @@ func (conn *Conn) NewStream(serviceMethod string) (Stream, error) {
 	stream.done = true
 	call.upgrade.NoRequest = 0
 	call.upgrade.Stream = streaming
+	call.ServiceMethod = ""
 	stream.write = func(m interface{}) (err error) {
 		streamCall := callPool.Get().(*Call)
 		streamCall.upgrade = call.upgrade
