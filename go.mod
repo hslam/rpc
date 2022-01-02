@@ -9,7 +9,7 @@ require (
 	github.com/hslam/log v1.0.2-0.20210609143505-fd0f374101ec
 	github.com/hslam/netpoll v0.0.4-0.20211030051742-b79942b30072
 	github.com/hslam/scheduler v0.0.0-20211028175315-641598104976
-	github.com/hslam/socket v0.0.4-0.20211231160307-fddd760ddf40
+	github.com/hslam/socket v0.0.4-0.20220102175955-b1fd46f05c2d
 	github.com/hslam/stats v1.0.2-0.20210601134456-19f5dc799d62
 	github.com/hslam/transition v0.0.0-20211216122802-b8bd298a64c6
 )
