@@ -5,6 +5,7 @@ package rpc
 
 import (
 	"errors"
+	"github.com/hslam/scheduler"
 	"sync"
 	"sync/atomic"
 )
@@ -46,15 +47,16 @@ type Stream interface {
 }
 
 type stream struct {
-	close     func() error
-	unmarshal func(data []byte, v interface{}) error
-	write     func(m interface{}) (err error)
-	mut       sync.Mutex
-	cond      sync.Cond
-	seq       uint64
-	events    []*event
-	done      bool
-	closed    int32
+	close       func() error
+	unmarshal   func(data []byte, v interface{}) error
+	write       func(m interface{}) (err error)
+	writeStream scheduler.Scheduler
+	mut         sync.Mutex
+	cond        sync.Cond
+	seq         uint64
+	events      []*event
+	done        bool
+	closed      int32
 }
 
 func (w *stream) trigger(e *event) {
@@ -102,10 +104,14 @@ func (w *stream) WriteMessage(m interface{}) (err error) {
 		err = ErrStreamShutdown
 		return
 	}
-	return w.write(m)
+	w.writeStream.Schedule(func() {
+		w.write(m)
+	})
+	return
 }
 
 func (w *stream) stop() {
+	w.writeStream.Close()
 	w.mut.Lock()
 	atomic.StoreInt32(&w.closed, 1)
 	w.mut.Unlock()

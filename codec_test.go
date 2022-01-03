@@ -128,7 +128,7 @@ func TestServerCodecAndClientCodec(t *testing.T) {
 	server.Close()
 	var ctx *Context
 	ctx = &Context{Error: "error", codec: &mockServerCodec{}, upgrade: getUpgrade(), buffer: server.bufferPool.GetBuffer(0)}
-	if err := server.ServeRequest(ctx, nil, nil, nil, nil); err == nil {
+	if err := server.ServeRequest(ctx, nil, nil, nil, nil, nil, nil); err == nil {
 		t.Error()
 	}
 	ctx = &Context{Error: "error", codec: &mockServerCodec{}, upgrade: getUpgrade(), buffer: server.bufferPool.GetBuffer(0)}

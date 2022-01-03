@@ -112,16 +112,18 @@ func (call *Call) streaming() {
 // with a single Conn, and a Conn may be used by
 // multiple goroutines simultaneously.
 type Conn struct {
-	codec      ClientCodec
-	mutex      sync.Mutex
-	seq        uint64
-	pending    map[uint64]*Call
-	streams    map[uint64]*Call
-	bufferPool *buffer.Pool
-	writeSched scheduler.Scheduler
-	readSched  scheduler.Scheduler
-	closing    bool
-	shutdown   bool
+	codec       ClientCodec
+	mutex       sync.Mutex
+	seq         uint64
+	pending     map[uint64]*Call
+	streams     map[uint64]*Call
+	bufferPool  *buffer.Pool
+	writeSched  scheduler.Scheduler
+	readSched   scheduler.Scheduler
+	writeStream scheduler.Scheduler
+	readStream  scheduler.Scheduler
+	closing     bool
+	shutdown    bool
 }
 
 // NewClientCodecFunc is the function to make a new ClientCodec by socket.Messages.
@@ -138,9 +140,11 @@ type NewClientCodecFunc func(messages socket.Messages) ClientCodec
 // concurrent reads or concurrent writes.
 func NewConn() *Conn {
 	return &Conn{
-		pending:    make(map[uint64]*Call),
-		streams:    make(map[uint64]*Call),
-		bufferPool: buffer.AssignPool(bufferSize),
+		pending:     make(map[uint64]*Call),
+		streams:     make(map[uint64]*Call),
+		bufferPool:  buffer.AssignPool(bufferSize),
+		writeStream: scheduler.New(1, &scheduler.Options{Threshold: 2}),
+		readStream:  scheduler.New(1, &scheduler.Options{Threshold: 2}),
 	}
 }
 
@@ -338,9 +342,14 @@ func (conn *Conn) read(ctx *Context, async bool) {
 				call.done()
 				putUpgrade(u)
 			} else if u.Stream == streaming {
-				call.Value = GetBuffer(len(ctx.value))
-				copy(call.Value, ctx.value)
-				call.streaming()
+				conn.readStream.Schedule(func() {
+					call.Value = GetBuffer(len(ctx.value))
+					copy(call.Value, ctx.value)
+					call.streaming()
+					conn.bufferPool.PutBuffer(ctx.buffer)
+					putContext(ctx)
+				})
+				return
 			} else if u.Stream == openStream {
 				call.done()
 			}
@@ -481,7 +490,10 @@ func (conn *Conn) CallWithContext(ctx context.Context, serviceMethod string, arg
 
 // NewStream creates a new Stream for the client side.
 func (conn *Conn) NewStream(serviceMethod string) (Stream, error) {
-	stream := &stream{unmarshal: conn.codec.ReadResponseBody}
+	stream := &stream{
+		unmarshal:   conn.codec.ReadResponseBody,
+		writeStream: conn.writeStream,
+	}
 	stream.cond.L = &stream.mut
 	upgrade := getUpgrade()
 	upgrade.NoRequest = noRequest
