@@ -155,7 +155,6 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 		sched = scheduler.New(1, &scheduler.Options{Threshold: 2})
 	}
 	readStream := scheduler.New(1, &scheduler.Options{Threshold: 2})
-	writeStream := scheduler.New(1, &scheduler.Options{Threshold: 2})
 	messages := codec.Messages()
 	var trans = transition.NewTransition(16, codec.Concurrency)
 	var streams = make(map[uint64]*Context)
@@ -172,9 +171,9 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 		}
 		ctx.data = data
 		trans.Smooth(func() {
-			server.ServeRequest(ctx, nil, wg, sched, readStream, writeStream, streams)
+			server.ServeRequest(ctx, nil, wg, sched, readStream, streams)
 		}, func() {
-			server.ServeRequest(ctx, nil, wg, sched, readStream, writeStream, streams)
+			server.ServeRequest(ctx, nil, wg, sched, readStream, streams)
 		})
 	}
 	wg.Wait()
@@ -200,7 +199,7 @@ func (server *Server) deleteCodec(codec ServerCodec) {
 
 // ServeRequest is like ServeCodec but synchronously serves a single request.
 // It does not close the codec upon completion.
-func (server *Server) ServeRequest(ctx *Context, recving *sync.Mutex, wg *sync.WaitGroup, sched scheduler.Scheduler, readStream scheduler.Scheduler, writeStream scheduler.Scheduler, streams map[uint64]*Context) error {
+func (server *Server) ServeRequest(ctx *Context, recving *sync.Mutex, wg *sync.WaitGroup, sched scheduler.Scheduler, readStream scheduler.Scheduler, streams map[uint64]*Context) error {
 	err := server.readRequestHeader(ctx)
 	if err != nil {
 		server.putUpgrade(ctx.upgrade)
@@ -231,7 +230,6 @@ func (server *Server) ServeRequest(ctx *Context, recving *sync.Mutex, wg *sync.W
 				server.ctxPool.Put(sendCtx)
 				return
 			},
-			writeStream: writeStream,
 		}
 		ctx.stream.cond.L = &ctx.stream.mut
 		var ok bool
@@ -446,17 +444,16 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 	server.listeners = append(server.listeners, lis)
 	server.mut.Unlock()
 	type ServerContext struct {
-		codec       ServerCodec
-		recving     *sync.Mutex
-		wg          *sync.WaitGroup
-		messages    socket.Messages
-		trans       *transition.Transition
-		sched       scheduler.Scheduler
-		readStream  scheduler.Scheduler
-		writeStream scheduler.Scheduler
-		streams     map[uint64]*Context
-		pipe        int32
-		closed      int32
+		codec      ServerCodec
+		recving    *sync.Mutex
+		wg         *sync.WaitGroup
+		messages   socket.Messages
+		trans      *transition.Transition
+		sched      scheduler.Scheduler
+		readStream scheduler.Scheduler
+		streams    map[uint64]*Context
+		pipe       int32
+		closed     int32
 	}
 	if server.poll {
 		return lis.ServeMessages(func(messages socket.Messages) (socket.Context, error) {
@@ -471,15 +468,14 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 			}
 			var streams = make(map[uint64]*Context)
 			return &ServerContext{
-				codec:       codec,
-				recving:     new(sync.Mutex),
-				wg:          new(sync.WaitGroup),
-				messages:    messages,
-				trans:       transition.NewTransition(16, codec.Concurrency),
-				sched:       sched,
-				readStream:  scheduler.New(1, &scheduler.Options{Threshold: 2}),
-				writeStream: scheduler.New(1, &scheduler.Options{Threshold: 2}),
-				streams:     streams,
+				codec:      codec,
+				recving:    new(sync.Mutex),
+				wg:         new(sync.WaitGroup),
+				messages:   messages,
+				trans:      transition.NewTransition(16, codec.Concurrency),
+				sched:      sched,
+				readStream: scheduler.New(1, &scheduler.Options{Threshold: 2}),
+				streams:    streams,
 			}, nil
 		}, func(context socket.Context) error {
 			svrctx := context.(*ServerContext)
@@ -494,9 +490,9 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 			if len(data) > 0 {
 				ctx.data = data
 				svrctx.trans.Smooth(func() {
-					server.ServeRequest(ctx, svrctx.recving, svrctx.wg, svrctx.sched, svrctx.readStream, svrctx.writeStream, svrctx.streams)
+					server.ServeRequest(ctx, svrctx.recving, svrctx.wg, svrctx.sched, svrctx.readStream, svrctx.streams)
 				}, func() {
-					server.ServeRequest(ctx, svrctx.recving, svrctx.wg, svrctx.sched, svrctx.readStream, svrctx.writeStream, svrctx.streams)
+					server.ServeRequest(ctx, svrctx.recving, svrctx.wg, svrctx.sched, svrctx.readStream, svrctx.streams)
 				})
 			}
 			svrctx.recving.Unlock()
