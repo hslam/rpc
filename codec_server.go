@@ -21,7 +21,7 @@ type serverCodec struct {
 }
 
 // NewServerCodec returns a new ServerCodec.
-func NewServerCodec(bodyCodec Codec, headerEncoder Encoder, messages socket.Messages, noBatch bool, writeBufSize int) ServerCodec {
+func NewServerCodec(bodyCodec Codec, headerEncoder Encoder, messages socket.Messages, directIO bool, writeBufSize int) ServerCodec {
 	if messages == nil {
 		return nil
 	}
@@ -42,7 +42,7 @@ func NewServerCodec(bodyCodec Codec, headerEncoder Encoder, messages socket.Mess
 		pool:          buffer.AssignPool(writeBufSize),
 	}
 	c.messages = messages
-	if !noBatch {
+	if !directIO {
 		if batch, ok := c.messages.(socket.Batch); ok {
 			batch.SetConcurrency(c.Concurrency)
 		}

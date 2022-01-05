@@ -57,6 +57,19 @@ func (c *clientCodec) SetBufferSize(size int) {
 	}
 }
 
+// SetDirectIO disables async io.
+func (c *clientCodec) SetDirectIO(directIO bool) {
+	if directIO {
+		if batch, ok := c.messages.(socket.Batch); ok {
+			batch.SetConcurrency(nil)
+		}
+	} else {
+		if batch, ok := c.messages.(socket.Batch); ok {
+			batch.SetConcurrency(c.Concurrency)
+		}
+	}
+}
+
 func (c *clientCodec) Messages() socket.Messages {
 	return c.messages
 }

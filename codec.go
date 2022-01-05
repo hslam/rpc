@@ -81,6 +81,11 @@ type BufferSize interface {
 	SetBufferSize(int)
 }
 
+// DirectIO sets the direct IO.
+type DirectIO interface {
+	SetDirectIO(bool)
+}
+
 // GetContextBuffer gets a buffer from the context.
 func GetContextBuffer(ctx context.Context) (buffer []byte) {
 	value := ctx.Value(BufferContextKey)

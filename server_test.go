@@ -134,12 +134,12 @@ func TestServerSetBufferSize(t *testing.T) {
 	wg.Wait()
 }
 
-func TestServerNoBatch(t *testing.T) {
+func TestServerDirectIO(t *testing.T) {
 	network := "tcp"
 	addr := ":9999"
 	codec := "json"
 	server := NewServer()
-	server.SetNoBatch(true)
+	server.SetDirectIO(true)
 	err := server.Register(new(service.Arith))
 	if err != nil {
 		t.Error(err)
@@ -155,6 +155,7 @@ func TestServerNoBatch(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	conn.SetDirectIO(true)
 	err = conn.Ping()
 	if err != nil {
 		t.Error(err)
@@ -223,7 +224,7 @@ func TestServerPollPipelining(t *testing.T) {
 	codec := "json"
 	SetPoll(true)
 	SetPipelining(true)
-	SetNoBatch(false)
+	SetDirectIO(false)
 	err := RegisterName("Arith", new(service.Arith))
 	if err != nil {
 		t.Error(err)
@@ -273,7 +274,7 @@ func TestServerPollPipelining(t *testing.T) {
 	wg.Wait()
 	SetPoll(false)
 	SetPipelining(false)
-	SetNoBatch(false)
+	SetDirectIO(false)
 }
 
 func TestServerPollPipeliningNoBatch(t *testing.T) {
@@ -281,7 +282,7 @@ func TestServerPollPipeliningNoBatch(t *testing.T) {
 	addr := ":9999"
 	codec := "json"
 	SetPoll(true)
-	SetNoBatch(true)
+	SetDirectIO(true)
 	SetPipelining(true)
 	err := RegisterName("Arith", new(service.Arith))
 	if err != nil {
@@ -332,7 +333,7 @@ func TestServerPollPipeliningNoBatch(t *testing.T) {
 	wg.Wait()
 	SetPoll(false)
 	SetPipelining(false)
-	SetNoBatch(false)
+	SetDirectIO(false)
 }
 
 type arithRequest struct {

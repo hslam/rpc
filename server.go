@@ -33,7 +33,7 @@ type Server struct {
 	bufferSize  int
 	bufferPool  *buffer.Pool
 	pipelining  bool
-	noBatch     bool
+	directIO    bool
 	poll        bool
 	shared      bool
 	noCopy      bool
@@ -128,9 +128,9 @@ func (server *Server) SetPipelining(enable bool) {
 	server.pipelining = enable
 }
 
-// SetNoBatch disables the Server to use batch writer.
-func (server *Server) SetNoBatch(noBatch bool) {
-	server.noBatch = noBatch
+// SetDirectIO disables the Server to use async io.
+func (server *Server) SetDirectIO(directIO bool) {
+	server.directIO = directIO
 }
 
 // SetPoll enables the Server to use netpoll based on epoll/kqueue.
@@ -170,11 +170,15 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 			break
 		}
 		ctx.data = data
-		trans.Smooth(func() {
-			server.ServeRequest(ctx, nil, wg, sched, readStream, streams)
-		}, func() {
-			server.ServeRequest(ctx, nil, wg, sched, readStream, streams)
-		})
+		if server.directIO {
+			server.ServeRequest(ctx, nil, wg, sched, nil, streams)
+		} else {
+			trans.Smooth(func() {
+				server.ServeRequest(ctx, nil, wg, sched, readStream, streams)
+			}, func() {
+				server.ServeRequest(ctx, nil, wg, sched, readStream, streams)
+			})
+		}
 	}
 	wg.Wait()
 	server.mutex.Lock()
@@ -249,10 +253,14 @@ func (server *Server) ServeRequest(ctx *Context, recving *sync.Mutex, wg *sync.W
 		if streamCtx, ok := streams[ctx.Seq]; ok {
 			ctx.ctx = streamCtx
 		}
-		wg.Add(1)
-		readStream.Schedule(func() {
-			server.handleRequest(wg, ctx)
-		})
+		if readStream != nil {
+			wg.Add(1)
+			readStream.Schedule(func() {
+				server.handleRequest(wg, ctx)
+			})
+		} else {
+			server.handleRequest(nil, ctx)
+		}
 		return nil
 	}
 	wg.Add(1)
@@ -495,11 +503,15 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 			data, err := svrctx.messages.ReadMessage(ctx.buffer)
 			if len(data) > 0 {
 				ctx.data = data
-				svrctx.trans.Smooth(func() {
-					server.ServeRequest(ctx, svrctx.recving, svrctx.wg, svrctx.sched, svrctx.readStream, svrctx.streams)
-				}, func() {
-					server.ServeRequest(ctx, svrctx.recving, svrctx.wg, svrctx.sched, svrctx.readStream, svrctx.streams)
-				})
+				if server.directIO {
+					server.ServeRequest(ctx, svrctx.recving, svrctx.wg, svrctx.sched, nil, svrctx.streams)
+				} else {
+					svrctx.trans.Smooth(func() {
+						server.ServeRequest(ctx, svrctx.recving, svrctx.wg, svrctx.sched, svrctx.readStream, svrctx.streams)
+					}, func() {
+						server.ServeRequest(ctx, svrctx.recving, svrctx.wg, svrctx.sched, svrctx.readStream, svrctx.streams)
+					})
+				}
 			}
 			svrctx.recving.Unlock()
 			if len(data) == 0 {
@@ -551,7 +563,7 @@ func (server *Server) Listen(network, address string, codec string) error {
 	if newSocket := NewSocket(network); newSocket != nil {
 		if newCodec := NewCodec(codec); newCodec != nil {
 			return server.listen(newSocket(nil), address, func(messages socket.Messages) ServerCodec {
-				return NewServerCodec(newCodec(), nil, messages, server.noBatch, server.bufferSize)
+				return NewServerCodec(newCodec(), nil, messages, server.directIO, server.bufferSize)
 			})
 		}
 		return errors.New("unsupported codec: " + codec)
@@ -564,7 +576,7 @@ func (server *Server) ListenTLS(network, address string, codec string, config *t
 	if newSocket := NewSocket(network); newSocket != nil {
 		if newCodec := NewCodec(codec); newCodec != nil {
 			return server.listen(newSocket(config), address, func(messages socket.Messages) ServerCodec {
-				return NewServerCodec(newCodec(), nil, messages, server.noBatch, server.bufferSize)
+				return NewServerCodec(newCodec(), nil, messages, server.directIO, server.bufferSize)
 			})
 		}
 		return errors.New("unsupported codec: " + codec)
@@ -599,7 +611,7 @@ func (server *Server) ListenWithOptions(address string, opts *Options) error {
 		} else if opts.NewHeaderEncoder != nil {
 			headerEncoder = opts.NewHeaderEncoder()
 		}
-		return NewServerCodec(bodyCodec, headerEncoder, messages, server.noBatch, server.bufferSize)
+		return NewServerCodec(bodyCodec, headerEncoder, messages, server.directIO, server.bufferSize)
 	})
 }
 
@@ -633,9 +645,9 @@ func SetPipelining(enable bool) {
 	DefaultServer.SetPipelining(enable)
 }
 
-// SetNoBatch disables the Server to use batch writer.
-func SetNoBatch(noBatch bool) {
-	DefaultServer.SetNoBatch(noBatch)
+// SetDirectIO disables the Server to use async io.
+func SetDirectIO(directIO bool) {
+	DefaultServer.SetDirectIO(directIO)
 }
 
 // SetPoll enables the Server to use netpoll based on epoll/kqueue.

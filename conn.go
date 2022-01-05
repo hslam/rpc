@@ -121,6 +121,7 @@ type Conn struct {
 	writeSched scheduler.Scheduler
 	readSched  scheduler.Scheduler
 	readStream scheduler.Scheduler
+	directIO   bool
 	closing    bool
 	shutdown   bool
 }
@@ -261,11 +262,15 @@ func (conn *Conn) recv() {
 		if err != nil {
 			break
 		}
-		trans.Smooth(func() {
+		if conn.directIO {
 			conn.read(ctx, false)
-		}, func() {
-			conn.read(ctx, true)
-		})
+		} else {
+			trans.Smooth(func() {
+				conn.read(ctx, false)
+			}, func() {
+				conn.read(ctx, true)
+			})
+		}
 	}
 	conn.mutex.Lock()
 	conn.shutdown = true
@@ -340,14 +345,20 @@ func (conn *Conn) read(ctx *Context, async bool) {
 				call.done()
 				putUpgrade(u)
 			} else if u.Stream == streaming {
-				conn.readStream.Schedule(func() {
+				if conn.directIO {
 					call.Value = GetBuffer(len(ctx.value))
 					copy(call.Value, ctx.value)
 					call.streaming()
-					conn.bufferPool.PutBuffer(ctx.buffer)
-					putContext(ctx)
-				})
-				return
+				} else {
+					conn.readStream.Schedule(func() {
+						call.Value = GetBuffer(len(ctx.value))
+						copy(call.Value, ctx.value)
+						call.streaming()
+						conn.bufferPool.PutBuffer(ctx.buffer)
+						putContext(ctx)
+					})
+					return
+				}
 			} else if u.Stream == openStream {
 				call.done()
 			}
@@ -394,6 +405,14 @@ func (conn *Conn) finishCall(ctx *Context, call *Call, seq uint64) {
 func (conn *Conn) SetPipelining(enable bool) {
 	conn.writeSched = scheduler.New(1, &scheduler.Options{Threshold: 2})
 	conn.readSched = scheduler.New(1, &scheduler.Options{Threshold: 2})
+}
+
+// SetDirectIO disables async io.
+func (conn *Conn) SetDirectIO(directIO bool) {
+	conn.directIO = directIO
+	if d, ok := conn.codec.(DirectIO); ok {
+		d.SetDirectIO(directIO)
+	}
 }
 
 // NumCalls returns the number of calls.
