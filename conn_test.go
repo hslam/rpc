@@ -320,6 +320,18 @@ func (a *arithMultiply) Multiply(req *codeservice.ArithRequest, res *service.Ari
 	return nil
 }
 
+func (a *arithMultiply) MultiplyReturnOut(req *codeservice.ArithRequest) (*codeservice.ArithResponse, error) {
+	var res codeservice.ArithResponse
+	res.Pro = req.A * req.B
+	return &res, nil
+}
+
+func (a *arithMultiply) MultiplyReturnOutWithContext(ctx context.Context, req *codeservice.ArithRequest) (*codeservice.ArithResponse, error) {
+	var res codeservice.ArithResponse
+	res.Pro = req.A * req.B
+	return &res, nil
+}
+
 func TestServerCodecWriteResponse(t *testing.T) {
 	network := "tcp"
 	addr := ":9999"
@@ -344,16 +356,51 @@ func TestServerCodecWriteResponse(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	A := int32(4)
-	B := int32(8)
-	call := new(Call)
-	call.ServiceMethod = "B.Multiply"
-	call.Args = &codeservice.ArithRequest{A: A, B: B}
-	call.Reply = nil
-	conn.RoundTrip(call)
-	<-call.Done
-	if call.Error == nil {
-		t.Error("The err should not be nil")
+	{
+		A := int32(4)
+		B := int32(8)
+		call := new(Call)
+		call.ServiceMethod = "B.Multiply"
+		call.Args = &codeservice.ArithRequest{A: A, B: B}
+		res := codeservice.ArithResponse{}
+		call.Reply = &res
+		conn.RoundTrip(call)
+		<-call.Done
+		if call.Error == nil {
+			t.Error("The err should not be nil")
+		}
+	}
+	{
+		A := int32(4)
+		B := int32(8)
+		call := new(Call)
+		call.ServiceMethod = "B.MultiplyReturnOut"
+		call.Args = &codeservice.ArithRequest{A: A, B: B}
+		res := codeservice.ArithResponse{}
+		call.Reply = &res
+		conn.RoundTrip(call)
+		<-call.Done
+		if call.Error != nil {
+			t.Error(call.Error.Error())
+		} else if res.Pro != A*B {
+			t.Errorf("%d * %d, pro is %d\n", A, B, call.Reply)
+		}
+	}
+	{
+		A := int32(4)
+		B := int32(8)
+		call := new(Call)
+		call.ServiceMethod = "B.MultiplyReturnOutWithContext"
+		call.Args = &codeservice.ArithRequest{A: A, B: B}
+		res := codeservice.ArithResponse{}
+		call.Reply = &res
+		conn.RoundTrip(call)
+		<-call.Done
+		if call.Error != nil {
+			t.Error(call.Error.Error())
+		} else if res.Pro != A*B {
+			t.Errorf("%d * %d, pro is %d\n", A, B, call.Reply)
+		}
 	}
 	conn.Close()
 	server.Close()

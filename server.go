@@ -346,7 +346,7 @@ func (server *Server) readRequestBody(ctx *Context) (err error) {
 				return
 			}
 		}
-		if ctx.upgrade.NoResponse != noResponse {
+		if ctx.upgrade.NoResponse != noResponse && !ctx.f.ReturnOut() {
 			ctx.reply = ctx.f.GetValueIn(1)
 			if ctx.reply == funcs.ZeroValue {
 				err = errors.New("can't find reply")
@@ -375,9 +375,15 @@ func (server *Server) callService(ctx *Context) {
 		} else {
 			c = context.Background()
 		}
-		err = ctx.f.ValueCall(funcs.ValueOf(c), ctx.args, ctx.reply)
+		if ctx.f.ReturnOut() {
+			ctx.reply, err = ctx.f.ValueCall(funcs.ValueOf(c), ctx.args)
+		} else {
+			_, err = ctx.f.ValueCall(funcs.ValueOf(c), ctx.args, ctx.reply)
+		}
+	} else if ctx.f.ReturnOut() {
+		ctx.reply, err = ctx.f.ValueCall(ctx.args)
 	} else {
-		err = ctx.f.ValueCall(ctx.args, ctx.reply)
+		_, err = ctx.f.ValueCall(ctx.args, ctx.reply)
 	}
 	if err != nil {
 		ctx.Error = err.Error()
