@@ -14,7 +14,6 @@ import (
 	"github.com/hslam/netpoll"
 	"github.com/hslam/scheduler"
 	"github.com/hslam/socket"
-	"github.com/hslam/transition"
 	"io"
 	"os"
 	"runtime"
@@ -156,7 +155,7 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 	}
 	readStream := scheduler.New(1, &scheduler.Options{Threshold: 2})
 	messages := codec.Messages()
-	var trans = transition.NewTransition(16, codec.Concurrency)
+	var pipeline = scheduler.New(1, &scheduler.Options{Threshold: 2})
 	var streams = make(map[uint64]*Context)
 	for {
 		ctx := server.ctxPool.Get().(*Context)
@@ -173,9 +172,7 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 		if server.directIO {
 			server.ServeRequest(ctx, nil, wg, sched, nil, streams)
 		} else {
-			trans.Smooth(func() {
-				server.ServeRequest(ctx, nil, wg, sched, readStream, streams)
-			}, func() {
+			pipeline.Schedule(func() {
 				server.ServeRequest(ctx, nil, wg, sched, readStream, streams)
 			})
 		}
@@ -188,12 +185,11 @@ func (server *Server) ServeCodec(codec ServerCodec) {
 	if sched != nil {
 		sched.Close()
 	}
-	if trans != nil {
-		trans.Close()
-	}
 	for _, ctx := range streams {
 		ctx.stream.Close()
 	}
+	readStream.Close()
+	pipeline.Close()
 }
 
 // deleteCodec closes the specified codec.
@@ -252,14 +248,14 @@ func (server *Server) ServeRequest(ctx *Context, recving *sync.Mutex, wg *sync.W
 	} else if ctx.upgrade.Stream == streaming {
 		if streamCtx, ok := streams[ctx.Seq]; ok {
 			ctx.ctx = streamCtx
-		}
-		if readStream != nil {
-			wg.Add(1)
-			readStream.Schedule(func() {
-				server.handleRequest(wg, ctx)
-			})
-		} else {
-			server.handleRequest(nil, ctx)
+			if readStream != nil {
+				wg.Add(1)
+				readStream.Schedule(func() {
+					server.handleRequest(wg, ctx)
+				})
+			} else {
+				server.handleRequest(nil, ctx)
+			}
 		}
 		return nil
 	}
@@ -318,13 +314,6 @@ func (server *Server) readRequestBody(ctx *Context) (err error) {
 			stream.Connect(ctx.stream)
 		}
 	} else if ctx.upgrade.Stream == streaming {
-		if streamCtx := ctx.ctx; streamCtx != nil {
-			value := GetBuffer(len(ctx.value))
-			copy(value, ctx.value)
-			e := getEvent()
-			e.Value = value
-			streamCtx.stream.trigger(e)
-		}
 	} else {
 		if ctx.upgrade.NoRequest != noRequest {
 			ctx.f = server.Funcs.GetFunc(ctx.ServiceMethod)
@@ -371,6 +360,13 @@ func (server *Server) callService(ctx *Context) {
 			ctx.f.ValueCall(ctx.args)
 		}()
 	} else if ctx.upgrade.Stream == streaming {
+		if streamCtx := ctx.ctx; streamCtx != nil {
+			value := GetBuffer(len(ctx.value))
+			copy(value, ctx.value)
+			e := getEvent()
+			e.Value = value
+			streamCtx.stream.trigger(e)
+		}
 		server.putUpgrade(ctx.upgrade)
 		if server.bufferPool != nil && cap(ctx.buffer) > 0 {
 			server.bufferPool.PutBuffer(ctx.buffer)
@@ -462,7 +458,7 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 		recving    *sync.Mutex
 		wg         *sync.WaitGroup
 		messages   socket.Messages
-		trans      *transition.Transition
+		pipeline   scheduler.Scheduler
 		sched      scheduler.Scheduler
 		readStream scheduler.Scheduler
 		streams    map[uint64]*Context
@@ -471,6 +467,9 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 	}
 	if server.poll {
 		return lis.ServeMessages(func(messages socket.Messages) (socket.Context, error) {
+			if set, ok := messages.(socket.BufferedInput); ok {
+				set.SetBufferedInput(server.bufferSize)
+			}
 			codec := New(messages)
 			server.mutex.Lock()
 			codecs[codec] = messages
@@ -481,12 +480,13 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 				sched = scheduler.New(1, &scheduler.Options{Threshold: 2})
 			}
 			var streams = make(map[uint64]*Context)
+			var pipeline = scheduler.New(1, &scheduler.Options{Threshold: 2})
 			return &ServerContext{
 				codec:      codec,
 				recving:    new(sync.Mutex),
 				wg:         new(sync.WaitGroup),
 				messages:   messages,
-				trans:      transition.NewTransition(16, codec.Concurrency),
+				pipeline:   pipeline,
 				sched:      sched,
 				readStream: scheduler.New(1, &scheduler.Options{Threshold: 2}),
 				streams:    streams,
@@ -506,9 +506,7 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 				if server.directIO {
 					server.ServeRequest(ctx, svrctx.recving, svrctx.wg, svrctx.sched, nil, svrctx.streams)
 				} else {
-					svrctx.trans.Smooth(func() {
-						server.ServeRequest(ctx, svrctx.recving, svrctx.wg, svrctx.sched, svrctx.readStream, svrctx.streams)
-					}, func() {
+					svrctx.pipeline.Schedule(func() {
 						server.ServeRequest(ctx, svrctx.recving, svrctx.wg, svrctx.sched, svrctx.readStream, svrctx.streams)
 					})
 				}
@@ -533,8 +531,11 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 					if svrctx.sched != nil {
 						svrctx.sched.Close()
 					}
-					if svrctx.trans != nil {
-						svrctx.trans.Close()
+					if svrctx.readStream != nil {
+						svrctx.readStream.Close()
+					}
+					if svrctx.pipeline != nil {
+						svrctx.pipeline.Close()
 					}
 				}
 			}
@@ -548,6 +549,9 @@ func (server *Server) listen(sock socket.Socket, address string, New NewServerCo
 		}
 		go func() {
 			messages := conn.Messages()
+			if set, ok := messages.(socket.BufferedInput); ok {
+				set.SetBufferedInput(server.bufferSize)
+			}
 			codec := New(messages)
 			server.mutex.Lock()
 			codecs[codec] = messages

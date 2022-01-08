@@ -16,7 +16,6 @@ type serverCodec struct {
 	bodyCodec     Codec
 	pool          *buffer.Pool
 	messages      socket.Messages
-	count         int64
 	closed        uint32
 }
 
@@ -43,8 +42,8 @@ func NewServerCodec(bodyCodec Codec, headerEncoder Encoder, messages socket.Mess
 	}
 	c.messages = messages
 	if !directIO {
-		if batch, ok := c.messages.(socket.Batch); ok {
-			batch.SetConcurrency(c.Concurrency)
+		if set, ok := c.messages.(socket.BufferedOutput); ok {
+			set.SetBufferedOutput(writeBufSize)
 		}
 	}
 	return c
@@ -52,10 +51,6 @@ func NewServerCodec(bodyCodec Codec, headerEncoder Encoder, messages socket.Mess
 
 func (c *serverCodec) Messages() socket.Messages {
 	return c.messages
-}
-
-func (c *serverCodec) Concurrency() int {
-	return int(atomic.LoadInt64(&c.count))
 }
 
 func (c *serverCodec) ReadRequestHeader(ctx *Context) error {
@@ -86,7 +81,6 @@ func (c *serverCodec) ReadRequestHeader(ctx *Context) error {
 			ctx.value = req.GetArgs()
 		}
 	}
-	atomic.AddInt64(&c.count, 1)
 	return err
 }
 
@@ -135,16 +129,13 @@ func (c *serverCodec) WriteResponse(ctx *Context, x interface{}) error {
 		n, err = res.MarshalTo(buf)
 		data = buf[:n]
 	}
-	defer func() {
-		if hasResponse {
-			c.pool.PutBuffer(replyBuffer)
-		}
-		c.pool.PutBuffer(responseBuffer)
-	}()
 	if err == nil {
 		err = c.messages.WriteMessage(data)
-		atomic.AddInt64(&c.count, -1)
 	}
+	if hasResponse {
+		c.pool.PutBuffer(replyBuffer)
+	}
+	c.pool.PutBuffer(responseBuffer)
 	return err
 
 }

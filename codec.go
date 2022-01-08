@@ -135,7 +135,6 @@ func (ctx *Context) Reset() {
 // argument to force the body of the request to be read and discarded.
 type ServerCodec interface {
 	Messages() socket.Messages
-	Concurrency() int
 	ReadRequestHeader(*Context) error
 	ReadRequestBody([]byte, interface{}) error
 	WriteResponse(*Context, interface{}) error
@@ -152,7 +151,6 @@ type ServerCodec interface {
 // discarded.
 type ClientCodec interface {
 	Messages() socket.Messages
-	Concurrency() int
 	WriteRequest(*Context, interface{}) error
 	ReadResponseHeader(*Context) error
 	ReadResponseBody([]byte, interface{}) error

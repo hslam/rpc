@@ -9,7 +9,6 @@ import (
 	"github.com/hslam/buffer"
 	"github.com/hslam/scheduler"
 	"github.com/hslam/socket"
-	"github.com/hslam/transition"
 	"io"
 	"runtime"
 	"sync"
@@ -172,13 +171,16 @@ func NewConnWithCodec(codec ClientCodec) *Conn {
 
 //SetBufferSize sets buffer size.
 func (conn *Conn) SetBufferSize(size int) {
-	if size > 0 {
-		conn.bufferPool = buffer.AssignPool(size)
-	} else {
-		conn.bufferPool = buffer.AssignPool(bufferSize)
+	if size < 1 {
+		size = bufferSize
 	}
+	conn.bufferPool = buffer.AssignPool(size)
 	if s, ok := conn.codec.(BufferSize); ok {
 		s.SetBufferSize(size)
+	}
+	messages := conn.codec.Messages()
+	if set, ok := messages.(socket.BufferedInput); ok {
+		set.SetBufferedInput(size)
 	}
 }
 
@@ -254,7 +256,7 @@ func (conn *Conn) send(call *Call) {
 func (conn *Conn) recv() {
 	var err error
 	var messages = conn.codec.Messages()
-	var trans = transition.NewTransition(16, conn.codec.Concurrency)
+	var pipeline = scheduler.New(1, &scheduler.Options{Threshold: 2})
 	for err == nil {
 		ctx := getContext()
 		ctx.buffer = conn.bufferPool.GetBuffer(0)
@@ -265,9 +267,7 @@ func (conn *Conn) recv() {
 		if conn.directIO {
 			conn.read(ctx, false)
 		} else {
-			trans.Smooth(func() {
-				conn.read(ctx, false)
-			}, func() {
+			pipeline.Schedule(func() {
 				conn.read(ctx, true)
 			})
 		}
@@ -290,9 +290,13 @@ func (conn *Conn) recv() {
 	if conn.readSched != nil {
 		conn.readSched.Close()
 	}
-	if trans != nil {
-		trans.Close()
+	if conn.writeSched != nil {
+		conn.writeSched.Close()
 	}
+	if conn.readStream != nil {
+		conn.readStream.Close()
+	}
+	pipeline.Close()
 }
 
 func (conn *Conn) read(ctx *Context, async bool) {
@@ -438,9 +442,6 @@ func (conn *Conn) Close() (err error) {
 	conn.closing = true
 	conn.mutex.Unlock()
 	err = conn.codec.Close()
-	if conn.writeSched != nil {
-		conn.writeSched.Close()
-	}
 	return
 }
 

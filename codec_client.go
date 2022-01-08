@@ -14,9 +14,9 @@ import (
 type clientCodec struct {
 	headerEncoder Encoder
 	bodyCodec     Codec
+	writeBufSize  int
 	bufferPool    *buffer.Pool
 	messages      socket.Messages
-	count         int64
 	closed        uint32
 }
 
@@ -39,43 +39,43 @@ func NewClientCodec(bodyCodec Codec, headerEncoder Encoder, messages socket.Mess
 	c := &clientCodec{
 		headerEncoder: headerEncoder,
 		bodyCodec:     bodyCodec,
+		writeBufSize:  writeBufSize,
 		bufferPool:    buffer.AssignPool(writeBufSize),
 	}
 	c.messages = messages
-	if batch, ok := c.messages.(socket.Batch); ok {
-		batch.SetConcurrency(c.Concurrency)
+	if set, ok := c.messages.(socket.BufferedOutput); ok {
+		set.SetBufferedOutput(writeBufSize)
 	}
 	return c
 }
 
 //SetBufferSize sets buffer size.
 func (c *clientCodec) SetBufferSize(size int) {
-	if size > 0 {
-		c.bufferPool = buffer.AssignPool(size)
-	} else {
-		c.bufferPool = buffer.AssignPool(bufferSize)
+	if size < 1 {
+		size = bufferSize
+	}
+	c.writeBufSize = size
+	c.bufferPool = buffer.AssignPool(size)
+	if set, ok := c.messages.(socket.BufferedOutput); ok {
+		set.SetBufferedOutput(size)
 	}
 }
 
 // SetDirectIO disables async io.
 func (c *clientCodec) SetDirectIO(directIO bool) {
 	if directIO {
-		if batch, ok := c.messages.(socket.Batch); ok {
-			batch.SetConcurrency(nil)
+		if set, ok := c.messages.(socket.BufferedOutput); ok {
+			set.SetBufferedOutput(c.writeBufSize)
 		}
 	} else {
-		if batch, ok := c.messages.(socket.Batch); ok {
-			batch.SetConcurrency(c.Concurrency)
+		if set, ok := c.messages.(socket.BufferedOutput); ok {
+			set.SetBufferedOutput(0)
 		}
 	}
 }
 
 func (c *clientCodec) Messages() socket.Messages {
 	return c.messages
-}
-
-func (c *clientCodec) Concurrency() int {
-	return int(atomic.LoadInt64(&c.count))
 }
 
 func (c *clientCodec) WriteRequest(ctx *Context, param interface{}) error {
@@ -114,16 +114,13 @@ func (c *clientCodec) WriteRequest(ctx *Context, param interface{}) error {
 		n, err = req.MarshalTo(buf)
 		data = buf[:n]
 	}
-	defer func() {
-		if ctx.upgrade.NoRequest != noRequest {
-			c.bufferPool.PutBuffer(argsBuffer)
-		}
-		c.bufferPool.PutBuffer(requestBuffer)
-	}()
 	if err == nil {
-		atomic.AddInt64(&c.count, 1)
 		err = c.messages.WriteMessage(data)
 	}
+	if ctx.upgrade.NoRequest != noRequest {
+		c.bufferPool.PutBuffer(argsBuffer)
+	}
+	c.bufferPool.PutBuffer(requestBuffer)
 	return err
 }
 
@@ -153,7 +150,6 @@ func (c *clientCodec) ReadResponseHeader(ctx *Context) error {
 			ctx.value = res.GetReply()
 		}
 	}
-	atomic.AddInt64(&c.count, -1)
 	return err
 }
 
