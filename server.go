@@ -230,6 +230,7 @@ func (server *Server) ServeRequest(ctx *Context, recving *sync.Mutex, wg *sync.W
 				server.ctxPool.Put(sendCtx)
 				return
 			},
+			noCopy: server.noCopy,
 		}
 		ctx.stream.cond.L = &ctx.stream.mut
 		var ok bool

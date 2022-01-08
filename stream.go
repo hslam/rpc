@@ -53,6 +53,7 @@ type stream struct {
 	cond      sync.Cond
 	seq       uint64
 	events    []*event
+	noCopy    bool
 	done      bool
 	closed    int32
 }
@@ -76,14 +77,19 @@ func (w *stream) ReadMessage(b []byte, m interface{}) (err error) {
 			e := w.events[0]
 			w.events = w.events[1:]
 			w.mut.Unlock()
-			if cap(b) > len(e.Value) {
-				b = b[:len(e.Value)]
+			if !w.noCopy {
+				if cap(b) > len(e.Value) {
+					b = b[:len(e.Value)]
+				} else {
+					b = make([]byte, len(e.Value))
+				}
+				copy(b, e.Value)
+				PutBuffer(e.Value)
+				w.unmarshal(b, m)
 			} else {
-				b = make([]byte, len(e.Value))
+				w.unmarshal(e.Value, m)
+				PutBuffer(e.Value)
 			}
-			copy(b, e.Value)
-			PutBuffer(e.Value)
-			w.unmarshal(b, m)
 			err = e.Error
 			freeEvent(e)
 			return

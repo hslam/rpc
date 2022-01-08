@@ -120,6 +120,7 @@ type Conn struct {
 	writeSched scheduler.Scheduler
 	readSched  scheduler.Scheduler
 	readStream scheduler.Scheduler
+	noCopy     bool
 	directIO   bool
 	closing    bool
 	shutdown   bool
@@ -182,6 +183,11 @@ func (conn *Conn) SetBufferSize(size int) {
 	if set, ok := messages.(socket.BufferedInput); ok {
 		set.SetBufferedInput(size)
 	}
+}
+
+// SetNoCopy reuses a buffer from the pool for minimizing memory allocations.
+func (conn *Conn) SetNoCopy(noCopy bool) {
+	conn.noCopy = noCopy
 }
 
 func (conn *Conn) write(call *Call) {
@@ -508,7 +514,7 @@ func (conn *Conn) CallWithContext(ctx context.Context, serviceMethod string, arg
 
 // NewStream creates a new Stream for the client side.
 func (conn *Conn) NewStream(serviceMethod string) (Stream, error) {
-	stream := &stream{unmarshal: conn.codec.ReadResponseBody}
+	stream := &stream{unmarshal: conn.codec.ReadResponseBody, noCopy: conn.noCopy}
 	stream.cond.L = &stream.mut
 	upgrade := getUpgrade()
 	upgrade.NoRequest = noRequest
