@@ -5,7 +5,6 @@ package rpc
 
 import (
 	"github.com/hslam/rpc/examples/codec/json/service"
-	"github.com/hslam/socket"
 	"sync"
 	"testing"
 	"time"
@@ -28,11 +27,11 @@ func TestDialTLS(t *testing.T) {
 	addr := ":8880"
 	network := ""
 	codec := ""
-	if _, err := DialTLS(network, addr, codec, socket.SkipVerifyTLSConfig()); err == nil {
+	if _, err := DialTLS(network, addr, codec, SkipVerifyTLSConfig()); err == nil {
 		t.Error("The err should not be nil")
 	}
 	network = "tcp"
-	if _, err := DialTLS(network, addr, codec, socket.SkipVerifyTLSConfig()); err == nil {
+	if _, err := DialTLS(network, addr, codec, SkipVerifyTLSConfig()); err == nil {
 		t.Error("The err should not be nil")
 	}
 }

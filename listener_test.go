@@ -5,7 +5,6 @@ package rpc
 
 import (
 	"github.com/hslam/rpc/examples/codec/json/service"
-	"github.com/hslam/socket"
 	"sync"
 	"testing"
 	"time"
@@ -73,10 +72,10 @@ func TestListenTLS(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		ListenTLS(network, addr, codec, socket.DefalutTLSConfig())
+		ListenTLS(network, addr, codec, DefalutTLSConfig())
 	}()
 	time.Sleep(time.Millisecond * 10)
-	conn, err := DialTLS(network, addr, codec, socket.SkipVerifyTLSConfig())
+	conn, err := DialTLS(network, addr, codec, SkipVerifyTLSConfig())
 	if err != nil {
 		t.Error(err)
 	}
@@ -155,11 +154,11 @@ func TestServerListenTLS(t *testing.T) {
 	addr := ":8880"
 	network := ""
 	codec := ""
-	if err := DefaultServer.ListenTLS(network, addr, codec, socket.SkipVerifyTLSConfig()); err == nil {
+	if err := DefaultServer.ListenTLS(network, addr, codec, SkipVerifyTLSConfig()); err == nil {
 		t.Error("The err should not be nil")
 	}
 	network = "tcp"
-	if err := DefaultServer.ListenTLS(network, addr, codec, socket.SkipVerifyTLSConfig()); err == nil {
+	if err := DefaultServer.ListenTLS(network, addr, codec, SkipVerifyTLSConfig()); err == nil {
 		t.Error("The err should not be nil")
 	}
 }

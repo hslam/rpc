@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/hslam/rpc"
 	"github.com/hslam/rpc/benchmarks/tls/service"
-	"github.com/hslam/socket"
 	"github.com/hslam/stats"
 	"log"
 	"math/rand"
@@ -38,7 +37,7 @@ func main() {
 	}
 	var wrkClients []stats.Client
 	for i := 0; i < clients; i++ {
-		if conn, err := rpc.DialTLS(network, addr, codec, socket.SkipVerifyTLSConfig()); err != nil {
+		if conn, err := rpc.DialTLS(network, addr, codec, rpc.SkipVerifyTLSConfig()); err != nil {
 			log.Fatalln("dailing error: ", err)
 		} else {
 			wrkClients = append(wrkClients, &WrkClient{conn})

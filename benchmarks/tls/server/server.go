@@ -4,7 +4,6 @@ import (
 	"flag"
 	"github.com/hslam/rpc"
 	"github.com/hslam/rpc/benchmarks/tls/service"
-	"github.com/hslam/socket"
 )
 
 var network string
@@ -20,5 +19,5 @@ func init() {
 
 func main() {
 	rpc.Register(new(service.Arith))
-	rpc.ListenTLS(network, addr, codec, socket.DefalutTLSConfig())
+	rpc.ListenTLS(network, addr, codec, rpc.DefalutTLSConfig())
 }

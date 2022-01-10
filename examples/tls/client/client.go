@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"github.com/hslam/rpc"
 	"github.com/hslam/rpc/examples/tls/service"
-	"github.com/hslam/socket"
 )
 
 func main() {
-	conn, err := rpc.DialTLS("tcp", ":9999", "pb", socket.SkipVerifyTLSConfig())
+	conn, err := rpc.DialTLS("tcp", ":9999", "pb", rpc.SkipVerifyTLSConfig())
 	if err != nil {
 		panic(err)
 	}
