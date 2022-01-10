@@ -72,10 +72,10 @@ func TestListenTLS(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		ListenTLS(network, addr, codec, DefalutTLSConfig())
+		ListenTLS(network, addr, codec, DefalutServerTLSConfig())
 	}()
 	time.Sleep(time.Millisecond * 10)
-	conn, err := DialTLS(network, addr, codec, SkipVerifyTLSConfig())
+	conn, err := DialTLS(network, addr, codec, DefalutClientTLSConfig())
 	if err != nil {
 		t.Error(err)
 	}

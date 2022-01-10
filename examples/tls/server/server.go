@@ -7,5 +7,5 @@ import (
 
 func main() {
 	rpc.Register(new(service.Arith))
-	rpc.ListenTLS("tcp", ":9999", "pb", rpc.DefalutTLSConfig())
+	rpc.ListenTLS("tcp", ":9999", "pb", rpc.DefalutServerTLSConfig())
 }

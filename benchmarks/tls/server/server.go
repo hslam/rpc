@@ -19,5 +19,5 @@ func init() {
 
 func main() {
 	rpc.Register(new(service.Arith))
-	rpc.ListenTLS(network, addr, codec, rpc.DefalutTLSConfig())
+	rpc.ListenTLS(network, addr, codec, rpc.DefalutServerTLSConfig())
 }

@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	conn, err := rpc.DialTLS("tcp", ":9999", "pb", rpc.SkipVerifyTLSConfig())
+	conn, err := rpc.DialTLS("tcp", ":9999", "pb", rpc.DefalutClientTLSConfig())
 	if err != nil {
 		panic(err)
 	}
