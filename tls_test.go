@@ -9,34 +9,41 @@ import (
 )
 
 func TestLoadTLSConfig(t *testing.T) {
-	var certFileName = "tmpTestCertFile"
-	var keyFileName = "tmpTestKeyFile"
+	var caCertFileName = "tmpTestCaCertFile"
+	var serverCertFileName = "tmpTestServerCertFile"
+	var serverKeyFileName = "tmpTestServerKeyFile"
+
 	var err error
 	_, err = LoadServerTLSConfig("", "")
 	if err == nil {
 		t.Error("should be no such file or directory")
 	}
+	certFile, _ := os.Create(serverCertFileName)
+	certFile.Write(DefaultServerCertPEM)
+	certFile.Close()
+	defer os.Remove(serverCertFileName)
+	_, err = LoadServerTLSConfig(serverCertFileName, "")
+	if err == nil {
+		t.Error("should be no such file or directory")
+	}
+	keyFile, _ := os.Create(serverKeyFileName)
+	keyFile.Write(DefaultServerKeyPEM)
+	keyFile.Close()
+	defer os.Remove(serverKeyFileName)
+	_, err = LoadServerTLSConfig(serverCertFileName, serverKeyFileName)
+	if err != nil {
+		t.Error(err)
+	}
+
 	_, err = LoadClientTLSConfig("", "")
 	if err == nil {
 		t.Error("should be no such file or directory")
 	}
-	certFile, _ := os.Create(certFileName)
-	certFile.Write(DefaultCertPEM)
-	certFile.Close()
-	defer os.Remove(certFileName)
-	_, err = LoadServerTLSConfig(certFileName, "")
-	if err == nil {
-		t.Error("should be no such file or directory")
-	}
-	_, err = LoadClientTLSConfig(certFileName, "")
-	if err != nil {
-		t.Error(err)
-	}
-	keyFile, _ := os.Create(keyFileName)
-	keyFile.Write(DefaultKeyPEM)
-	keyFile.Close()
-	defer os.Remove(keyFileName)
-	_, err = LoadServerTLSConfig(certFileName, keyFileName)
+	caCertFile, _ := os.Create(caCertFileName)
+	caCertFile.Write(DefaultRootCertPEM)
+	caCertFile.Close()
+	defer os.Remove(caCertFileName)
+	_, err = LoadClientTLSConfig(caCertFileName, "")
 	if err != nil {
 		t.Error(err)
 	}
@@ -48,7 +55,7 @@ func TestServerTLSConfig(t *testing.T) {
 			t.Error("should panic")
 		}
 	}()
-	ServerTLSConfig(DefaultCertPEM, []byte{})
+	ServerTLSConfig(DefaultServerCertPEM, []byte{})
 }
 
 func TestClientTLSConfig(t *testing.T) {

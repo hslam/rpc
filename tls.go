@@ -13,9 +13,9 @@ func LoadServerTLSConfig(certFile, keyFile string) (*tls.Config, error) {
 	return socket.LoadServerTLSConfig(certFile, keyFile)
 }
 
-// LoadClientTLSConfig returns a client TLS config by loading the certificate file.
-func LoadClientTLSConfig(certFile, serverName string) (*tls.Config, error) {
-	return socket.LoadClientTLSConfig(certFile, serverName)
+// LoadClientTLSConfig returns a client TLS config by loading the root certificate file.
+func LoadClientTLSConfig(rootCertFile, serverName string) (*tls.Config, error) {
+	return socket.LoadClientTLSConfig(rootCertFile, serverName)
 }
 
 // ServerTLSConfig returns a server TLS config by the certificate data and the key data.
@@ -23,9 +23,9 @@ func ServerTLSConfig(certPEM []byte, keyPEM []byte) *tls.Config {
 	return socket.ServerTLSConfig(certPEM, keyPEM)
 }
 
-// ClientTLSConfig returns a client TLS config by the certificate data.
-func ClientTLSConfig(certPEM []byte, serverName string) *tls.Config {
-	return socket.ClientTLSConfig(certPEM, serverName)
+// ClientTLSConfig returns a client TLS config by the root certificate data.
+func ClientTLSConfig(rootCertPEM []byte, serverName string) *tls.Config {
+	return socket.ClientTLSConfig(rootCertPEM, serverName)
 }
 
 // DefalutServerTLSConfig returns a default server TLS config.
@@ -48,8 +48,11 @@ func DefalutServerName(sub string) string {
 	return socket.DefalutServerName(sub)
 }
 
-// DefaultKeyPEM represents the default private key data.
-var DefaultKeyPEM = socket.DefaultKeyPEM
+// DefaultServerKeyPEM represents the default server private key data.
+var DefaultServerKeyPEM = socket.DefaultServerKeyPEM
 
-// DefaultCertPEM represents the default certificate data.
-var DefaultCertPEM = socket.DefaultCertPEM
+// DefaultServerCertPEM represents the default server certificate data.
+var DefaultServerCertPEM = socket.DefaultServerCertPEM
+
+// DefaultRootCertPEM represents the default root certificate data.
+var DefaultRootCertPEM = socket.DefaultRootCertPEM
