@@ -6,8 +6,8 @@ github.com/hslam/funcs v1.0.2-0.20220105101002-455c99d05c0a h1:WplvsbwDeli82n81Y
 github.com/hslam/funcs v1.0.2-0.20220105101002-455c99d05c0a/go.mod h1:KyY5JoFH01sc4UpHKeGCmGTRdNoCQta0OM6JZ5lWMwU=
 github.com/hslam/inproc v0.0.0-20210808071438-d2fc848886cb h1:ZotvpqsWEmJLYk0Doq1cbncoNar+21VYgabteGfwTcY=
 github.com/hslam/inproc v0.0.0-20210808071438-d2fc848886cb/go.mod h1:UDfJZX2mkqDQFBK4P8oSuiM+PC08eis5Vvr0tvdhC3I=
-github.com/hslam/log v1.0.2-0.20210609143505-fd0f374101ec h1:hH4UbQ/PhUDRWYFbSryFWov16j5Jqt6Vsbucy0CQNgw=
-github.com/hslam/log v1.0.2-0.20210609143505-fd0f374101ec/go.mod h1:dqeIT0IEmfN+v5/ptoz6yYHzjqt5kAjtqV7nUXVeXBg=
+github.com/hslam/log v1.0.2-0.20220120101627-c0e3498a2b66 h1:ThdBj9WyB4oJx95Y5Y+Uyjy3D5xIIzIdZgu/13YJZi0=
+github.com/hslam/log v1.0.2-0.20220120101627-c0e3498a2b66/go.mod h1:dqeIT0IEmfN+v5/ptoz6yYHzjqt5kAjtqV7nUXVeXBg=
 github.com/hslam/mmap v1.0.0 h1:GSp55lZrPDhctob3yE0SqESBjzgCn9cP4iu4Pmmm+gE=
 github.com/hslam/mmap v1.0.0/go.mod h1:mtuj54WoaupC65QteY9RubXVPkQT86Q/Xj0WPzRefFw=
 github.com/hslam/netpoll v0.0.4-0.20211030051742-b79942b30072 h1:6ytk9kPArw0UjUq1QieY+H4/2HjuAjbgpD/1EA3t4uo=

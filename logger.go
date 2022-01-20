@@ -3,30 +3,34 @@
 
 package rpc
 
+import (
+	"github.com/hslam/log"
+)
+
 // LogLevel defines the level for log.
 // Higher levels log less info.
-type LogLevel int
+type LogLevel log.Level
 
 const (
 	logPrefix = "rpc"
 	//DebugLogLevel defines the level of debug in test environments.
-	DebugLogLevel LogLevel = 1
+	DebugLogLevel = LogLevel(log.DebugLevel)
 	//TraceLogLevel defines the level of trace in test environments.
-	TraceLogLevel LogLevel = 2
+	TraceLogLevel = LogLevel(log.TraceLevel)
 	//AllLogLevel defines the lowest level in production environments.
-	AllLogLevel LogLevel = 3
+	AllLogLevel = LogLevel(log.AllLevel)
 	//InfoLogLevel defines the level of info.
-	InfoLogLevel LogLevel = 4
+	InfoLogLevel = LogLevel(log.InfoLevel)
 	//NoticeLogLevel defines the level of notice.
-	NoticeLogLevel LogLevel = 5
+	NoticeLogLevel = LogLevel(log.NoticeLevel)
 	//WarnLogLevel defines the level of warn.
-	WarnLogLevel LogLevel = 6
+	WarnLogLevel = LogLevel(log.WarnLevel)
 	//ErrorLogLevel defines the level of error.
-	ErrorLogLevel LogLevel = 7
+	ErrorLogLevel = LogLevel(log.ErrorLevel)
 	//PanicLogLevel defines the level of panic.
-	PanicLogLevel LogLevel = 8
+	PanicLogLevel = LogLevel(log.PanicLevel)
 	//FatalLogLevel defines the level of fatal.
-	FatalLogLevel LogLevel = 9
+	FatalLogLevel = LogLevel(log.FatalLevel)
 	//OffLogLevel defines the level of no log.
-	OffLogLevel LogLevel = 10
+	OffLogLevel = LogLevel(log.OffLevel)
 )
