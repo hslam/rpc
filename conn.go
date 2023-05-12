@@ -170,7 +170,7 @@ func NewConnWithCodec(codec ClientCodec) *Conn {
 	return c
 }
 
-//SetBufferSize sets buffer size.
+// SetBufferSize sets buffer size.
 func (conn *Conn) SetBufferSize(size int) {
 	if size < 1 {
 		size = bufferSize
@@ -314,7 +314,7 @@ func (conn *Conn) read(ctx *Context, async bool) {
 	seq := ctx.Seq
 	conn.mutex.Lock()
 	call := conn.pending[seq]
-	if call != nil && call.upgrade.Stream != openStream && call.upgrade.Stream != streaming {
+	if call != nil && call.upgrade != nil && call.upgrade.Stream != openStream && call.upgrade.Stream != streaming {
 		delete(conn.pending, seq)
 	}
 	conn.mutex.Unlock()
