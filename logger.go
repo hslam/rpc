@@ -13,12 +13,12 @@ type LogLevel log.Level
 
 const (
 	logPrefix = "rpc"
-	//DebugLogLevel defines the level of debug in test environments.
-	DebugLogLevel = LogLevel(log.DebugLevel)
+	//AllLogLevel defines the lowest level.
+	AllLogLevel = LogLevel(log.AllLevel)
 	//TraceLogLevel defines the level of trace in test environments.
 	TraceLogLevel = LogLevel(log.TraceLevel)
-	//AllLogLevel defines the lowest level in production environments.
-	AllLogLevel = LogLevel(log.AllLevel)
+	//DebugLogLevel defines the level of debug.
+	DebugLogLevel = LogLevel(log.DebugLevel)
 	//InfoLogLevel defines the level of info.
 	InfoLogLevel = LogLevel(log.InfoLevel)
 	//NoticeLogLevel defines the level of notice.
