@@ -313,8 +313,12 @@ func (conn *Conn) read(ctx *Context, async bool) {
 	}
 	seq := ctx.Seq
 	conn.mutex.Lock()
+	if conn.shutdown {
+		conn.mutex.Unlock()
+		return
+	}
 	call := conn.pending[seq]
-	if call != nil && call.upgrade != nil && call.upgrade.Stream != openStream && call.upgrade.Stream != streaming {
+	if call != nil && call.upgrade.Stream != openStream && call.upgrade.Stream != streaming {
 		delete(conn.pending, seq)
 	}
 	conn.mutex.Unlock()
