@@ -1,3 +1,5 @@
+github.com/hslam/atomic v1.0.0 h1:SsmCXMmqCZSG2bgM88T+8jPxS92I9UBzIk9mjHA/f54=
+github.com/hslam/atomic v1.0.0/go.mod h1:yjfeGE7YdIqlKoUGWXWvG8E7SK1YCxQ0uyjCpfK/SLg=
 github.com/hslam/buffer v0.0.0-20230217202846-e7b1b6ebf283 h1:HurKqAs9w/HX/Y+s/Ylt+64akEtYo1Kh2677c5v8628=
 github.com/hslam/buffer v0.0.0-20230217202846-e7b1b6ebf283/go.mod h1:Gvbj40hnzR54zoUOuDZqDi7aziar8UlkHXk6NVYLg2U=
 github.com/hslam/code v1.0.2-0.20210610150014-db5f483caa02 h1:kFxF3z/LPJO6fWDgtEQzBhuX9R5jbCF2AsgO3+woLRo=
@@ -6,8 +8,8 @@ github.com/hslam/funcs v1.0.2-0.20220105101002-455c99d05c0a h1:WplvsbwDeli82n81Y
 github.com/hslam/funcs v1.0.2-0.20220105101002-455c99d05c0a/go.mod h1:KyY5JoFH01sc4UpHKeGCmGTRdNoCQta0OM6JZ5lWMwU=
 github.com/hslam/inproc v0.0.0-20210912032833-46957e53529f h1:DqKW18/u99Qin79RDhjRPmqkw9ZvQjOl5tmUiJhBDlo=
 github.com/hslam/inproc v0.0.0-20210912032833-46957e53529f/go.mod h1:UDfJZX2mkqDQFBK4P8oSuiM+PC08eis5Vvr0tvdhC3I=
-github.com/hslam/log v1.0.4 h1:VdzQaFg3xHQy+2m0uVJW+n925+DSfGj1j6riVWVylmY=
-github.com/hslam/log v1.0.4/go.mod h1:dqeIT0IEmfN+v5/ptoz6yYHzjqt5kAjtqV7nUXVeXBg=
+github.com/hslam/log v1.0.5 h1:J9gUPAVLwOsXVq6wco/38ywT9itApcwkyI1rZHgPgFg=
+github.com/hslam/log v1.0.5/go.mod h1:1FEZfhaEuM/0Z2Y2TRsOTWMWrTsqf8JfHuhNnpvzVL4=
 github.com/hslam/mmap v1.0.0 h1:GSp55lZrPDhctob3yE0SqESBjzgCn9cP4iu4Pmmm+gE=
 github.com/hslam/mmap v1.0.0/go.mod h1:mtuj54WoaupC65QteY9RubXVPkQT86Q/Xj0WPzRefFw=
 github.com/hslam/netpoll v0.0.4-0.20230514092318-c286d2b379aa h1:NjaHxdBhG+brXJ32+5FuERp5wrlsNKh/DsuQHY13dBU=
@@ -18,13 +20,13 @@ github.com/hslam/scheduler v0.0.0-20211028175315-641598104976 h1:7xDxY7ffYQjS+eM
 github.com/hslam/scheduler v0.0.0-20211028175315-641598104976/go.mod h1:5Lu1StnE7hhW2QwdImTNFLdzIUhAUjO7SlLco+H5h9A=
 github.com/hslam/sendfile v1.0.1 h1:0OLb5VRwjdN3q9hkslfk5nPQIrH5UmGTjSuJtV4Zq+8=
 github.com/hslam/sendfile v1.0.1/go.mod h1:IVInXNh7ccvv6fdFkcC3gRGCH7E+fRsTlyBnftCAk5A=
-github.com/hslam/socket v0.0.4-0.20230514093322-630f0a8c3413 h1:TNFwrXOEhUCQicaV6wPYO0bUyy837gOb4qHsTKJk9Bo=
-github.com/hslam/socket v0.0.4-0.20230514093322-630f0a8c3413/go.mod h1:Ck/ZzJ3eCLuNTFtTrxvmXz3nt/Q4adSTX+02M0BQ9ZI=
+github.com/hslam/socket v0.0.4-0.20230515160243-41e526f3720d h1:GRRlN9HqUjeWdnq3y9wXL5qCaSzR/ONGzV8BTV52QEE=
+github.com/hslam/socket v0.0.4-0.20230515160243-41e526f3720d/go.mod h1:8GEgQ4ZMbQTUaF6wgdNU5UWKukpD2bFEMdXnvU0ndXs=
 github.com/hslam/splice v1.0.3 h1:CwSmzu6AAm8sb2wYgSGvTwixy3seqA6xJ9NXQ0ff3j4=
 github.com/hslam/splice v1.0.3/go.mod h1:7D1QlFptoG0ruXzcAwpzckKxUN4+ZpvrIhwfbcAQcx8=
 github.com/hslam/stats v1.0.2-0.20230219130312-c44cb45af00e h1:mE2CuyV5KxM8m5y5/5nj1gw32ujZLIP/17Z9MudcK1E=
 github.com/hslam/stats v1.0.2-0.20230219130312-c44cb45af00e/go.mod h1:Mk3c/vBiti7zxQFsvQVpg4BVL35bHxbgJooX+qEKyuQ=
-github.com/hslam/websocket v0.1.1-0.20230219165601-dea25cc01701 h1:vUusKwKXZJIETwQBcy3yhlzJ0AOvkVZf8RiGu5lE2QU=
-github.com/hslam/websocket v0.1.1-0.20230219165601-dea25cc01701/go.mod h1:NL8wiX7yZrpig2K+SJ3AjC1n4+vIv7MQKoTyd/z5lD8=
-github.com/hslam/writer v1.0.1-0.20230219134043-3ef1105e8b6a h1:2gSI8BiGZG2wHFXk6no7Udjvqb/hGP4C+XMKryHCqOk=
-github.com/hslam/writer v1.0.1-0.20230219134043-3ef1105e8b6a/go.mod h1:w/e7kYkOHzzAvugoiMEtlL15d0sxpQnPNRYFnkl5UrQ=
+github.com/hslam/websocket v0.1.1-0.20230515155916-9217b6624fb6 h1:B6cn2y6/AWFRQVtf05jqIjbiFUcoEwa/EgsayGPQMrQ=
+github.com/hslam/websocket v0.1.1-0.20230515155916-9217b6624fb6/go.mod h1:vBxuTI1x0F975GKlL8mizh0VY2YY7vNkSadGkdm54xo=
+github.com/hslam/writer v1.0.1-0.20230515155550-db89e9b3a2c6 h1:syFzfbyvULHQwROZj2bPNwUxzYQOrZkUR4+ZSrehnSw=
+github.com/hslam/writer v1.0.1-0.20230515155550-db89e9b3a2c6/go.mod h1:XW8S3sn319cqKQ+TvpMPmLvbtoqNAYbeAh+IivvF9Ts=
